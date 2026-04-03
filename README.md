@@ -1,6 +1,6 @@
 # common-skills
 
-`common-skills` is a shared skill library for Codex and Claude Code. It currently focuses on deep codebase analysis workflows.
+`common-skills` is a shared skill library for Codex, Claude Code, and Gemini CLI. It currently focuses on deep codebase analysis workflows.
 
 ## Included skills
 
@@ -41,6 +41,16 @@ Fetch and follow instructions from https://raw.githubusercontent.com/Creatorrrr/
 
 Manual install guide: [`.claude/INSTALL.md`](.claude/INSTALL.md)
 
+### Gemini CLI
+
+Install the extension with:
+
+```bash
+gemini extensions install https://github.com/Creatorrrr/common-skills
+```
+
+Manual install guide: [`.gemini/INSTALL.md`](.gemini/INSTALL.md)
+
 ## Updating
 
 Pull the repository again from the install location you chose:
@@ -53,6 +63,12 @@ or:
 
 ```bash
 git -C ~/.claude/common-skills pull
+```
+
+For Gemini CLI:
+
+```bash
+gemini extensions update common-skills
 ```
 
 ## License
