@@ -1,6 +1,6 @@
 # common-skills
 
-`common-skills` is a shared skill library for Codex, Claude Code, and Gemini CLI. It currently focuses on deep codebase analysis workflows.
+`common-skills` is a shared skill library for Codex, Claude Code, Gemini CLI, and Antigravity. It currently focuses on deep codebase analysis workflows.
 
 ## Included skills
 
@@ -51,6 +51,16 @@ gemini extensions install https://github.com/Creatorrrr/common-skills
 
 Manual install guide: [`.gemini/INSTALL.md`](.gemini/INSTALL.md)
 
+### Antigravity
+
+Tell Antigravity:
+
+```text
+Fetch and follow instructions from https://raw.githubusercontent.com/Creatorrrr/common-skills/main/.antigravity/INSTALL.md
+```
+
+Manual install guide: [`.antigravity/INSTALL.md`](.antigravity/INSTALL.md)
+
 ## Updating
 
 Pull the repository again from the install location you chose:
@@ -69,6 +79,12 @@ For Gemini CLI:
 
 ```bash
 gemini extensions update common-skills
+```
+
+For Antigravity:
+
+```bash
+git -C ~/.gemini/antigravity/common-skills pull
 ```
 
 ## License
