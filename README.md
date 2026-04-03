@@ -63,13 +63,13 @@ Manual install guide: [`.antigravity/INSTALL.md`](.antigravity/INSTALL.md)
 
 ## Updating
 
-Pull the repository again from the install location you chose:
+For Codex:
 
 ```bash
 git -C ~/.codex/common-skills pull
 ```
 
-or:
+For Claude Code:
 
 ```bash
 git -C ~/.claude/common-skills pull
