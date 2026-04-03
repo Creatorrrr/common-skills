@@ -89,6 +89,8 @@ python scripts/prepare_analysis_context.py --root . --goal "<user goal>" --mode 
 
 That script writes artifacts under `.codex-analysis/context/` by default.
 
+The layout now keeps a single clean active run under `.codex-analysis/` and archives the previous active run under `.codex-analysis/history/<run_id>/` whenever a new prepare run starts.
+
 ### File inclusion defaults
 
 Include these by default if they are text and not Git-ignored:
@@ -221,7 +223,7 @@ python scripts/run_claude_code_agent_team_analysis.py \
 
 ### What the helper generates
 
-Under `.codex-analysis/claude-code/` by default, generate:
+Under `.codex-analysis/claude-code/` by default, generate for the active run. If the manifest points at `.codex-analysis/history/<run_id>/context/manifest.json`, write the Claude artifacts beside that archived run instead:
 
 - `claude-agents.json`
 - `claude-system-prompt.md`
@@ -467,6 +469,18 @@ python scripts/run_claude_code_agent_team_analysis.py \
   --preflight-probe off \
   --resume-last
 ```
+
+### Follow-up on an archived older run
+
+```bash
+python scripts/run_claude_code_agent_team_analysis.py \
+  --manifest .codex-analysis/history/<run_id>/context/manifest.json \
+  --goal "Continue the older analysis run from its archived manifest" \
+  --preflight-probe off \
+  --resume-last
+```
+
+This resolves `--resume-last` against the matching archived run metadata when the active run no longer has the same `run_id`.
 
 ### Dry run to inspect prompts and team roles without launching Claude
 

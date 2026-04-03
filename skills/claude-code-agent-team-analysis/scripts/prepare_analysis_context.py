@@ -16,6 +16,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Sequence
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from analysis_run import prepare_run_layout
+
 DEFAULT_CONFIG = {
     "direct_token_threshold": 180000,
     "long_context_threshold": 272000,
@@ -547,6 +553,7 @@ def main() -> int:
 
     start_root = Path(args.root).resolve()
     out_dir = Path(args.out_dir).resolve()
+    run_layout = prepare_run_layout(out_dir)
     cfg = load_config(Path(args.config).resolve() if args.config else None)
     if args.skip_archives:
         cfg["skip_archives"] = True
@@ -731,6 +738,11 @@ def main() -> int:
         "repo_root": str(repo_root),
         "goal": goal,
         "scope": scopes,
+        "run_id": run_layout.run_id,
+        "analysis_root": str(run_layout.analysis_root),
+        "history_root": str(run_layout.history_root),
+        "layout_version": run_layout.layout_version,
+        "archived_previous_run_id": run_layout.archived_previous_run_id,
         "keywords": sorted(g_keywords),
         "preparation_mode": args.mode,
         "mode_recommendation": mode_recommendation,

@@ -14,6 +14,12 @@ from pathlib import Path
 from time import monotonic, sleep
 from typing import Any
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from analysis_run import find_matching_run_meta_path, resolve_tool_output_dir
+
 DEFAULTS = {
     "model": "opus",
     "worker_model": "sonnet",
@@ -935,10 +941,19 @@ def run_followup_report(
     }
 
 
-def load_last_session_id(out_dir: Path) -> str:
-    run_meta_path = out_dir / "run_meta.json"
-    if not run_meta_path.exists():
-        raise SystemExit(f"No prior run metadata found at {run_meta_path}. Cannot use --resume-last.")
+def load_last_session_id(manifest_path: Path, manifest: dict[str, Any], out_dir: Path) -> str:
+    run_meta_path = find_matching_run_meta_path(
+        manifest_path=manifest_path,
+        manifest=manifest,
+        active_out_dir=out_dir,
+        tool_name="claude-code",
+    )
+    if run_meta_path is None:
+        raise SystemExit(
+            "No prior Claude Code run metadata matched the manifest run_id. "
+            f"Checked active out-dir {out_dir / 'run_meta.json'}"
+            " and the matching archived run, if any. Cannot use --resume-last."
+        )
     meta = load_json(run_meta_path)
     session_id = meta.get("session_id")
     if not isinstance(session_id, str) or not session_id.strip():
@@ -1068,11 +1083,18 @@ def main() -> int:
     manifest = load_json(manifest_path)
     goal = args.goal.strip() or str(manifest.get("goal") or "").strip()
     repo_root = Path(str(manifest.get("repo_root") or ".")).resolve()
-    out_dir = Path(args.out_dir).resolve()
+    requested_out_dir = Path(args.out_dir).resolve()
+    out_dir = resolve_tool_output_dir(
+        manifest_path=manifest_path,
+        manifest=manifest,
+        tool_name="claude-code",
+        requested_out_dir=requested_out_dir,
+        default_out_dir=Path(DEFAULTS["out_dir"]),
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if args.resume_last:
-        args.resume = load_last_session_id(out_dir)
+        args.resume = load_last_session_id(manifest_path, manifest, out_dir)
 
     if args.dry_run:
         claude_bin = shutil.which("claude") or "claude"
@@ -1140,6 +1162,7 @@ def main() -> int:
     request_meta = {
         "transport": "claude_code_cli_local",
         "manifest": str(manifest_path),
+        "run_id": manifest.get("run_id"),
         "repo_root": str(repo_root),
         "goal": goal,
         "requested_mode": selected_mode.requested,
@@ -1186,6 +1209,7 @@ def main() -> int:
         "status": "preparing",
         "failure_kind": None,
         "failure_message": None,
+        "run_id": manifest.get("run_id"),
         "session_id": None,
         "reported_reset_time": None,
         "stdout_path": None,

@@ -10,6 +10,12 @@ from pathlib import Path
 from time import monotonic, sleep
 from typing import Any
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from analysis_run import resolve_tool_output_dir
+
 
 def require_openai() -> Any:
     try:
@@ -392,7 +398,14 @@ def main() -> int:
     manifest_path = Path(args.manifest).resolve()
     manifest = load_json(manifest_path)
     repo_root = Path(manifest["repo_root"]).resolve()
-    out_dir = Path(args.out_dir).resolve()
+    requested_out_dir = Path(args.out_dir).resolve()
+    out_dir = resolve_tool_output_dir(
+        manifest_path=manifest_path,
+        manifest=manifest,
+        tool_name="gpt54pro",
+        requested_out_dir=requested_out_dir,
+        default_out_dir=Path(".codex-analysis/gpt54pro"),
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
 
     goal = args.goal.strip() or manifest.get("goal", "")
@@ -543,6 +556,7 @@ def main() -> int:
 
     run_meta = {
         "transport": "responses_api",
+        "run_id": manifest.get("run_id"),
         "model": args.model,
         "mode": mode,
         "response_id": getattr(response, "id", None),

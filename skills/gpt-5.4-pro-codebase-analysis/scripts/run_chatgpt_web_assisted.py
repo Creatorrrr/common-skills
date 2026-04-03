@@ -11,6 +11,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from analysis_run import resolve_tool_output_dir
+
 
 DEFAULTS = {
     "chatgpt_max_file_bytes": 512 * 1024 * 1024,
@@ -338,7 +344,14 @@ def main() -> int:
     manifest_path = Path(args.manifest).resolve()
     manifest = load_json(manifest_path)
     root = Path(manifest["repo_root"]).resolve()
-    out_dir = Path(args.out_dir).resolve()
+    requested_out_dir = Path(args.out_dir).resolve()
+    out_dir = resolve_tool_output_dir(
+        manifest_path=manifest_path,
+        manifest=manifest,
+        tool_name="chatgpt-web",
+        requested_out_dir=requested_out_dir,
+        default_out_dir=Path(DEFAULTS["out_dir"]),
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
     handoff_dir = out_dir / "handoff"
     handoff_dir.mkdir(parents=True, exist_ok=True)
@@ -375,6 +388,7 @@ def main() -> int:
         "transport": "chatgpt_web_assisted",
         "execution": "manual_only",
         "manifest": str(manifest_path),
+        "run_id": manifest.get("run_id"),
         "selection_mode": args.selection_mode,
         "selection_label": selection.label,
         "selection_key": selection.key,

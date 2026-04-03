@@ -96,6 +96,8 @@ python scripts/prepare_analysis_context.py --root . --goal "<user goal>" --mode 
 
 That script writes artifacts under `.codex-analysis/context/` by default.
 
+The layout now keeps a single clean active run under `.codex-analysis/` and archives the previous active run under `.codex-analysis/history/<run_id>/` whenever a new prepare run starts.
+
 ### 2) File inclusion defaults
 
 Include these by default if they are text and not Git-ignored:
@@ -266,7 +268,7 @@ python scripts/run_chatgpt_web_assisted.py \
 
 ### What the helper generates
 
-Under `.codex-analysis/chatgpt-web/` by default, generate:
+Under `.codex-analysis/chatgpt-web/` by default, generate for the active run. If the manifest points at `.codex-analysis/history/<run_id>/context/manifest.json`, write the handoff artifacts beside that archived run instead:
 
 - `handoff/upload-source.zip`
 - `handoff/chatgpt-prompt.txt`
@@ -500,6 +502,17 @@ python scripts/run_chatgpt_web_assisted.py \
 ```
 
 Then hand the generated files to the user instead of trying to operate ChatGPT Web.
+
+### Archived follow-up on an older prepared run
+
+```bash
+python scripts/run_chatgpt_web_assisted.py \
+  --manifest .codex-analysis/history/<run_id>/context/manifest.json \
+  --goal "Continue the older analysis run using its archived context" \
+  --selection-mode auto
+```
+
+This writes the handoff package under `.codex-analysis/history/<run_id>/chatgpt-web/` instead of touching the current active run.
 
 ## Notes for Codex
 
