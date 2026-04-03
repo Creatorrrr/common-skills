@@ -26,7 +26,7 @@ This skill is useful when you want a local multi-agent second opinion on archite
 Tell Codex:
 
 ```text
-Fetch and follow instructions from https://github.com/Creatorrrr/common-skills/refs/heads/main/.codex/INSTALL.md
+Fetch and follow instructions from https://raw.githubusercontent.com/Creatorrrr/common-skills/main/.codex/INSTALL.md
 ```
 
 Manual install guide: [`.codex/INSTALL.md`](.codex/INSTALL.md)
@@ -36,7 +36,7 @@ Manual install guide: [`.codex/INSTALL.md`](.codex/INSTALL.md)
 Tell Claude:
 
 ```text
-Fetch and follow instructions from https://github.com/Creatorrrr/common-skills/refs/heads/main/.claude/INSTALL.md
+Fetch and follow instructions from https://raw.githubusercontent.com/Creatorrrr/common-skills/main/.claude/INSTALL.md
 ```
 
 Manual install guide: [`.claude/INSTALL.md`](.claude/INSTALL.md)
