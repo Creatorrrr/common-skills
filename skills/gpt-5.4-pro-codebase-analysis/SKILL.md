@@ -20,6 +20,18 @@ This skill prepares repository context, chooses between a direct API run and a f
 9. Distinguish confirmed findings from inference or uncertainty.
 10. If external upload could be sensitive, surface a brief privacy note before proceeding.
 
+## Script location resolution
+
+When this skill tells you to run a bundled helper like `scripts/prepare_analysis_context.py` or `scripts/run_gpt54pro_analysis.py`, do not assume that `scripts/` exists in the active project.
+
+Resolve helper paths in this order:
+
+1. Start from the directory that contains this `SKILL.md`. Treat `scripts/...` as relative to the skill directory first.
+2. If the active workspace does not contain the skill files, check the tool's global skill install area or linked checkout, for example `~/.codex/common-skills/skills/gpt-5.4-pro-codebase-analysis/`, `~/.claude/common-skills/skills/gpt-5.4-pro-codebase-analysis/`, or another global install location that points at this skill.
+3. Only treat `scripts/...` as project-local when the user has intentionally vendored this skill into the repository.
+
+When executing a helper, prefer an explicit path derived from the resolved skill directory instead of assuming the current shell is already inside that directory.
+
 ## Mandatory mode confirmation
 
 Before any external run, ask the user to choose exactly one execution mode:

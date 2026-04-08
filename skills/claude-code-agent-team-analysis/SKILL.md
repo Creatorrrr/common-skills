@@ -21,6 +21,18 @@ It is designed for large or messy repositories where a single in-session pass is
 8. Use the preparation step to reduce context sprawl even though the repository remains local.
 9. For analysis-only runs, keep the team read-only and prevent edits, writes, commits, or destructive shell commands.
 
+## Script location resolution
+
+When this skill tells you to run a bundled helper like `scripts/prepare_analysis_context.py` or `scripts/run_claude_code_agent_team_analysis.py`, do not assume that `scripts/` exists in the active project.
+
+Resolve helper paths in this order:
+
+1. Start from the directory that contains this `SKILL.md`. Treat `scripts/...` as relative to the skill directory first.
+2. If the active workspace does not contain the skill files, check the tool's global skill install area or linked checkout, for example `~/.codex/common-skills/skills/claude-code-agent-team-analysis/`, `~/.claude/common-skills/skills/claude-code-agent-team-analysis/`, or another global install location that points at this skill.
+3. Only treat `scripts/...` as project-local when the user has intentionally vendored this skill into the repository.
+
+When executing a helper, prefer an explicit path derived from the resolved skill directory instead of assuming the current shell is already inside that directory.
+
 ## Execution model
 
 This skill intentionally supports only:
