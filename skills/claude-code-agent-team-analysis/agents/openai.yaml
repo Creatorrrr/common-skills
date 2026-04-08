@@ -1,0 +1,7 @@
+interface:
+  display_name: "Claude Code Team Analysis"
+  short_description: "Run a deep local repository review with a read-only Claude agent team"
+  default_prompt: "Use $claude-code-agent-team-analysis to prepare repository context, launch a read-only local Claude Code agent-team analysis, and return an evidence-based report focused on architecture, workflow gaps, tests, performance, and stale logic."
+
+policy:
+  allow_implicit_invocation: true
