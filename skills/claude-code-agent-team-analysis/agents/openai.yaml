@@ -4,4 +4,4 @@ interface:
   default_prompt: "Use $claude-code-agent-team-analysis to prepare repository context, launch a read-only local Claude Code agent-team analysis, and return an evidence-based report focused on architecture, workflow gaps, tests, performance, and stale logic."
 
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false
