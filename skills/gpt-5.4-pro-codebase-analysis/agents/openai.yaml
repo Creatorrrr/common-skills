@@ -1,7 +1,0 @@
-interface:
-  display_name: "GPT-5.4 Pro Analysis"
-  short_description: "Prepare and run deep repository analysis with GPT-5.4 Pro or a ChatGPT Web handoff"
-  default_prompt: "Use $gpt-5.4-pro-codebase-analysis to prepare repository context, ask me to choose either `responses_api` or `chatgpt_web_assisted`, and then produce an evidence-based analysis report."
-
-policy:
-  allow_implicit_invocation: false
