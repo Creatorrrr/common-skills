@@ -19,6 +19,14 @@ Use this when you want a deep local analysis run through the Claude Code CLI wit
 
 This skill is useful when you want a local multi-agent second opinion on architecture boundaries, workflow issues, test weaknesses, performance risks, or stale code paths.
 
+It supports three team-resolution modes:
+
+- `default`: use the built-in reviewer team
+- `auto`: run a repo-aware team planner from the goal, scope, structured preparation signals, and an optional natural-language team request
+- `custom`: pass an explicit JSON reviewer team definition
+
+`auto` now defaults to a model-based planner with a heuristic fallback, keeps `5` as a soft initial-team target, and records both the starting team and planner trace in dedicated artifacts.
+
 ## Installation
 
 ### Codex

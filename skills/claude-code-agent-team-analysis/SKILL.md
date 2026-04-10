@@ -43,10 +43,36 @@ The helper script launches local Claude Code with:
 
 - `-p` non-interactive execution
 - `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in the helper subprocess environment
-- CLI-defined custom subagents passed through `--agents`
+- resolved CLI-defined custom subagents passed through `--agents`
 - appended system instructions through `--append-system-prompt-file` when supported, or `--append-system-prompt` as an inline fallback
-- a lead prompt that explicitly asks Claude to create and coordinate the team
+- a lead prompt that explicitly asks Claude to coordinate the resolved team
 - resumable sessions through saved `session_id`
+
+### Team resolution modes
+
+The helper now supports three worker-team modes:
+
+- `default`
+  - keep the built-in worker team for broad repository analysis
+- `auto`
+  - build structured repo-aware signals from the preparation artifacts, then run an initial team planner from the goal, scope, those signals, and optional `--team-request`
+- `custom`
+  - use a user-supplied JSON team definition through `--team-config`
+
+For `auto`, the default planner is model-based and falls back to the local heuristic planner if planning fails or is skipped during `--dry-run`.
+
+The initial team-size target remains `5`, but it is a soft cap:
+
+- `auto` prefers to stay near that size and records ranked alternates when coverage spills over
+- `custom` teams above the cap are preserved and only produce warnings
+
+Runtime team mutation is allowed. The resolved team is the starting hypothesis, not a frozen contract, and the final report must include a `Team Evolution` section explaining added or removed teammates.
+
+Use `default` when the user only wants a deep second-opinion analysis.
+
+Use `auto` when the user explicitly asks you to recompose or redesign the reviewer team around the current goal.
+
+Use `custom` when the user explicitly names the reviewers or when the calling agent has already converted that intent into a JSON team config.
 
 This skill does **not** require any manual browser steps.
 
@@ -152,7 +178,7 @@ The main Claude session should:
 - synthesize the final report
 - save the resulting `session_id` for follow-up work
 
-### Default worker roles
+### Built-in default worker roles
 
 Unless the user asked for something different, use these roles:
 
@@ -166,6 +192,19 @@ Unless the user asked for something different, use these roles:
    - checks hot paths, repeated work, avoidable I/O, N+1 patterns, caching, async boundaries, and scaling risks
 5. `security-reviewer` (conditional)
    - add when the target area touches auth, permissions, secrets, payments, external input, public APIs, or other clearly security-sensitive surfaces
+
+### Additional catalog roles for auto or custom team composition
+
+- `api-contract-reviewer`
+  - checks API boundaries, request or response contracts, and compatibility drift
+- `data-model-reviewer`
+  - checks schema, persistence, migration, and data ownership risk
+- `infra-release-reviewer`
+  - checks CI, build, deployment, and release workflow risk
+- `frontend-workflow-reviewer`
+  - checks user-facing workflow, route or state transitions, and integration seams
+- `dependency-config-reviewer`
+  - checks dependency, lockfile, toolchain, and configuration drift
 
 ### Default model split
 
@@ -230,7 +269,8 @@ Use the helper script:
 python scripts/run_claude_code_agent_team_analysis.py \
   --manifest .codex-analysis/context/manifest.json \
   --goal "<user goal>" \
-  --mode auto
+  --mode auto \
+  --team-mode default
 ```
 
 ### What the helper generates
@@ -238,6 +278,9 @@ python scripts/run_claude_code_agent_team_analysis.py \
 Under `.codex-analysis/claude-code/` by default, generate for the active run. If the manifest points at `.codex-analysis/history/<run_id>/context/manifest.json`, write the Claude artifacts beside that archived run instead:
 
 - `claude-agents.json`
+- `team-signals.json`
+- `team-plan.json`
+- `team-resolution.json`
 - `claude-system-prompt.md`
 - `claude-user-prompt.txt`
 - `request_meta.json`
@@ -248,22 +291,26 @@ Under `.codex-analysis/claude-code/` by default, generate for the active run. If
 - `analysis-report.partial.md` when the first result is incomplete and the automatic follow-up still fails
 - `claude-stdout.json`
 - `claude-stderr.log`
+- `team-config.input.json` when `--team-mode custom --team-config ...` was used
 
 ### How the helper works
 
 1. Reads the local preparation manifest.
 2. Chooses a broad or focused team mode.
-3. Generates CLI-defined subagent roles.
-4. Generates an appended system prompt for the lead.
-5. Runs a CLI capability probe and saves the result into `request_meta.json`, `run_meta.json`, and `analysis-status.json`.
-6. Selects `system_prompt_mode` based on CLI capability support: `file` when `--append-system-prompt-file` is available, otherwise `inline` via `--append-system-prompt`.
-7. Optionally runs a short preflight Claude probe. The default policy is `auto`, which probes when the lead model is `opus` or the estimated context is large.
-8. Launches local `claude -p` with agent teams activated by environment and started from the prompt.
-9. Polls the subprocess with the halved adaptive waiting schedule.
-10. Saves the structured JSON output and resumable session metadata.
-11. Applies a report completeness gate before accepting `analysis-report.md`.
-12. If the first report is incomplete and a `session_id` exists, automatically resumes the same session once to request a final consolidated report.
-13. Writes `analysis-report.md` only for a report that passes the completeness gate. On failure after follow-up, leaves `analysis-report.partial.md` plus a classified failure in `analysis-status.json`.
+3. Builds unified runtime team signals from the manifest, mode, goal, and optional team request.
+4. Resolves the worker team in `default`, `auto`, or `custom` mode.
+5. In `auto`, runs the model planner first and falls back to the heuristic planner if needed.
+6. Writes the starting worker team to `claude-agents.json`, the planner input to `team-signals.json`, the planner trace to `team-plan.json`, and the final resolution trace to `team-resolution.json`.
+7. Generates an appended system prompt for the lead.
+8. Runs a CLI capability probe and saves the result into `request_meta.json`, `run_meta.json`, and `analysis-status.json`.
+9. Selects `system_prompt_mode` based on CLI capability support: `file` when `--append-system-prompt-file` is available, otherwise `inline` via `--append-system-prompt`.
+10. Optionally runs a short preflight Claude probe. The default policy is `auto`, which probes when the lead model is `opus` or the estimated context is large.
+11. Launches local `claude -p` with agent teams activated by environment and started from the prompt.
+12. Polls the subprocess with the halved adaptive waiting schedule.
+13. Saves the structured JSON output and resumable session metadata.
+14. Applies a report completeness gate before accepting `analysis-report.md`.
+15. If the first report is incomplete and a `session_id` exists, automatically resumes the same session once to request a final consolidated report.
+16. Writes `analysis-report.md` only for a report that passes the completeness gate. On failure after follow-up, leaves `analysis-report.partial.md` plus a classified failure in `analysis-status.json`.
 
 ## Nested-session safety
 
@@ -398,17 +445,27 @@ Use these when relevant:
 
 ## Output requirements for the local Claude run
 
-Ask for a report with this structure unless the user asked for something else:
+Ask for a role-aware report with these always-on sections unless the user asked for something else:
 
 1. scope and assumptions
 2. short system map
 3. top findings, prioritized
 4. evidence for each finding with file paths and line references when possible
 5. confirmed facts vs inference or uncertainty
-6. test-gap recommendations
-7. refactoring or redesign recommendations
-8. quick wins vs deeper changes
-9. suggested next design steps
+6. correctness risks
+7. team evolution
+8. suggested next design steps
+
+Add conditional sections only when the starting team or runtime team evolution makes them relevant:
+
+- test-gap recommendations
+- performance review
+- security review
+- API contract review
+- data model review
+- infra or release review
+- frontend workflow review
+- dependency or config review
 
 ## Quality bar for accepting the analysis
 
@@ -423,13 +480,13 @@ Do not treat the result as high quality unless it:
 The helper enforces a minimum acceptance gate before it writes `analysis-report.md`:
 
 - minimum report length
-- required section headings matching the requested report structure
-- explicit `top findings`, `evidence`, `test-gap`, and `next steps` coverage
+- required section headings matching the resolved report structure
+- explicit `top findings`, `evidence`, `correctness`, `team evolution`, and `next steps` coverage
 
 The section check is heading-aware rather than raw substring-based:
 
 - numbered markdown headings such as `## 3. Top findings (prioritized)` are accepted
-- canonical-equivalent headings such as `Evidence per finding`, `Test gap recommendations`, and `Refactoring / redesign recommendations` are accepted
+- canonical-equivalent headings such as `Evidence per finding`, `Test gap recommendations`, and `Infra and release review` are accepted
 - body text that merely mentions a section name does not satisfy the gate unless it appears as a heading
 
 Treat `analysis-status.json` as the source of truth for run outcome:
@@ -438,6 +495,7 @@ Treat `analysis-status.json` as the source of truth for run outcome:
 - `status: failed` plus `failure_kind` explains whether the run failed because of quota, access, CLI contract drift, invalid output, or report incompleteness
 - `analysis-report.partial.md` is only a fallback artifact for incomplete runs that could not be repaired automatically
 - `request_meta.json` and `run_meta.json` record `system_prompt_mode` as `file` or `inline` so CLI contract drift is visible after the run
+- `team-resolution.json` records the resolved team mode, source, planner, warnings, report sections, selected roles, selection reasons, and ranked overflow
 
 ## Example commands
 
@@ -453,6 +511,7 @@ python scripts/run_claude_code_agent_team_analysis.py \
   --manifest .codex-analysis/context/manifest.json \
   --goal "Analyze the overall system with a focus on structural refactoring and strengthening test coverage" \
   --mode auto \
+  --team-mode default \
   --preflight-probe auto
 ```
 
@@ -469,8 +528,43 @@ python scripts/run_claude_code_agent_team_analysis.py \
   --manifest .codex-analysis/context/manifest.json \
   --goal "Review the checkout workflow for design validity and missing implementation" \
   --mode auto \
+  --team-mode default \
   --preflight-probe auto
 ```
+
+### Auto team recomposition from the goal
+
+```bash
+python scripts/run_claude_code_agent_team_analysis.py \
+  --manifest .codex-analysis/context/manifest.json \
+  --goal "Review checkout correctness, API compatibility, release safety, and payment security" \
+  --mode auto \
+  --team-mode auto \
+  --team-planner model \
+  --team-max-size 5 \
+  --team-request "Recompose the team around checkout correctness, CI release flow, API contracts, and payment security" \
+  --preflight-probe auto
+```
+
+### Custom team JSON
+
+```bash
+python scripts/run_claude_code_agent_team_analysis.py \
+  --manifest .codex-analysis/context/manifest.json \
+  --goal "Run the explicitly requested reviewer team" \
+  --mode auto \
+  --team-mode custom \
+  --team-config ./my-team.json \
+  --team-strategy replace \
+  --preflight-probe auto
+```
+
+`--team-config` accepts either:
+
+- a bare agent map in the same shape as generated `claude-agents.json`
+- a wrapped config with `schema_version`, `strategy`, `agents`, and optional `lead.extra_instructions` or `lead.recommended_roles`
+
+For exact replacement, do not combine `--team-strategy replace` with `--force-security-review` or `--skip-security-review`. Exact replace preserves the provided team unchanged.
 
 ### Follow-up design iteration on the saved session
 
@@ -501,7 +595,19 @@ python scripts/run_claude_code_agent_team_analysis.py \
   --manifest .codex-analysis/context/manifest.json \
   --goal "Analyze the auth module structure and failure-handling risks" \
   --mode auto \
+  --team-mode auto \
+  --team-planner heuristic \
+  --team-request "Recompose the team around auth security, API contracts, and dependency config drift" \
   --dry-run
+```
+
+Then inspect both the resolved worker team and the trace:
+
+```bash
+jq . .codex-analysis/claude-code/claude-agents.json
+jq . .codex-analysis/claude-code/team-signals.json
+jq . .codex-analysis/claude-code/team-plan.json
+jq . .codex-analysis/claude-code/team-resolution.json
 ```
 
 ### Inspect the classified run state
@@ -515,6 +621,9 @@ jq . .codex-analysis/claude-code/analysis-status.json
 - Prefer reading and summarizing the generated `manifest.json` before the Claude run.
 - Prefer `focused_team` when explicit scope hints were given.
 - Save and reuse the generated `session_id` for follow-up design questions.
+- If the user asks to redesign the reviewer team around the current goal, switch to `--team-mode auto` and pass the request through `--team-request`.
+- If the user explicitly names reviewer roles, convert that request into a JSON config and call `--team-mode custom --team-config ...`.
+- Prefer the default `--team-planner model` for real runs. Use `--team-planner heuristic` mainly for dry-run inspection, debugging, or when planner calls must be avoided.
 - The helper only uses agent-team activation through environment plus prompt. Do not reintroduce undocumented CLI activation flags.
 - The helper prefers `--append-system-prompt-file` but can fall back to inline `--append-system-prompt` if the local CLI only exposes the inline variant.
 - `analysis-status.json` is the primary place to check run outcome, classified failure kind, stdout and stderr locations, and whether automatic follow-up was used.

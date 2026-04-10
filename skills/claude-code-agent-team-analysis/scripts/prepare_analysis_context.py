@@ -106,6 +106,35 @@ STOPWORDS = {
     "validation", "strengthening", "content", "audit", "investigation", "cleanup", "missing",
     "unimplemented", "deprecated",
 }
+TEAM_SIGNAL_SCHEMA_VERSION = 1
+TEAM_SIGNAL_PATH_PATTERNS = {
+    "tests": [
+        re.compile(r"(^|/)(tests?|__tests__|specs?)(/|$)", re.IGNORECASE),
+        re.compile(r"(test|spec)\.[^.]+$", re.IGNORECASE),
+    ],
+    "api": [
+        re.compile(r"\b(api|graphql|rest|endpoint|handler|controller|router|route)\b", re.IGNORECASE),
+    ],
+    "frontend": [
+        re.compile(r"\b(frontend|ui|ux|page|pages|screen|screens|component|components|view|views|client)\b", re.IGNORECASE),
+    ],
+    "data": [
+        re.compile(r"\b(db|database|datastore|schema|schemas|migration|migrations|model|models|entity|entities|sql|orm)\b", re.IGNORECASE),
+    ],
+    "infra": [
+        re.compile(r"(^|/)\.github/workflows(/|$)", re.IGNORECASE),
+        re.compile(r"\b(ci|cd|release|releases|deploy|deployment|infra|k8s|helm|terraform|docker)\b", re.IGNORECASE),
+    ],
+    "config": [
+        re.compile(r"\b(config|configs|configuration|settings|toolchain|package|packages|lockfile|lockfiles)\b", re.IGNORECASE),
+    ],
+    "security_sensitive": [
+        re.compile(
+            r"\b(auth|oauth|token|secret|credential|password|permission|rbac|acl|iam|session|cookie|jwt|payment|billing|checkout|admin|csrf|xss|ssrf|webhook|security|login|signup)\b",
+            re.IGNORECASE,
+        ),
+    ],
+}
 
 
 @dataclass
@@ -535,6 +564,72 @@ def estimated_tokens_from_text(text: str) -> int:
     return max(1, len(text) // 4)
 
 
+def summarize_directory_roots(records: Sequence[FileRecord], limit: int = 8) -> list[str]:
+    counter: Counter[str] = Counter()
+    for rec in records:
+        parts = path_parts(rec.path)
+        if not parts:
+            continue
+        top = parts[0]
+        if top.startswith(".") and len(parts) > 1:
+            top = "/".join(parts[:2])
+        counter[top] += 1
+    return [name for name, _ in counter.most_common(limit)]
+
+
+def summarize_path_signals(records: Sequence[FileRecord]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for rec in records:
+        lower_path = rec.path.lower()
+        for signal_name, patterns in TEAM_SIGNAL_PATH_PATTERNS.items():
+            if any(pattern.search(lower_path) for pattern in patterns):
+                counts[signal_name] += 1
+    return {name: counts.get(name, 0) for name in TEAM_SIGNAL_PATH_PATTERNS}
+
+
+def summarize_record_set(records: Sequence[FileRecord]) -> dict[str, Any]:
+    category_counts: Counter[str] = Counter()
+    language_counts: Counter[str] = Counter()
+    for rec in records:
+        category_counts[rec.category] += 1
+        if rec.language:
+            language_counts[rec.language] += 1
+    return {
+        "file_count": len(records),
+        "categories": dict(category_counts),
+        "path_signals": summarize_path_signals(records),
+        "languages": dict(language_counts),
+        "top_directories": summarize_directory_roots(records),
+        "sample_paths": [rec.path for rec in records[:12]],
+    }
+
+
+def build_team_signals(
+    *,
+    goal_keywords: set[str],
+    scopes: Sequence[str],
+    full_records: Sequence[FileRecord],
+    focused_records: Sequence[FileRecord],
+) -> dict[str, Any]:
+    full_summary = summarize_record_set(full_records)
+    focused_summary = summarize_record_set(focused_records)
+    repo_flags = {
+        "has_ci_release_files": full_summary["path_signals"].get("infra", 0) > 0,
+        "has_migration_or_schema_files": full_summary["path_signals"].get("data", 0) > 0,
+        "has_frontend_surface_files": full_summary["path_signals"].get("frontend", 0) > 0,
+        "has_dependency_or_lockfile_files": full_summary["path_signals"].get("config", 0) > 0,
+        "has_security_sensitive_paths": full_summary["path_signals"].get("security_sensitive", 0) > 0,
+    }
+    return {
+        "schema_version": TEAM_SIGNAL_SCHEMA_VERSION,
+        "goal_keywords": sorted(goal_keywords),
+        "scope_hints": [scope for scope in scopes if scope],
+        "repo_flags": repo_flags,
+        "full_selection": full_summary,
+        "focused_selection": focused_summary,
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Prepare repository context for local Claude Code agent-team analysis.")
     parser.add_argument("--root", default=".", help="Root directory to inspect.")
@@ -733,6 +828,13 @@ def main() -> int:
             out_dir / "focused-source.zip",
         )
 
+    team_signals = build_team_signals(
+        goal_keywords=g_keywords,
+        scopes=scopes,
+        full_records=[rec for _, rec, _ in text_candidates],
+        focused_records=[rec for _, rec, _ in focused_candidates],
+    )
+
     manifest = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "repo_root": str(repo_root),
@@ -744,6 +846,7 @@ def main() -> int:
         "layout_version": run_layout.layout_version,
         "archived_previous_run_id": run_layout.archived_previous_run_id,
         "keywords": sorted(g_keywords),
+        "team_signals": team_signals,
         "preparation_mode": args.mode,
         "mode_recommendation": mode_recommendation,
         "packaging_recommendation": packaging_recommendation,
