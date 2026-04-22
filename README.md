@@ -37,6 +37,8 @@ Tell Codex:
 Fetch and follow instructions from https://raw.githubusercontent.com/Creatorrrr/common-skills/main/.codex/INSTALL.md
 ```
 
+The Codex install guide supports both a managed global checkout under `~/.codex` and a direct symlink to an existing local checkout for edit-and-test workflows.
+
 Manual install guide: [`.codex/INSTALL.md`](.codex/INSTALL.md)
 
 ### Claude Code
@@ -47,14 +49,22 @@ Tell Claude:
 Fetch and follow instructions from https://raw.githubusercontent.com/Creatorrrr/common-skills/main/.claude/INSTALL.md
 ```
 
+The Claude Code install guide supports both a managed global checkout under `~/.claude` and direct links to an existing local checkout for edit-and-test workflows.
+
 Manual install guide: [`.claude/INSTALL.md`](.claude/INSTALL.md)
 
 ### Gemini CLI
 
-Install the extension with:
+Use either a managed GitHub install or a linked local checkout:
 
 ```bash
 gemini extensions install https://github.com/Creatorrrr/common-skills
+```
+
+For local development, the install guide also supports:
+
+```bash
+gemini extensions link /absolute/path/to/common-skills
 ```
 
 Manual install guide: [`.gemini/INSTALL.md`](.gemini/INSTALL.md)
@@ -67,33 +77,43 @@ Tell Antigravity:
 Fetch and follow instructions from https://raw.githubusercontent.com/Creatorrrr/common-skills/main/.antigravity/INSTALL.md
 ```
 
+The Antigravity install guide supports both a managed global checkout under `~/.gemini/antigravity` and a direct symlink to an existing local checkout for edit-and-test workflows.
+
 Manual install guide: [`.antigravity/INSTALL.md`](.antigravity/INSTALL.md)
 
 ## Updating
 
-For Codex:
+For Codex with the managed global checkout:
 
 ```bash
 git -C ~/.codex/common-skills pull
 ```
 
-For Claude Code:
+For Codex with a linked local checkout, update that local repository instead. If it is your active development checkout, changes are available immediately through the symlink.
+
+For Claude Code with the managed global checkout:
 
 ```bash
 git -C ~/.claude/common-skills pull
 ```
 
-For Gemini CLI:
+For Claude Code with a linked local checkout, update that local repository instead. If it is your active development checkout, changes are available immediately through the symlinks.
+
+For Gemini CLI with the managed global install:
 
 ```bash
 gemini extensions update common-skills
 ```
 
-For Antigravity:
+For Gemini CLI with a linked local checkout, no separate update step is required. Changes in the linked local repository are reflected immediately.
+
+For Antigravity with the managed global checkout:
 
 ```bash
 git -C ~/.gemini/antigravity/common-skills pull
 ```
+
+For Antigravity with a linked local checkout, update that local repository instead. If it is your active development checkout, changes are available immediately through the symlink.
 
 ## License
 
