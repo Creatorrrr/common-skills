@@ -29,7 +29,7 @@ You should see `common-skills` in the installed extensions list.
 
 After restart, start a new Gemini CLI session and use the installed extension when needed. The extension context will direct Gemini to these skill files:
 
-- `gpt-5.4-pro-codebase-analysis`
+- `gpt-pro-codebase-analysis`
 - `claude-code-agent-team-analysis`
 
 ## Updating

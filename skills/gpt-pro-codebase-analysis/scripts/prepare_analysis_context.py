@@ -536,7 +536,7 @@ def estimated_tokens_from_text(text: str) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Prepare repository context for gpt-5.4-pro analysis.")
+    parser = argparse.ArgumentParser(description="Prepare repository context for GPT Pro analysis.")
     parser.add_argument("--root", default=".", help="Root directory to inspect.")
     parser.add_argument("--out-dir", default=".codex-analysis/context", help="Output directory for manifests and bundles.")
     parser.add_argument("--goal", default="", help="Analysis goal used for scoring and manifest metadata.")

@@ -36,7 +36,7 @@ You should see a symlink pointing at `~/.codex/common-skills/skills`.
 
 After restart, Codex can discover these skills automatically. You can also call them explicitly with the namespace created by the symlink name:
 
-- `common-skills:gpt-5.4-pro-codebase-analysis`
+- `common-skills:gpt-pro-codebase-analysis`
 - `common-skills:claude-code-agent-team-analysis`
 
 ## Updating

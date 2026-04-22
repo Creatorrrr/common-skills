@@ -4,8 +4,8 @@ This extension provides two repository-analysis skill documents.
 
 When a user asks for a deep codebase review, read the relevant skill file first and follow it:
 
-- `skills/gpt-5.4-pro-codebase-analysis/SKILL.md`
-  - Use for a second-opinion repository analysis with GPT-5.4 Pro.
+- `skills/gpt-pro-codebase-analysis/SKILL.md`
+  - Use for a second-opinion repository analysis through a GPT Pro workflow.
   - This path supports two explicit execution modes: `responses_api` and `chatgpt_web_assisted`.
   - Require the user to choose one mode explicitly before execution.
 

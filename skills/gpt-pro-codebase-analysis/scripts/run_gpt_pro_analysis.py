@@ -362,7 +362,7 @@ def estimate_exact_tokens(client: Any, model: str, instructions: str, input_file
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run gpt-5.4-pro repository analysis through the Responses API. This script does not drive ChatGPT Web and does not auto-fallback to another transport.")
+    parser = argparse.ArgumentParser(description="Run repository analysis through the Responses API. This script does not drive ChatGPT Web and does not auto-fallback to another transport.")
     parser.add_argument("--manifest", required=True, help="Path to manifest.json produced by prepare_analysis_context.py")
     parser.add_argument("--goal", default="", help="Analysis goal.")
     parser.add_argument("--env-file", default=DEFAULTS["env_file"], help="Environment file to load before constructing the OpenAI client.")
@@ -383,7 +383,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--file-search-max-num-results", type=int, default=DEFAULTS["file_search_max_num_results"])
     parser.add_argument("--previous-response-id", default="", help="Optional previous response id for follow-up design work.")
     parser.add_argument("--vector-store-id", default="", help="Reuse an existing vector store instead of uploading again.")
-    parser.add_argument("--out-dir", default=".codex-analysis/gpt54pro", help="Directory where reports and metadata are stored.")
+    parser.add_argument("--out-dir", default=".codex-analysis/gpt-pro", help="Directory where reports and metadata are stored.")
     return parser
 
 
@@ -402,9 +402,9 @@ def main() -> int:
     out_dir = resolve_tool_output_dir(
         manifest_path=manifest_path,
         manifest=manifest,
-        tool_name="gpt54pro",
+        tool_name="gpt-pro",
         requested_out_dir=requested_out_dir,
-        default_out_dir=Path(".codex-analysis/gpt54pro"),
+        default_out_dir=Path(".codex-analysis/gpt-pro"),
     )
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -496,7 +496,7 @@ def main() -> int:
             vector_store = ReusedVS(args.vector_store_id)
         else:
             rel_paths = manifest["selections"]["full_files" if mode == "file_search_full" else "focused_files"]
-            vector_store_name = f"gpt54pro-analysis-{repo_root.name}-{mode}"
+            vector_store_name = f"gpt-pro-analysis-{repo_root.name}-{mode}"
             vector_store, uploaded_meta = upload_vector_store_files(client, vector_store_name, repo_root, rel_paths)
             save_json(out_dir / "vector_store_uploads.json", {"vector_store_id": vector_store.id, "files": uploaded_meta})
 

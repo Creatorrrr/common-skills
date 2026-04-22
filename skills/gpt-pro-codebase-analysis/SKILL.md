@@ -1,9 +1,9 @@
 ---
-name: gpt-5.4-pro-codebase-analysis
-description: Use this skill when the user wants a deep second-opinion analysis of a repository with gpt-5.4-pro, either through the OpenAI Responses API or through a fully manual ChatGPT Web handoff. Use it for architecture review, refactoring strategy, test-gap analysis, performance, workflow or use-case validity, missing implementation, or deprecated and unused logic when the repository is too large to inspect comfortably in-session.
+name: gpt-pro-codebase-analysis
+description: Use this skill when the user wants a deep second-opinion analysis of a repository, either through the OpenAI Responses API or through a fully manual ChatGPT Web handoff. Use it for architecture review, refactoring strategy, test-gap analysis, performance, workflow or use-case validity, missing implementation, or deprecated and unused logic when the repository is too large to inspect comfortably in-session.
 ---
 
-# GPT-5.4 Pro codebase analysis
+# GPT Pro codebase analysis
 
 This skill prepares repository context, chooses between a direct API run and a fully manual ChatGPT Web handoff, and returns an evidence-based analysis report that can drive follow-up design work.
 
@@ -22,12 +22,12 @@ This skill prepares repository context, chooses between a direct API run and a f
 
 ## Script location resolution
 
-When this skill tells you to run a bundled helper like `scripts/prepare_analysis_context.py` or `scripts/run_gpt54pro_analysis.py`, do not assume that `scripts/` exists in the active project.
+When this skill tells you to run a bundled helper like `scripts/prepare_analysis_context.py` or `scripts/run_gpt_pro_analysis.py`, do not assume that `scripts/` exists in the active project.
 
 Resolve helper paths in this order:
 
 1. Start from the directory that contains this `SKILL.md`. Treat `scripts/...` as relative to the skill directory first.
-2. If the active workspace does not contain the skill files, check the tool's global skill install area or linked checkout, for example `~/.codex/common-skills/skills/gpt-5.4-pro-codebase-analysis/`, `~/.claude/common-skills/skills/gpt-5.4-pro-codebase-analysis/`, or another global install location that points at this skill.
+2. If the active workspace does not contain the skill files, check the tool's global skill install area or linked checkout, for example `~/.codex/common-skills/skills/gpt-pro-codebase-analysis/`, `~/.claude/common-skills/skills/gpt-pro-codebase-analysis/`, or another global install location that points at this skill.
 3. Only treat `scripts/...` as project-local when the user has intentionally vendored this skill into the repository.
 
 When executing a helper, prefer an explicit path derived from the resolved skill directory instead of assuming the current shell is already inside that directory.
@@ -214,7 +214,7 @@ Do not block automatically unless the chosen execution path cannot work. Warn, t
 Use the helper script:
 
 ```bash
-python scripts/run_gpt54pro_analysis.py \
+python scripts/run_gpt_pro_analysis.py \
   --manifest .codex-analysis/context/manifest.json \
   --goal "<user goal>" \
   --env-file .env \
@@ -223,7 +223,7 @@ python scripts/run_gpt54pro_analysis.py \
 
 Before constructing the OpenAI client, this helper reads the specified `.env` file. If `OPENAI_API_KEY` is missing from both `.env` and the current environment, Codex should ask the user to set it and stop instead of attempting the API call.
 
-For `gpt-5.4-pro` background runs, the helper uses adaptive polling instead of a short fixed interval:
+For background runs on the default Pro model, the helper uses adaptive polling instead of a short fixed interval:
 
 - under 30 minutes elapsed: sleep 10 minutes between polls
 - 30 to under 40 minutes elapsed: sleep 5 minutes between polls
@@ -476,7 +476,7 @@ python scripts/prepare_analysis_context.py \
   --goal "Analyze the overall system with a focus on structural refactoring and strengthening test coverage" \
   --mode auto
 
-python scripts/run_gpt54pro_analysis.py \
+python scripts/run_gpt_pro_analysis.py \
   --manifest .codex-analysis/context/manifest.json \
   --goal "Analyze the overall system with a focus on structural refactoring and strengthening test coverage" \
   --env-file .env \
@@ -492,7 +492,7 @@ python scripts/prepare_analysis_context.py \
   --scope src/checkout tests/checkout docs/checkout.md \
   --mode auto
 
-python scripts/run_gpt54pro_analysis.py \
+python scripts/run_gpt_pro_analysis.py \
   --manifest .codex-analysis/context/manifest.json \
   --goal "Review the checkout workflow for design validity and missing implementation" \
   --env-file .env \

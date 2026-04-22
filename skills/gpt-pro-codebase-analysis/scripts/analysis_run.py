@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 
-ACTIVE_DIR_NAMES = ("context", "gpt54pro", "chatgpt-web", "claude-code")
+ACTIVE_DIR_NAMES = ("context", "gpt-pro", "chatgpt-web", "claude-code")
 DEFAULT_ANALYSIS_ROOT_NAME = ".codex-analysis"
 LAYOUT_VERSION = 1
 TEXT_REWRITE_SUFFIXES = {".json", ".log", ".md", ".txt"}

@@ -34,14 +34,14 @@ ls -la ~/.claude/skills
 
 You should see entries for:
 
-- `gpt-5.4-pro-codebase-analysis`
+- `gpt-pro-codebase-analysis`
 - `claude-code-agent-team-analysis`
 
 ## Usage
 
 After restart, Claude Code can discover the skills automatically when the task matches the skill descriptions. You can also name them directly:
 
-- `gpt-5.4-pro-codebase-analysis`
+- `gpt-pro-codebase-analysis`
 - `claude-code-agent-team-analysis`
 
 ## Updating
