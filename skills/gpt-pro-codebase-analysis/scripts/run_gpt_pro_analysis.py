@@ -28,7 +28,7 @@ def require_openai() -> Any:
 
 
 DEFAULTS = {
-    "model": "gpt-5.4-pro",
+    "model": "gpt-5.5-pro",
     "reasoning_effort": "high",
     "verbosity": "high",
     "background": True,

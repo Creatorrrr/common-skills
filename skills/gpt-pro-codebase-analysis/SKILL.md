@@ -234,7 +234,7 @@ If the Responses API returns a terminal failure status, stop immediately and do 
 
 ### Model defaults
 
-- model: `gpt-5.4-pro`
+- model: `gpt-5.5-pro`
 - endpoint family: Responses API
 - reasoning effort:
   - `high` by default
