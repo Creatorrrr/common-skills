@@ -14,6 +14,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from analysis_contract import render_required_output_sections
 from analysis_run import resolve_tool_output_dir
 
 
@@ -129,29 +130,7 @@ def build_instructions(goal: str) -> str:
         {goal or '(none provided)'}
 
         Required output sections unless the user requested something else:
-        1. Scope and context limits
-        State what was analyzed, what may be missing, and any assumptions caused by incomplete context.
-
-        2. System map
-        Give a short, concrete map of the relevant modules, entrypoints, or workflows visible in the attached files.
-
-        3. Top findings
-        List prioritized findings. For each finding, include:
-        - severity: critical | high | medium | low
-        - confidence: high | medium | low
-        - impact
-        - evidence
-        - recommended action
-
-        4. Test gaps
-        Identify missing or weak tests that are materially related to the findings.
-
-        5. Refactoring or redesign recommendations
-        Only include recommendations justified by the attached evidence.
-        Separate quick wins from deeper changes that need broader validation.
-
-        6. Open questions
-        List the most important unknowns that prevent stronger conclusions.
+        {render_required_output_sections()}
         """
     ).strip()
 
@@ -218,6 +197,98 @@ def poll_response(client: Any, response: Any, interval_seconds: int, model: str)
     if getattr(response, "status", None) == "failed":
         print("[warn] Response ended with status=failed. Not retrying.", file=sys.stderr)
     return response
+
+
+def build_run_meta(
+    *,
+    manifest: dict,
+    args: argparse.Namespace,
+    out_dir: Path,
+    mode: str,
+    response: Any,
+    vector_store: Any,
+    exact_input_tokens: int | None,
+    report_path: Path | None,
+    terminal_failure: bool,
+) -> dict[str, Any]:
+    run_meta = {
+        "transport": "responses_api",
+        "run_id": manifest.get("run_id"),
+        "model": args.model,
+        "mode": mode,
+        "response_id": getattr(response, "id", None),
+        "status": getattr(response, "status", None),
+        "previous_response_id": args.previous_response_id or None,
+        "vector_store_id": getattr(vector_store, "id", None) if vector_store else None,
+        "exact_input_tokens": exact_input_tokens,
+        "direct_input_manifest": str(out_dir / "direct_input_files.json") if mode == "direct" else None,
+        "report_path": str(report_path) if report_path else None,
+        "response_json_path": str(out_dir / "response.json"),
+        "terminal_failure": terminal_failure,
+    }
+    if terminal_failure:
+        run_meta["no_retry_performed"] = True
+    return run_meta
+
+
+def write_terminal_failure_artifacts(
+    *,
+    out_dir: Path,
+    manifest: dict,
+    args: argparse.Namespace,
+    mode: str,
+    response: Any,
+    response_dict: Any,
+    vector_store: Any = None,
+    exact_input_tokens: int | None = None,
+) -> dict[str, Any]:
+    save_json(out_dir / "response.json", response_dict)
+    report_path = out_dir / "analysis_report.md"
+    if report_path.exists():
+        report_path.unlink()
+    run_meta = build_run_meta(
+        manifest=manifest,
+        args=args,
+        out_dir=out_dir,
+        mode=mode,
+        response=response,
+        vector_store=vector_store,
+        exact_input_tokens=exact_input_tokens,
+        report_path=None,
+        terminal_failure=True,
+    )
+    save_json(out_dir / "run_meta.json", run_meta)
+    return run_meta
+
+
+def write_success_artifacts(
+    *,
+    out_dir: Path,
+    manifest: dict,
+    args: argparse.Namespace,
+    mode: str,
+    response: Any,
+    response_dict: Any,
+    output_text: str,
+    vector_store: Any,
+    exact_input_tokens: int | None,
+) -> dict[str, Any]:
+    save_json(out_dir / "response.json", response_dict)
+    report_path = out_dir / "analysis_report.md"
+    report_path.write_text(output_text, encoding="utf-8")
+    run_meta = build_run_meta(
+        manifest=manifest,
+        args=args,
+        out_dir=out_dir,
+        mode=mode,
+        response=response,
+        vector_store=vector_store,
+        exact_input_tokens=exact_input_tokens,
+        report_path=report_path,
+        terminal_failure=False,
+    )
+    save_json(out_dir / "run_meta.json", run_meta)
+    return run_meta
 
 
 def select_direct_input_files(
@@ -544,31 +615,37 @@ def main() -> int:
         response = poll_response(client, response, args.poll_interval_seconds, args.model)
 
     response_dict = serialize_sdk_object(response)
-    save_json(out_dir / "response.json", response_dict)
+    if getattr(response, "status", None) == "failed":
+        print("[warn] Response ended with status=failed. Saving failure artifacts and exiting non-zero.", file=sys.stderr)
+        run_meta = write_terminal_failure_artifacts(
+            out_dir=out_dir,
+            manifest=manifest,
+            args=args,
+            mode=mode,
+            response=response,
+            response_dict=response_dict,
+            vector_store=vector_store,
+            exact_input_tokens=exact_input_tokens,
+        )
+        print(json.dumps(run_meta, indent=2, ensure_ascii=False))
+        return 1
 
     output_text = getattr(response, "output_text", None)
     if not output_text:
         # Best-effort fallback for SDK structures without the helper.
         output_text = json.dumps(response_dict, indent=2, ensure_ascii=False, default=str)
 
-    report_path = out_dir / "analysis_report.md"
-    report_path.write_text(output_text, encoding="utf-8")
-
-    run_meta = {
-        "transport": "responses_api",
-        "run_id": manifest.get("run_id"),
-        "model": args.model,
-        "mode": mode,
-        "response_id": getattr(response, "id", None),
-        "status": getattr(response, "status", None),
-        "previous_response_id": args.previous_response_id or None,
-        "vector_store_id": getattr(vector_store, "id", None) if vector_store else None,
-        "exact_input_tokens": exact_input_tokens,
-        "direct_input_manifest": str(out_dir / "direct_input_files.json") if mode == "direct" else None,
-        "report_path": str(report_path),
-        "response_json_path": str(out_dir / "response.json"),
-    }
-    save_json(out_dir / "run_meta.json", run_meta)
+    run_meta = write_success_artifacts(
+        out_dir=out_dir,
+        manifest=manifest,
+        args=args,
+        mode=mode,
+        response=response,
+        response_dict=response_dict,
+        output_text=output_text,
+        vector_store=vector_store,
+        exact_input_tokens=exact_input_tokens,
+    )
 
     print(json.dumps(run_meta, indent=2, ensure_ascii=False))
     return 0

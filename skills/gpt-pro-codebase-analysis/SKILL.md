@@ -1,11 +1,11 @@
 ---
 name: gpt-pro-codebase-analysis
-description: Use this skill when the user wants a deep second-opinion analysis of a repository, either through the OpenAI Responses API or through a fully manual ChatGPT Web handoff. Use it for architecture review, refactoring strategy, test-gap analysis, performance, workflow or use-case validity, missing implementation, or deprecated and unused logic when the repository is too large to inspect comfortably in-session.
+description: Use this skill when the user wants a deep second-opinion analysis of a repository, either through the OpenAI Responses API or through a ChatGPT Web handoff. Use it for architecture review, refactoring strategy, test-gap analysis, performance, workflow or use-case validity, missing implementation, or deprecated and unused logic when the repository is too large to inspect comfortably in-session.
 ---
 
 # GPT Pro codebase analysis
 
-This skill prepares repository context, chooses between a direct API run and a fully manual ChatGPT Web handoff, and returns an evidence-based analysis report that can drive follow-up design work.
+This skill prepares repository context, chooses between a direct API run and a ChatGPT Web handoff, and returns an evidence-based analysis report that can drive follow-up design work.
 
 ## Core principles
 
@@ -15,7 +15,7 @@ This skill prepares repository context, chooses between a direct API run and a f
 4. Prefer the most complete context that is still practical inside the chosen mode.
 5. Exclude Git-ignored files exactly when possible.
 6. For `responses_api`, treat archives as transport artifacts and analyze text shards or uploaded raw files.
-7. For `chatgpt_web_assisted`, do not automate the browser; prepare only the upload zip, prompt, and next-step instructions.
+7. For `chatgpt_web_assisted`, browser automation is prohibited by default. Prepare only the upload zip, prompt, and next-step instructions unless the current user request explicitly asks to use `Computer Use` for the handoff.
 8. Keep every conclusion grounded in concrete files.
 9. Distinguish confirmed findings from inference or uncertainty.
 10. If external upload could be sensitive, surface a brief privacy note before proceeding.
@@ -44,7 +44,8 @@ Use wording like this when needed:
 ```text
 Please choose the analysis execution mode.
 - responses_api: run the analysis directly through the OpenAI Responses API
-- chatgpt_web_assisted: I will prepare the upload archive and prompt, then the user runs it manually in ChatGPT Web and sends the result back
+- chatgpt_web_assisted: I will prepare the upload archive and prompt, then the user runs it manually in ChatGPT Web unless the current request explicitly asks me to use Computer Use for the handoff
+For ChatGPT Web Pro handoff, use Extended(확장) reasoning unless you explicitly request a different reasoning level. The analysis can take more than 30 minutes.
 I will not execute anything before an explicit choice. If one mode fails, I will not automatically switch to the other.
 ```
 
@@ -109,6 +110,12 @@ python scripts/prepare_analysis_context.py --root . --goal "<user goal>" --mode 
 That script writes artifacts under `.codex-analysis/context/` by default.
 
 The layout now keeps a single clean active run under `.codex-analysis/` and archives the previous active run under `.codex-analysis/history/<run_id>/` whenever a new prepare run starts.
+
+For ChatGPT Web handoffs, distinguish immutable submitted identity from relocated artifact paths:
+
+- `prepared_handoff_identity`, `prompt_handoff_identity_block`, and `prompt_handoff_identity_sha256` describe the exact handoff identity that was prepared for submission and must not be rewritten after archival.
+- `current_artifact_paths` describes where local artifacts live after active-run archival or when using an archived manifest.
+- When verifying a ChatGPT answer, trust the immutable prepared identity over relocated local paths.
 
 ### 2) File inclusion defaults
 
@@ -230,7 +237,7 @@ For background runs on the default Pro model, the helper uses adaptive polling i
 - 40 to under 50 minutes elapsed: sleep 3 minutes between polls
 - 50 minutes and beyond: sleep 1 minute between polls
 
-If the Responses API returns a terminal failure status, stop immediately and do not retry automatically. Pro requests are expensive, so failure handling should be explicit and user-driven.
+If the Responses API returns a terminal failure status, save `response.json` and a failed `run_meta.json`, do not write `analysis_report.md` as if it were a successful report, exit non-zero, and do not retry automatically. Pro requests are expensive, so failure handling should be explicit and user-driven.
 
 ### Model defaults
 
@@ -256,9 +263,9 @@ When analysis succeeds:
 
 ## Execution mode B: `chatgpt_web_assisted`
 
-This mode is fully manual.
+This mode prepares a ChatGPT Web handoff package. It is manual by default. Computer Use is a narrow opt-in exception, not a fallback.
 
-It must never:
+By default, it must never:
 
 - open a browser on the user's behalf
 - use Playwright or other browser automation
@@ -267,7 +274,29 @@ It must never:
 - auto-submit prompts
 - scrape ChatGPT output from the page
 
-It should only prepare a handoff package for the user.
+It should only prepare a handoff package for the user. Computer Use is allowed only when both of these are true:
+
+- The current user request explicitly asks to use `Computer Use` or `[@Computer Use](plugin://computer-use@openai-bundled)` for the ChatGPT Web handoff.
+- The Computer Use plugin/tool is available in the current session.
+
+Computer Use availability alone is never permission to automate ChatGPT Web. Do not infer permission from the selected `chatgpt_web_assisted` mode, from a prior run, or from the plugin being available.
+
+For any ChatGPT Web Pro handoff, use Extended(확장) reasoning unless the user explicitly names a different reasoning level. Before the handoff or submission, state that the analysis can take more than 30 minutes.
+
+When those conditions are true, use Computer Use to complete the ChatGPT Web handoff. Follow this procedure:
+
+1. Open a new browser window for `chatgpt.com`; do not reuse an existing ChatGPT/browser window or tab from the user's current workspace.
+2. Record the current handoff identity before submission: handoff directory, `request_meta.json` `run_id`, canonical `upload-source.zip` path, run-id-named accessible upload copy path, archive SHA-256, `chatgpt-prompt.txt` path, the prompt's `Handoff identity` block, `prompt_handoff_identity_sha256`, and the current user goal. Treat `prepared_handoff_identity` and `prompt_handoff_identity_sha256` as immutable submitted identity; use `current_artifact_paths` only to find relocated local files.
+3. If ChatGPT Web requires authentication, pause and ask the user to authenticate in that new browser window; continue only after the user confirms authentication is complete.
+4. Use the run-id-named accessible upload copy recorded in `request_meta.json` as `accessible_upload_copy_path`. The helper creates this copy in an easy-to-reach location such as `~/Downloads/upload-source-<run_id>.zip`; if the metadata is missing, copy the canonical `upload-source.zip` to `~/Downloads` or `~/Desktop` with that filename pattern and verify the SHA-256 still matches.
+5. Attach that run-id-named zip through ChatGPT's attach-file button and the OS file picker.
+6. Select Pro with Extended(확장) reasoning unless the user explicitly requested another reasoning level.
+7. Paste the contents of `chatgpt-prompt.txt`, submit the analysis request, and wait for completion.
+8. Before collecting any result, verify that the visible ChatGPT conversation is the one requested by this current session. Match it against the recorded immutable handoff identity, including `run_id`, user goal, `prompt_handoff_identity_sha256`, the prompt's `Handoff identity` block, uploaded archive presence, archive SHA-256 when visible or inferable, prompt content, and the run-id-named attached file when visible or otherwise inferable. Do not rely on relocated paths or the displayed upload filename alone because ChatGPT may rename duplicate uploads and local artifacts may move into history. If multiple ChatGPT tabs/windows are running analyses, do not take the most recent or completed answer by position alone.
+9. If the current-session identity cannot be verified with high confidence, do not use the browser result. Ask the user to identify the correct tab or rerun the handoff in a fresh window.
+10. Only after verification, collect the final answer and then continue local planning or implementation from that answer.
+
+If Computer Use is unavailable, blocked, or unreliable for the handoff, keep the default manual-only rule: return the generated file paths plus any partial browser state already reached, and do not use Playwright, shell browser automation, scraping, or any other browser-control substitute.
 
 Use the helper script:
 
@@ -288,22 +317,35 @@ Under `.codex-analysis/chatgpt-web/` by default, generate for the active run. If
 - `handoff/return-to-agent-template.md`
 - `request_meta.json`
 
+The helper also copies the upload archive to an easy-to-select location, normally `~/Downloads/upload-source-<run_id>.zip`, and records that path as `accessible_upload_copy_path` in `request_meta.json`.
+
+`request_meta.json` must preserve both identity and current local paths:
+
+- immutable fields: `prepared_handoff_identity`, `prompt_handoff_identity_block`, `prompt_handoff_identity_sha256`
+- mutable local path field: `current_artifact_paths`
+- lifecycle field: `handoff_lifecycle: "prepared"`
+
 ### How this mode works
 
-1. Codex prepares the upload zip and prompt only.
-2. The user manually opens ChatGPT Web.
-3. The user manually starts a new chat.
-4. The user manually chooses `Pro` if that is the approved model for this run.
-5. The user manually uploads `upload-source.zip`.
-6. The user manually pastes `chatgpt-prompt.txt`.
-7. The user manually waits for the answer.
-8. The user manually pastes the result back to Codex using `return-to-agent-template.md`.
-9. Codex then continues local design or implementation work based on that pasted result.
+1. Codex prepares the upload zip and prompt.
+2. If the current user request did not explicitly request Computer Use, return the handoff paths and tell the user to run ChatGPT Web Pro with Extended(확장) reasoning unless they want a different level.
+3. If the current user request explicitly requested Computer Use and it is available, use it to operate ChatGPT Web end to end in a new browser window, selecting Extended(확장) reasoning and attaching the run-id-named accessible upload copy through ChatGPT's attach-file button and the OS file picker.
+4. If authentication is required during Computer Use, ask the user to authenticate and wait for confirmation before continuing.
+5. Expect the analysis to take more than 30 minutes when using Pro Extended reasoning.
+6. Before reading or copying a completed ChatGPT answer, verify that it belongs to the current session's handoff by checking immutable submitted identity: `request_meta.json` `run_id`, user goal, `prompt_handoff_identity_sha256`, the prompt's `Handoff identity` block, uploaded archive presence, archive SHA-256 when visible or inferable, and run-id-named attached file. Use `current_artifact_paths` only to locate local files. If this cannot be confirmed, stop and ask the user instead of importing a possibly unrelated result.
+7. After ChatGPT finishes and the current-session match is verified, use the returned answer as input to local design, implementation, or verification work.
 
-### Rules for the manual web path
+### Rules for the ChatGPT Web path
 
-- Do not programmatically interact with `chatgpt.com`.
-- Do not scrape or auto-ingest the answer from the browser.
+- Do not programmatically interact with `chatgpt.com` unless the current user request explicitly opted into the Computer Use exception above.
+- Do not scrape or auto-ingest the answer from the browser unless Computer Use is the active requested handoff mechanism.
+- Do not use Playwright, shell browser automation, or another browser-control tool as a fallback for Computer Use.
+- Do not treat Computer Use availability as authorization; it only matters after an explicit user opt-in.
+- For Computer Use uploads, use the run-id-named accessible upload copy from `request_meta.json` and attach it with ChatGPT's attach-file button plus the OS file picker.
+- For ChatGPT Web Pro, use Extended(확장) reasoning by default and account for analysis time longer than 30 minutes.
+- When several Computer Use sessions or ChatGPT tabs are active, never collect an analysis result until the tab is verified as the current session's request. Compare the visible chat against the immutable prepared handoff metadata, `prompt_handoff_identity_sha256`, prompt `Handoff identity` block, upload SHA, attached filename, and goal; if ambiguous, ask the user rather than guessing.
+- If Computer Use fails after the package is prepared or after partial browser setup, stop browser automation and return the handoff paths plus the current partial state. Do not use Playwright or another browser automation fallback.
+- If ChatGPT displays the uploaded archive with a renamed filename, verify by `run_id`, prompt identity, goal, and archive presence instead of filename alone.
 - Do not automatically switch to `responses_api` if upload fails or the archive is too large.
 - If the user wants to switch modes after a failure, require an explicit new instruction.
 - If ChatGPT Web says it cannot inspect the archive reliably, bring that answer back and decide the next step only after the user confirms.
@@ -446,15 +488,15 @@ Use these when relevant:
 
 Ask the model for a report with this structure unless the user asked for something else:
 
-1. scope and assumptions
-2. short system map
-3. top findings, prioritized
-4. evidence for each finding with file paths and line references when possible
-5. confirmed facts vs inference or uncertainty
-6. test-gap recommendations
-7. refactoring or redesign recommendations
-8. quick wins vs deeper changes
-9. suggested next design steps
+1. Scope and assumptions
+2. Short system map
+3. Top findings (prioritized)
+4. Evidence for each finding
+5. Confirmed facts vs inference
+6. Test-gap recommendations
+7. Refactoring or redesign recommendations
+8. Quick wins vs deeper changes
+9. Suggested next design steps
 
 ## Quality bar for accepting the analysis
 
@@ -531,6 +573,6 @@ This writes the handoff package under `.codex-analysis/history/<run_id>/chatgpt-
 - Prefer reading and summarizing the generated `manifest.json` before any external step.
 - Require explicit mode confirmation before running either external path.
 - Before `responses_api`, let the helper read `.env`. If `OPENAI_API_KEY` is still missing, ask the user to set it in `.env` or the current environment before retrying.
-- If `chatgpt_web_assisted` was chosen, return the generated upload zip, prompt, and next-step file paths to the user. Do not browse to ChatGPT Web for them.
+- If `chatgpt_web_assisted` was chosen, return the generated upload zip, prompt, accessible upload copy, and next-step file paths to the user, and state that ChatGPT Web Pro should use Extended(확장) reasoning by default and may take more than 30 minutes. Do this unless the current user request explicitly requested the Computer Use handoff and Computer Use is available. In that case, open ChatGPT Web in a new browser window, select Extended(확장) reasoning unless directed otherwise, attach the run-id-named accessible upload copy through ChatGPT's attach-file button and the OS file picker, and submit the handoff; if authentication is required, ask the user to authenticate and continue after confirmation. Before collecting the answer, verify that the ChatGPT tab belongs to the current handoff by checking the current goal, immutable `prepared_handoff_identity`, `prompt_handoff_identity_sha256`, uploaded archive presence, upload SHA, attached filename, and prompt `Handoff identity` block; if uncertain, do not import the result.
 - If the external run returns a strong report, summarize the result back to the user in the same language they used.
 - After the analysis, switch back to local repo work and use the report as an input to planning, design, or implementation.

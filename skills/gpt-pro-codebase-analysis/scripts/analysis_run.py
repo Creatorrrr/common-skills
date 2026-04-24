@@ -13,6 +13,13 @@ ACTIVE_DIR_NAMES = ("context", "gpt-pro", "chatgpt-web", "claude-code")
 DEFAULT_ANALYSIS_ROOT_NAME = ".codex-analysis"
 LAYOUT_VERSION = 1
 TEXT_REWRITE_SUFFIXES = {".json", ".log", ".md", ".txt"}
+IMMUTABLE_JSON_KEYS = {
+    "handoff_identity",
+    "prepared_handoff_identity",
+    "prompt_handoff_identity_block",
+    "prompt_handoff_identity_sha256",
+}
+IMMUTABLE_TEXT_FILES = {"chatgpt-prompt.txt"}
 
 
 @dataclass(frozen=True)
@@ -93,18 +100,49 @@ def _allocate_archive_run_id(history_root: Path, run_id: str) -> str:
     return candidate
 
 
+def _rewrite_path_text(value: str, ordered_pairs: list[tuple[str, str]]) -> str:
+    rewritten = value
+    for old, new in ordered_pairs:
+        rewritten = rewritten.replace(old, new)
+    return rewritten
+
+
+def _rewrite_json_paths(value: Any, ordered_pairs: list[tuple[str, str]]) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: nested_value
+            if key in IMMUTABLE_JSON_KEYS
+            else _rewrite_json_paths(nested_value, ordered_pairs)
+            for key, nested_value in value.items()
+        }
+    if isinstance(value, list):
+        return [_rewrite_json_paths(item, ordered_pairs) for item in value]
+    if isinstance(value, str):
+        return _rewrite_path_text(value, ordered_pairs)
+    return value
+
+
 def _rewrite_archived_paths(archive_root: Path, replacements: dict[str, str]) -> None:
     ordered_pairs = sorted(replacements.items(), key=lambda item: len(item[0]), reverse=True)
     for path in archive_root.rglob("*"):
         if not path.is_file() or path.suffix.lower() not in TEXT_REWRITE_SUFFIXES:
             continue
+        if path.name in IMMUTABLE_TEXT_FILES:
+            continue
+        if path.suffix.lower() == ".json":
+            try:
+                original_json = load_json(path)
+            except (json.JSONDecodeError, OSError):
+                continue
+            rewritten_json = _rewrite_json_paths(original_json, ordered_pairs)
+            if rewritten_json != original_json:
+                path.write_text(json.dumps(rewritten_json, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+            continue
         try:
             original = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        rewritten = original
-        for old, new in ordered_pairs:
-            rewritten = rewritten.replace(old, new)
+        rewritten = _rewrite_path_text(original, ordered_pairs)
         if rewritten != original:
             path.write_text(rewritten, encoding="utf-8")
 
@@ -130,6 +168,7 @@ def archive_active_run(analysis_root: Path) -> str | None:
         target = archive_root / name
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(source), str(target))
+        replacements[str(source)] = str(target)
         replacements[str(source.resolve())] = str(target.resolve())
 
     _rewrite_archived_paths(archive_root, replacements)

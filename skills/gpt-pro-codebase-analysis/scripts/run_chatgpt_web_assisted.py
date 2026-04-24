@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 import sys
@@ -15,6 +16,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from analysis_contract import render_required_output_sections
 from analysis_run import resolve_tool_output_dir
 
 
@@ -55,6 +57,78 @@ class Selection:
         return self.archive_path.exists() and not self.invalid_reasons
 
 
+@dataclass(frozen=True)
+class HandoffIdentity:
+    run_id: str | None
+    goal: str
+    handoff_dir: Path
+    upload_zip_path: Path
+    upload_zip_sha256: str
+    accessible_upload_copy_path: Path
+    accessible_upload_copy_sha256: str
+    prompt_path: Path
+    request_meta_path: Path
+
+    def prompt_block(self) -> str:
+        return textwrap.dedent(
+            f"""
+            Handoff identity:
+            - run_id: {self.run_id or '(none)'}
+            - canonical upload archive filename: {self.upload_zip_path.name}
+            - canonical upload archive path: {self.upload_zip_path}
+            - ChatGPT attachment filename: {self.accessible_upload_copy_path.name}
+            - accessible upload copy path: {self.accessible_upload_copy_path}
+            - upload archive sha256: {self.upload_zip_sha256}
+            - accessible upload copy sha256: {self.accessible_upload_copy_sha256}
+            - prompt path: {self.prompt_path}
+            - primary goal: {self.goal or '(none provided)'}
+            """
+        ).strip()
+
+    def prompt_block_sha256(self) -> str:
+        return sha256_text(self.prompt_block())
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "run_id": self.run_id,
+            "goal": self.goal,
+            "handoff_dir": str(self.handoff_dir),
+            "upload_zip_path": str(self.upload_zip_path),
+            "upload_zip_name": self.upload_zip_path.name,
+            "upload_zip_sha256": self.upload_zip_sha256,
+            "accessible_upload_copy_path": str(self.accessible_upload_copy_path),
+            "accessible_upload_copy_name": self.accessible_upload_copy_path.name,
+            "accessible_upload_copy_sha256": self.accessible_upload_copy_sha256,
+            "prompt_path": str(self.prompt_path),
+            "request_meta_path": str(self.request_meta_path),
+            "prompt_handoff_identity_sha256": self.prompt_block_sha256(),
+        }
+
+
+def current_artifact_paths(
+    *,
+    out_dir: Path,
+    handoff_dir: Path,
+    upload_zip_path: Path,
+    accessible_upload_copy_path: Path,
+    prompt_path: Path,
+    response_template_path: Path,
+    next_steps_path: Path,
+    request_meta_path: Path,
+) -> dict[str, str]:
+    return {
+        "out_dir": str(out_dir),
+        "handoff_dir": str(handoff_dir),
+        "upload_zip_path": str(upload_zip_path),
+        "accessible_upload_copy_path": str(accessible_upload_copy_path),
+        "prompt_path": str(prompt_path),
+        "response_template_path": str(response_template_path),
+        "next_steps_path": str(next_steps_path),
+        "request_meta_path": str(request_meta_path),
+        "run_meta_path": str(out_dir / "run_meta.json"),
+    }
+
+
 def load_json(path: Path) -> dict:
     with path.open("r", encoding="utf-8") as fh:
         return json.load(fh)
@@ -69,6 +143,40 @@ def save_json(path: Path, data: Any) -> None:
 def write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def safe_filename_part(value: str | None) -> str:
+    text = (value or "unknown-run").strip() or "unknown-run"
+    safe = "".join(ch if ch.isalnum() or ch in "-_." else "-" for ch in text)
+    return safe.strip(".-") or "unknown-run"
+
+
+def default_accessible_copy_dir() -> Path:
+    home = Path.home()
+    for candidate in (home / "Downloads", home / "Desktop"):
+        if candidate.exists() and candidate.is_dir():
+            return candidate
+    return home
+
+
+def create_accessible_upload_copy(source: Path, run_id: str | None, copy_dir: Path) -> Path:
+    copy_dir.mkdir(parents=True, exist_ok=True)
+    target = copy_dir / f"upload-source-{safe_filename_part(run_id)}.zip"
+    if source.resolve() != target.resolve():
+        shutil.copy2(source, target)
+    return target
 
 
 def zip_selected_files(root: Path, rel_paths: list[str], output: Path) -> Path:
@@ -181,19 +289,23 @@ def choose_selection(manifest: dict, root: Path, out_dir: Path, selection_mode: 
     )
 
 
-def build_prompt(manifest: dict, goal: str, selection: Selection, notes: list[str], warnings: list[str]) -> str:
+def build_prompt(
+    manifest: dict,
+    goal: str,
+    selection: Selection,
+    notes: list[str],
+    warnings: list[str],
+    *,
+    handoff_identity: HandoffIdentity,
+) -> str:
     scope = ", ".join(manifest.get("scope", [])) or "(none provided)"
     keywords = ", ".join(manifest.get("keywords", [])) or "(none)"
     warnings_block = "\n".join(f"- {item}" for item in warnings) if warnings else "- none"
     notes_block = "\n".join(f"- {item}" for item in notes) if notes else "- none"
+    resolved_goal = goal or manifest.get("goal") or "(none provided)"
 
-    return textwrap.dedent(
+    body = textwrap.dedent(
         f"""
-        Analyze the uploaded repository archive as the primary source of truth.
-
-        Primary goal:
-        {goal or manifest.get('goal') or '(none provided)'}
-
         Preparation context:
         - selected archive: {selection.label}
         - repo root: {manifest.get('repo_root')}
@@ -218,28 +330,46 @@ def build_prompt(manifest: dict, goal: str, selection: Selection, notes: list[st
         - Trace at least one relevant end-to-end workflow.
         - Base claims on concrete evidence from the uploaded archive.
         - If the archive cannot be inspected reliably in this chat, say that clearly before making file-specific claims.
+        - In the first output section, repeat the handoff identity values that are visible from this prompt so the caller can verify this answer belongs to the current handoff.
         - Separate confirmed findings from inference or uncertainty.
         - Do not use external web research unless I ask for it explicitly.
         - Use concise Markdown.
         - Do not reveal chain-of-thought.
 
         Required output sections unless I later ask for something else:
-        1. Scope and assumptions
-        2. Short system map
-        3. Top findings (prioritized)
-        4. Evidence for each finding
-        5. Confirmed facts vs inference
-        6. Test gaps
-        7. Refactoring or redesign recommendations
-        8. Quick wins vs deeper changes
-        9. Suggested next design steps
         """
-    ).strip() + "\n"
+    ).strip()
+    return "\n\n".join(
+        [
+            "Analyze the uploaded repository archive as the primary source of truth.",
+            handoff_identity.prompt_block(),
+            f"Primary goal:\n{resolved_goal}",
+            body,
+            render_required_output_sections(),
+        ]
+    ) + "\n"
 
 
-def build_next_steps(selection: Selection, upload_zip_path: Path, prompt_path: Path, response_template_path: Path, notes: list[str], warnings: list[str]) -> str:
+def build_next_steps(
+    selection: Selection,
+    upload_zip_path: Path,
+    accessible_upload_copy_path: Path,
+    prompt_path: Path,
+    response_template_path: Path,
+    notes: list[str],
+    warnings: list[str],
+    *,
+    request_meta_path: Path | None = None,
+    handoff_identity: HandoffIdentity | None = None,
+) -> str:
     notes_block = "\n".join(f"- {item}" for item in notes) if notes else "- none"
     warnings_block = "\n".join(f"- {item}" for item in warnings) if warnings else "- none"
+    request_meta_line = f"- Handoff metadata: `{request_meta_path}`" if request_meta_path else ""
+    identity_sha_line = (
+        f"- Prompt handoff identity SHA-256: `{handoff_identity.prompt_block_sha256()}`"
+        if handoff_identity
+        else ""
+    )
     token_note = ""
     if selection.estimated_tokens >= DEFAULTS["chatgpt_hard_tokens"]:
         token_note = (
@@ -261,15 +391,18 @@ def build_next_steps(selection: Selection, upload_zip_path: Path, prompt_path: P
 
     return textwrap.dedent(
         f"""
-        Manual ChatGPT Web handoff
-        ==========================
+        ChatGPT Web handoff package
+        ===========================
 
-        This path is fully manual. It does not open a browser, drive ChatGPT, scrape the page, or auto-submit anything.
+        This helper only prepares the handoff files. It does not open a browser, drive ChatGPT, scrape the page, or auto-submit anything.
 
         Files prepared for you:
-        - Upload this file in ChatGPT: `{upload_zip_path}`
+        - Attach this file in ChatGPT: `{accessible_upload_copy_path}`
+        - Canonical handoff archive: `{upload_zip_path}`
         - Paste this prompt into ChatGPT: `{prompt_path}`
         - After ChatGPT finishes, return its answer using this template: `{response_template_path}`
+        {request_meta_line}
+        {identity_sha_line}
 
         Preparation notes:
         {notes_block}
@@ -280,13 +413,13 @@ def build_next_steps(selection: Selection, upload_zip_path: Path, prompt_path: P
         Additional upload cautions:
         {size_note}{token_note or '- none\n'}
 
-        What to do next:
+        What to do next manually if Computer Use is not being used:
         1. Open ChatGPT manually.
         2. Start a new chat.
-        3. In the model picker, manually choose `Pro` if that is the user-approved model for this run.
-        4. Upload `{upload_zip_path.name}`.
+        3. In the model picker, manually choose `Pro` with `Extended(확장)` reasoning unless the user explicitly requested another reasoning level.
+        4. Use ChatGPT's attach-file button and select `{accessible_upload_copy_path.name}` from `{accessible_upload_copy_path.parent}`.
         5. Open `{prompt_path.name}`, copy all of its contents, and paste them as the message.
-        6. Submit the message and let ChatGPT finish.
+        6. Submit the message and let ChatGPT finish. Pro Extended analysis can take more than 30 minutes.
         7. Copy the full final answer.
         8. Open `{response_template_path.name}`, replace the placeholder area with the full answer, then return to Codex and paste the same content or attach that file.
 
@@ -295,18 +428,40 @@ def build_next_steps(selection: Selection, upload_zip_path: Path, prompt_path: P
         - Do not narrow or broaden the scope automatically after failure.
         - If ChatGPT says it cannot inspect the archive reliably, bring that result back here first.
         - Any change of mode must be explicitly requested by the user.
+        - If ChatGPT displays the uploaded archive with a renamed filename, verify the answer using the handoff identity block in `{prompt_path.name}` rather than the displayed filename alone.
+        - Before importing a completed answer, compare the answer's first section against `request_meta.json` values for `run_id`, `goal`, upload SHA, attached filename, and `prompt_handoff_identity_sha256`.
         """
     ).strip() + "\n"
 
 
-def build_return_template(selection: Selection, upload_zip_path: Path, prompt_path: Path) -> str:
+def build_return_template(
+    selection: Selection,
+    upload_zip_path: Path,
+    accessible_upload_copy_path: Path,
+    prompt_path: Path,
+    *,
+    handoff_identity: HandoffIdentity,
+    goal: str,
+) -> str:
     return textwrap.dedent(
         f"""
         [BEGIN CHATGPT WEB ANALYSIS]
         mode=chatgpt_web_assisted
+        run_id={handoff_identity.run_id or ''}
         selected_archive={selection.label}
-        uploaded_file={upload_zip_path.name}
+        canonical_uploaded_file={upload_zip_path.name}
+        attached_file={accessible_upload_copy_path.name}
+        upload_sha256={handoff_identity.upload_zip_sha256}
+        prompt_handoff_identity_sha256={handoff_identity.prompt_block_sha256()}
         prompt_file={prompt_path.name}
+        goal={goal}
+        verified_current_session=
+        verification_evidence=
+        matched_run_id=
+        matched_goal=
+        matched_prompt_identity_sha256=
+        matched_upload_sha_or_reason_unavailable=
+        matched_attached_file_or_reason_unavailable=
 
         Paste the full ChatGPT response below this line.
 
@@ -317,7 +472,7 @@ def build_return_template(selection: Selection, upload_zip_path: Path, prompt_pa
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Prepare a fully manual ChatGPT Web handoff for repository analysis. This script does not use Playwright or browser automation."
+        description="Prepare a ChatGPT Web handoff package for repository analysis. This script does not use Playwright or browser automation."
     )
     parser.add_argument("--manifest", required=True, help="Path to manifest.json produced by prepare_analysis_context.py")
     parser.add_argument("--goal", default="", help="Analysis goal.")
@@ -325,9 +480,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--selection-mode",
         choices=["auto", "full", "focused"],
         default="auto",
-        help="Which prepared code selection to package for manual ChatGPT Web upload. 'auto' keeps the full-first policy unless focused is recommended or the full archive is too large.",
+        help="Which prepared code selection to package for ChatGPT Web upload. 'auto' keeps the full-first policy unless focused is recommended or the full archive is too large.",
     )
     parser.add_argument("--out-dir", default=DEFAULTS["out_dir"], help="Directory for the manual handoff artifacts.")
+    parser.add_argument(
+        "--accessible-copy-dir",
+        default="",
+        help="Directory for a run_id-named copy that is easy to select in the ChatGPT file picker. Defaults to ~/Downloads, then ~/Desktop, then the home directory.",
+    )
     parser.add_argument(
         "--max-chatgpt-file-bytes",
         type=int,
@@ -372,41 +532,123 @@ def main() -> int:
         shutil.copy2(selection.archive_path, upload_zip_path)
     else:
         upload_zip_path = selection.archive_path
+    upload_sha256 = sha256_file(upload_zip_path)
+    accessible_copy_dir = Path(args.accessible_copy_dir).expanduser().resolve() if args.accessible_copy_dir else default_accessible_copy_dir()
+    accessible_upload_copy_path = create_accessible_upload_copy(
+        source=upload_zip_path,
+        run_id=manifest.get("run_id"),
+        copy_dir=accessible_copy_dir,
+    )
+    accessible_upload_sha256 = sha256_file(accessible_upload_copy_path)
+    if accessible_upload_sha256 != upload_sha256:
+        raise SystemExit(
+            "The accessible ChatGPT upload copy does not match the canonical handoff archive SHA-256. "
+            f"canonical={upload_sha256} accessible_copy={accessible_upload_sha256}"
+        )
 
     prompt_path = handoff_dir / "chatgpt-prompt.txt"
-    prompt_text = build_prompt(manifest, goal, selection, notes, warnings)
+    response_template_path = handoff_dir / "return-to-agent-template.md"
+    next_steps_path = handoff_dir / "next-steps.md"
+    request_meta_path = out_dir / "request_meta.json"
+    handoff_identity = HandoffIdentity(
+        run_id=manifest.get("run_id"),
+        goal=goal,
+        handoff_dir=handoff_dir,
+        upload_zip_path=upload_zip_path,
+        upload_zip_sha256=upload_sha256,
+        accessible_upload_copy_path=accessible_upload_copy_path,
+        accessible_upload_copy_sha256=accessible_upload_sha256,
+        prompt_path=prompt_path,
+        request_meta_path=request_meta_path,
+    )
+    prompt_text = build_prompt(
+        manifest,
+        goal,
+        selection,
+        notes,
+        warnings,
+        handoff_identity=handoff_identity,
+    )
     write_text(prompt_path, prompt_text)
 
-    response_template_path = handoff_dir / "return-to-agent-template.md"
-    write_text(response_template_path, build_return_template(selection, upload_zip_path, prompt_path))
+    write_text(
+        response_template_path,
+        build_return_template(
+            selection,
+            upload_zip_path,
+            accessible_upload_copy_path,
+            prompt_path,
+            handoff_identity=handoff_identity,
+            goal=goal,
+        ),
+    )
 
-    next_steps_path = handoff_dir / "next-steps.md"
-    next_steps_text = build_next_steps(selection, upload_zip_path, prompt_path, response_template_path, notes, warnings)
+    next_steps_text = build_next_steps(
+        selection,
+        upload_zip_path,
+        accessible_upload_copy_path,
+        prompt_path,
+        response_template_path,
+        notes,
+        warnings,
+        request_meta_path=request_meta_path,
+        handoff_identity=handoff_identity,
+    )
     write_text(next_steps_path, next_steps_text)
+
+    prepared_handoff_identity = handoff_identity.to_dict()
+    prompt_handoff_identity_block = handoff_identity.prompt_block()
+    prompt_handoff_identity_sha256 = handoff_identity.prompt_block_sha256()
+    artifact_paths = current_artifact_paths(
+        out_dir=out_dir,
+        handoff_dir=handoff_dir,
+        upload_zip_path=upload_zip_path,
+        accessible_upload_copy_path=accessible_upload_copy_path,
+        prompt_path=prompt_path,
+        response_template_path=response_template_path,
+        next_steps_path=next_steps_path,
+        request_meta_path=request_meta_path,
+    )
 
     request_meta = {
         "transport": "chatgpt_web_assisted",
-        "execution": "manual_only",
+        "execution": "handoff_package_only",
+        "handoff_lifecycle": "prepared",
         "manifest": str(manifest_path),
         "run_id": manifest.get("run_id"),
+        "goal": goal,
+        "handoff_dir": str(handoff_dir),
         "selection_mode": args.selection_mode,
         "selection_label": selection.label,
         "selection_key": selection.key,
         "selection_generated_archive": selection.generated_archive,
         "upload_zip_path": str(upload_zip_path),
         "upload_zip_bytes": upload_zip_path.stat().st_size,
+        "upload_zip_sha256": upload_sha256,
+        "accessible_upload_copy_path": str(accessible_upload_copy_path),
+        "accessible_upload_copy_name": accessible_upload_copy_path.name,
+        "accessible_upload_copy_bytes": accessible_upload_copy_path.stat().st_size,
+        "accessible_upload_copy_sha256": accessible_upload_sha256,
         "prompt_path": str(prompt_path),
         "response_template_path": str(response_template_path),
         "next_steps_path": str(next_steps_path),
+        "handoff_identity": prepared_handoff_identity,
+        "prepared_handoff_identity": prepared_handoff_identity,
+        "prompt_handoff_identity_block": prompt_handoff_identity_block,
+        "prompt_handoff_identity_sha256": prompt_handoff_identity_sha256,
+        "current_artifact_paths": artifact_paths,
         "estimated_selected_tokens": selection.estimated_tokens,
         "estimated_selected_bytes": selection.estimated_bytes,
         "selected_file_count": selection.file_count,
         "notes": notes,
         "warnings": warnings,
-        "no_automatic_browser_automation": True,
+        "helper_does_not_perform_browser_automation": True,
+        "browser_automation_performed_by_helper": False,
+        "computer_use_handoff_possible_when_user_explicitly_requested": True,
+        "browser_automation_allowed_only_by_explicit_computer_use": True,
         "no_automatic_mode_fallback": True,
     }
-    save_json(out_dir / "request_meta.json", request_meta)
+    save_json(request_meta_path, request_meta)
     save_json(out_dir / "run_meta.json", request_meta)
 
     print(json.dumps(request_meta, indent=2, ensure_ascii=False))
