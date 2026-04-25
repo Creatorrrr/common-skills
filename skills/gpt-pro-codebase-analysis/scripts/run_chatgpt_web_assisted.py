@@ -64,26 +64,40 @@ class HandoffIdentity:
     handoff_dir: Path
     upload_zip_path: Path
     upload_zip_sha256: str
-    accessible_upload_copy_path: Path
-    accessible_upload_copy_sha256: str
+    attachment_path: Path
+    attachment_sha256: str
+    computer_use_handoff: bool
+    accessible_upload_copy_path: Path | None
+    accessible_upload_copy_sha256: str | None
     prompt_path: Path
     request_meta_path: Path
 
     def prompt_block(self) -> str:
-        return textwrap.dedent(
-            f"""
-            Handoff identity:
-            - run_id: {self.run_id or '(none)'}
-            - canonical upload archive filename: {self.upload_zip_path.name}
-            - canonical upload archive path: {self.upload_zip_path}
-            - ChatGPT attachment filename: {self.accessible_upload_copy_path.name}
-            - accessible upload copy path: {self.accessible_upload_copy_path}
-            - upload archive sha256: {self.upload_zip_sha256}
-            - accessible upload copy sha256: {self.accessible_upload_copy_sha256}
-            - prompt path: {self.prompt_path}
-            - primary goal: {self.goal or '(none provided)'}
-            """
-        ).strip()
+        lines = [
+            "Handoff identity:",
+            f"- run_id: {self.run_id or '(none)'}",
+            f"- canonical upload archive filename: {self.upload_zip_path.name}",
+            f"- canonical upload archive path: {self.upload_zip_path}",
+            f"- ChatGPT attachment filename: {self.attachment_path.name}",
+            f"- ChatGPT attachment path: {self.attachment_path}",
+            f"- upload archive sha256: {self.upload_zip_sha256}",
+            f"- ChatGPT attachment sha256: {self.attachment_sha256}",
+        ]
+        if self.accessible_upload_copy_path is not None:
+            lines.extend(
+                [
+                    f"- Computer Use accessible upload copy path: {self.accessible_upload_copy_path}",
+                    f"- Computer Use accessible upload copy sha256: {self.accessible_upload_copy_sha256}",
+                ]
+            )
+        lines.extend(
+            [
+                f"- Computer Use handoff prepared: {str(self.computer_use_handoff).lower()}",
+                f"- prompt path: {self.prompt_path}",
+                f"- primary goal: {self.goal or '(none provided)'}",
+            ]
+        )
+        return "\n".join(lines)
 
     def prompt_block_sha256(self) -> str:
         return sha256_text(self.prompt_block())
@@ -96,8 +110,16 @@ class HandoffIdentity:
             "upload_zip_path": str(self.upload_zip_path),
             "upload_zip_name": self.upload_zip_path.name,
             "upload_zip_sha256": self.upload_zip_sha256,
-            "accessible_upload_copy_path": str(self.accessible_upload_copy_path),
-            "accessible_upload_copy_name": self.accessible_upload_copy_path.name,
+            "attachment_path": str(self.attachment_path),
+            "attachment_name": self.attachment_path.name,
+            "attachment_sha256": self.attachment_sha256,
+            "computer_use_handoff": self.computer_use_handoff,
+            "accessible_upload_copy_path": str(self.accessible_upload_copy_path)
+            if self.accessible_upload_copy_path is not None
+            else None,
+            "accessible_upload_copy_name": self.accessible_upload_copy_path.name
+            if self.accessible_upload_copy_path is not None
+            else None,
             "accessible_upload_copy_sha256": self.accessible_upload_copy_sha256,
             "prompt_path": str(self.prompt_path),
             "request_meta_path": str(self.request_meta_path),
@@ -110,17 +132,19 @@ def current_artifact_paths(
     out_dir: Path,
     handoff_dir: Path,
     upload_zip_path: Path,
-    accessible_upload_copy_path: Path,
+    attachment_path: Path,
+    accessible_upload_copy_path: Path | None,
     prompt_path: Path,
     response_template_path: Path,
     next_steps_path: Path,
     request_meta_path: Path,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     return {
         "out_dir": str(out_dir),
         "handoff_dir": str(handoff_dir),
         "upload_zip_path": str(upload_zip_path),
-        "accessible_upload_copy_path": str(accessible_upload_copy_path),
+        "attachment_path": str(attachment_path),
+        "accessible_upload_copy_path": str(accessible_upload_copy_path) if accessible_upload_copy_path is not None else None,
         "prompt_path": str(prompt_path),
         "response_template_path": str(response_template_path),
         "next_steps_path": str(next_steps_path),
@@ -353,7 +377,7 @@ def build_prompt(
 def build_next_steps(
     selection: Selection,
     upload_zip_path: Path,
-    accessible_upload_copy_path: Path,
+    attachment_path: Path,
     prompt_path: Path,
     response_template_path: Path,
     notes: list[str],
@@ -361,6 +385,7 @@ def build_next_steps(
     *,
     request_meta_path: Path | None = None,
     handoff_identity: HandoffIdentity | None = None,
+    accessible_upload_copy_path: Path | None = None,
 ) -> str:
     notes_block = "\n".join(f"- {item}" for item in notes) if notes else "- none"
     warnings_block = "\n".join(f"- {item}" for item in warnings) if warnings else "- none"
@@ -388,6 +413,11 @@ def build_next_steps(
             f"- The upload zip is {selection.size_bytes:,} bytes, close to the 512MB per-file upload cap. "
             "Uploads may be slow or fail depending on the environment.\n"
         )
+    accessible_copy_line = (
+        f"- Computer Use accessible copy: `{accessible_upload_copy_path}`"
+        if accessible_upload_copy_path is not None
+        else "- Computer Use accessible copy: not created; manual handoff uses the canonical archive in place"
+    )
 
     return textwrap.dedent(
         f"""
@@ -397,8 +427,9 @@ def build_next_steps(
         This helper only prepares the handoff files. It does not open a browser, drive ChatGPT, scrape the page, or auto-submit anything.
 
         Files prepared for you:
-        - Attach this file in ChatGPT: `{accessible_upload_copy_path}`
+        - Attach this file in ChatGPT: `{attachment_path}`
         - Canonical handoff archive: `{upload_zip_path}`
+        {accessible_copy_line}
         - Paste this prompt into ChatGPT: `{prompt_path}`
         - After ChatGPT finishes, return its answer using this template: `{response_template_path}`
         {request_meta_line}
@@ -413,11 +444,11 @@ def build_next_steps(
         Additional upload cautions:
         {size_note}{token_note or '- none\n'}
 
-        What to do next manually if Computer Use is not being used:
+        What to do next:
         1. Open ChatGPT manually.
         2. Start a new chat.
         3. In the model picker, manually choose `Pro` with `Extended(확장)` reasoning unless the user explicitly requested another reasoning level.
-        4. Use ChatGPT's attach-file button and select `{accessible_upload_copy_path.name}` from `{accessible_upload_copy_path.parent}`.
+        4. Use ChatGPT's attach-file button and select `{attachment_path.name}` from `{attachment_path.parent}`.
         5. Open `{prompt_path.name}`, copy all of its contents, and paste them as the message.
         6. Submit the message and let ChatGPT finish. Pro Extended analysis can take more than 30 minutes.
         7. Copy the full final answer.
@@ -437,7 +468,7 @@ def build_next_steps(
 def build_return_template(
     selection: Selection,
     upload_zip_path: Path,
-    accessible_upload_copy_path: Path,
+    attachment_path: Path,
     prompt_path: Path,
     *,
     handoff_identity: HandoffIdentity,
@@ -450,7 +481,7 @@ def build_return_template(
         run_id={handoff_identity.run_id or ''}
         selected_archive={selection.label}
         canonical_uploaded_file={upload_zip_path.name}
-        attached_file={accessible_upload_copy_path.name}
+        attached_file={attachment_path.name}
         upload_sha256={handoff_identity.upload_zip_sha256}
         prompt_handoff_identity_sha256={handoff_identity.prompt_block_sha256()}
         prompt_file={prompt_path.name}
@@ -486,7 +517,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--accessible-copy-dir",
         default="",
-        help="Directory for a run_id-named copy that is easy to select in the ChatGPT file picker. Defaults to ~/Downloads, then ~/Desktop, then the home directory.",
+        help="Directory for the run_id-named Computer Use upload copy. Only used with --computer-use-handoff. Defaults to ~/Downloads, then ~/Desktop, then the home directory.",
+    )
+    parser.add_argument(
+        "--computer-use-handoff",
+        action="store_true",
+        help="Create a run_id-named upload copy for a Computer Use ChatGPT Web handoff. Without this flag, the canonical handoff archive is used in place.",
     )
     parser.add_argument(
         "--max-chatgpt-file-bytes",
@@ -533,18 +569,27 @@ def main() -> int:
     else:
         upload_zip_path = selection.archive_path
     upload_sha256 = sha256_file(upload_zip_path)
-    accessible_copy_dir = Path(args.accessible_copy_dir).expanduser().resolve() if args.accessible_copy_dir else default_accessible_copy_dir()
-    accessible_upload_copy_path = create_accessible_upload_copy(
-        source=upload_zip_path,
-        run_id=manifest.get("run_id"),
-        copy_dir=accessible_copy_dir,
-    )
-    accessible_upload_sha256 = sha256_file(accessible_upload_copy_path)
-    if accessible_upload_sha256 != upload_sha256:
-        raise SystemExit(
-            "The accessible ChatGPT upload copy does not match the canonical handoff archive SHA-256. "
-            f"canonical={upload_sha256} accessible_copy={accessible_upload_sha256}"
+    accessible_upload_copy_path: Path | None = None
+    accessible_upload_sha256: str | None = None
+    attachment_path = upload_zip_path
+    attachment_sha256 = upload_sha256
+    if args.computer_use_handoff:
+        accessible_copy_dir = Path(args.accessible_copy_dir).expanduser().resolve() if args.accessible_copy_dir else default_accessible_copy_dir()
+        accessible_upload_copy_path = create_accessible_upload_copy(
+            source=upload_zip_path,
+            run_id=manifest.get("run_id"),
+            copy_dir=accessible_copy_dir,
         )
+        accessible_upload_sha256 = sha256_file(accessible_upload_copy_path)
+        if accessible_upload_sha256 != upload_sha256:
+            raise SystemExit(
+                "The accessible ChatGPT upload copy does not match the canonical handoff archive SHA-256. "
+                f"canonical={upload_sha256} accessible_copy={accessible_upload_sha256}"
+            )
+        attachment_path = accessible_upload_copy_path
+        attachment_sha256 = accessible_upload_sha256
+    elif args.accessible_copy_dir:
+        notes.append("--accessible-copy-dir was ignored because --computer-use-handoff was not set; manual handoff uses the canonical archive in place.")
 
     prompt_path = handoff_dir / "chatgpt-prompt.txt"
     response_template_path = handoff_dir / "return-to-agent-template.md"
@@ -556,6 +601,9 @@ def main() -> int:
         handoff_dir=handoff_dir,
         upload_zip_path=upload_zip_path,
         upload_zip_sha256=upload_sha256,
+        attachment_path=attachment_path,
+        attachment_sha256=attachment_sha256,
+        computer_use_handoff=args.computer_use_handoff,
         accessible_upload_copy_path=accessible_upload_copy_path,
         accessible_upload_copy_sha256=accessible_upload_sha256,
         prompt_path=prompt_path,
@@ -576,7 +624,7 @@ def main() -> int:
         build_return_template(
             selection,
             upload_zip_path,
-            accessible_upload_copy_path,
+            attachment_path,
             prompt_path,
             handoff_identity=handoff_identity,
             goal=goal,
@@ -586,13 +634,14 @@ def main() -> int:
     next_steps_text = build_next_steps(
         selection,
         upload_zip_path,
-        accessible_upload_copy_path,
+        attachment_path,
         prompt_path,
         response_template_path,
         notes,
         warnings,
         request_meta_path=request_meta_path,
         handoff_identity=handoff_identity,
+        accessible_upload_copy_path=accessible_upload_copy_path,
     )
     write_text(next_steps_path, next_steps_text)
 
@@ -603,6 +652,7 @@ def main() -> int:
         out_dir=out_dir,
         handoff_dir=handoff_dir,
         upload_zip_path=upload_zip_path,
+        attachment_path=attachment_path,
         accessible_upload_copy_path=accessible_upload_copy_path,
         prompt_path=prompt_path,
         response_template_path=response_template_path,
@@ -625,9 +675,15 @@ def main() -> int:
         "upload_zip_path": str(upload_zip_path),
         "upload_zip_bytes": upload_zip_path.stat().st_size,
         "upload_zip_sha256": upload_sha256,
-        "accessible_upload_copy_path": str(accessible_upload_copy_path),
-        "accessible_upload_copy_name": accessible_upload_copy_path.name,
-        "accessible_upload_copy_bytes": accessible_upload_copy_path.stat().st_size,
+        "attachment_path": str(attachment_path),
+        "attachment_name": attachment_path.name,
+        "attachment_bytes": attachment_path.stat().st_size,
+        "attachment_sha256": attachment_sha256,
+        "attachment_source": "computer_use_accessible_copy" if args.computer_use_handoff else "canonical_handoff_archive",
+        "computer_use_handoff_requested": args.computer_use_handoff,
+        "accessible_upload_copy_path": str(accessible_upload_copy_path) if accessible_upload_copy_path is not None else None,
+        "accessible_upload_copy_name": accessible_upload_copy_path.name if accessible_upload_copy_path is not None else None,
+        "accessible_upload_copy_bytes": accessible_upload_copy_path.stat().st_size if accessible_upload_copy_path is not None else None,
         "accessible_upload_copy_sha256": accessible_upload_sha256,
         "prompt_path": str(prompt_path),
         "response_template_path": str(response_template_path),
@@ -644,6 +700,7 @@ def main() -> int:
         "warnings": warnings,
         "helper_does_not_perform_browser_automation": True,
         "browser_automation_performed_by_helper": False,
+        "computer_use_handoff_prepared": args.computer_use_handoff,
         "computer_use_handoff_possible_when_user_explicitly_requested": True,
         "browser_automation_allowed_only_by_explicit_computer_use": True,
         "no_automatic_mode_fallback": True,
