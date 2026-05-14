@@ -1,6 +1,6 @@
 # common-skills
 
-`common-skills` is a shared skill library for Codex, Claude Code, Gemini CLI, and Antigravity. It currently focuses on deep codebase analysis workflows.
+`common-skills` is a shared skill library for Codex, Claude Code, Gemini CLI, and Antigravity. It currently focuses on deep codebase analysis workflows and cross-agent consultation helpers.
 
 ## Included skills
 
@@ -26,6 +26,12 @@ It supports three team-resolution modes:
 - `custom`: pass an explicit JSON reviewer team definition
 
 `auto` now defaults to a model-based planner with a heuristic fallback, keeps `5` as a soft initial-team target, and records both the starting team and planner trace in dedicated artifacts.
+
+### `consulting-codex-cli`
+
+Use this from Claude Code, Gemini CLI, Antigravity, or another non-Codex agent when the user wants to ask the local Codex CLI for a second opinion, code review, design feedback, or an explicit back-and-forth between agents.
+
+This skill lives under `skills/` with the rest of the library. If it is invoked from inside Codex, it should warn that Codex cannot recursively call itself and stop without running `codex exec`.
 
 ## Installation
 

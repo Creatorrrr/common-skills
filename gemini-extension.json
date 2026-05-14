@@ -1,6 +1,6 @@
 {
   "name": "common-skills",
-  "description": "Repository analysis skills for GPT Pro and Claude Code agent teams",
+  "description": "Repository analysis skills plus Codex CLI consultation guidance",
   "version": "0.1.0",
   "contextFileName": "GEMINI.md"
 }

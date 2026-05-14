@@ -72,6 +72,7 @@ After restart, Antigravity can discover these skills automatically. You can also
 
 - `common-skills:gpt-pro-codebase-analysis`
 - `common-skills:claude-code-agent-team-analysis`
+- `common-skills:consulting-codex-cli`
 
 ## Updating
 
@@ -92,7 +93,7 @@ If you linked your active development checkout, Antigravity sees file changes im
 ## Uninstalling
 
 ```bash
-rm ~/.gemini/antigravity/skills/common-skills
+rm -f ~/.gemini/antigravity/skills/common-skills
 ```
 
 If you used `global_checkout` and no longer want the managed clone:

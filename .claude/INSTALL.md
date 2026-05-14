@@ -69,6 +69,7 @@ If the user chooses `local_checkout` and has not provided a path yet, ask for th
 ```bash
 readlink ~/.claude/skills/gpt-pro-codebase-analysis
 readlink ~/.claude/skills/claude-code-agent-team-analysis
+readlink ~/.claude/skills/consulting-codex-cli
 ```
 
 You should see paths pointing into the selected source checkout, either under `~/.claude/common-skills/skills` or under your chosen local repository path.
@@ -79,6 +80,7 @@ After restart, Claude Code can discover the skills automatically when the task m
 
 - `gpt-pro-codebase-analysis`
 - `claude-code-agent-team-analysis`
+- `consulting-codex-cli`
 
 ## Updating
 
@@ -101,7 +103,7 @@ If you linked your active development checkout, Claude Code sees file changes im
 For either install mode, remove the exposed skill links:
 
 ```bash
-for skill_name in gpt-pro-codebase-analysis claude-code-agent-team-analysis; do
+for skill_name in gpt-pro-codebase-analysis claude-code-agent-team-analysis consulting-codex-cli; do
   rm -f ~/.claude/skills/"$skill_name"
 done
 ```
