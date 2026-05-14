@@ -14,7 +14,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Any, Iterable, Sequence
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -64,6 +64,20 @@ LOCKFILES = {
     "package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb", "poetry.lock", "Pipfile.lock",
     "Cargo.lock", "composer.lock", "Gemfile.lock", "go.sum",
 }
+
+SAFE_ENV_TEMPLATE_NAMES = {
+    ".env.example", ".env.sample", ".env.template", ".env.defaults",
+}
+
+SENSITIVE_FILENAMES = {
+    ".env", ".npmrc", ".pypirc", ".netrc", "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+}
+
+SENSITIVE_SUFFIXES = {
+    ".pem", ".key", ".p12", ".pfx", ".crt", ".cer",
+}
+
+HARD_EXCLUDED_DIR_PARTS = {".git", ".hg", ".svn", ".codex-analysis"}
 
 LOW_SIGNAL_DIR_PARTS = {
     ".git", ".hg", ".svn", "node_modules", "vendor", "dist", "build", "coverage", ".next",
@@ -116,7 +130,12 @@ class FileRecord:
     language: str | None
     status: str
     reasons: list[str] = field(default_factory=list)
+    include_reasons: list[str] = field(default_factory=list)
     markers: list[str] = field(default_factory=list)
+    marker_evidence: list[dict[str, Any]] = field(default_factory=list)
+    score_components: list[dict[str, Any]] = field(default_factory=list)
+    scope_match: str = "none"
+    safety_status: str = "safe"
     score: float = 0.0
     inline_truncated: bool = False
     bytes_inlined: int = 0
@@ -214,6 +233,47 @@ def is_low_signal_path(path_str: str) -> bool:
     return any(regex.search(path_str) for regex in LOW_SIGNAL_FILE_REGEXES)
 
 
+def has_hard_excluded_dir(path_str: str) -> bool:
+    return bool(set(path_parts(path_str)) & HARD_EXCLUDED_DIR_PARTS)
+
+
+def is_sensitive_file(path_str: str) -> bool:
+    p = Path(path_str)
+    name = p.name
+    lower_name = name.lower()
+    if lower_name in SAFE_ENV_TEMPLATE_NAMES:
+        return False
+    if lower_name.startswith(".env.") and lower_name not in SAFE_ENV_TEMPLATE_NAMES:
+        return True
+    if lower_name in SENSITIVE_FILENAMES:
+        return True
+    if p.suffix.lower() in SENSITIVE_SUFFIXES:
+        return True
+    lowered = path_str.lower()
+    return any(token in lowered for token in ["/secrets/", "/credentials/"])
+
+
+def scope_match_for_path(rel_path: str, scopes: Sequence[str]) -> str:
+    lower_path = rel_path.strip("/").lower()
+    best = "none"
+    priority = {"none": 0, "substring": 1, "directory": 2, "exact": 3}
+    for scope in scopes:
+        normalized = scope.strip("/").lower()
+        if not normalized:
+            continue
+        if lower_path == normalized:
+            candidate = "exact"
+        elif lower_path.startswith(normalized + "/"):
+            candidate = "directory"
+        elif normalized in lower_path:
+            candidate = "substring"
+        else:
+            candidate = "none"
+        if priority[candidate] > priority[best]:
+            best = candidate
+    return best
+
+
 def is_binary_file(path: Path) -> bool:
     try:
         with path.open("rb") as fh:
@@ -279,9 +339,26 @@ def language_for_path(path: Path) -> str | None:
     return LANGUAGE_BY_EXTENSION.get(path.suffix.lower())
 
 
-def extract_markers(text: str) -> list[str]:
-    found = sorted({m.group(1).upper() for m in MARKER_REGEX.finditer(text)})
-    return found
+def is_marker_self_reference(line: str) -> bool:
+    stripped = line.strip()
+    return "MARKER_REGEX" in stripped or "TODO|FIXME" in stripped or "TODO/FIXME" in stripped
+
+
+def extract_marker_evidence(text: str) -> list[dict[str, Any]]:
+    evidence: list[dict[str, Any]] = []
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        if is_marker_self_reference(line):
+            continue
+        for match in MARKER_REGEX.finditer(line):
+            marker = match.group(1).upper()
+            evidence.append(
+                {
+                    "marker": marker,
+                    "line": line_number,
+                    "excerpt": line.strip()[:160],
+                }
+            )
+    return evidence
 
 
 def goal_keywords(goal: str) -> set[str]:
@@ -293,98 +370,126 @@ def score_file(
     rel_path: str,
     category: str,
     size: int,
-    markers: Sequence[str],
+    marker_evidence: Sequence[dict[str, Any]],
+    scope_match: str,
     scopes: Sequence[str],
     g_keywords: set[str],
-) -> float:
+) -> tuple[float, list[dict[str, Any]]]:
     score = 0.0
+    components: list[dict[str, Any]] = []
     lower_path = rel_path.lower()
     name = Path(rel_path).name.lower()
     parts = lower_path.split("/")
 
+    def add(name: str, points: float, evidence: str = "") -> None:
+        nonlocal score
+        score += points
+        components.append({"name": name, "points": points, "evidence": evidence})
+
     if category == "source":
-        score += 25
+        add("category:source", 25, rel_path)
     elif category == "test":
-        score += 18
+        add("category:test", 18, rel_path)
     elif category == "config":
-        score += 16
+        add("category:config", 16, rel_path)
     elif category == "infra":
-        score += 14
+        add("category:infra", 14, rel_path)
     elif category == "doc":
-        score += 12
+        add("category:doc", 12, rel_path)
 
     if name in {n.lower() for n in ROOT_HIGH_SIGNAL_BASENAMES}:
-        score += 25
+        add("root_high_signal", 25, Path(rel_path).name)
 
     if any(token in lower_path for token in ["main", "app", "server", "router", "route", "handler", "controller", "service", "domain", "usecase", "workflow", "bootstrap"]):
-        score += 12
+        add("entrypoint_or_workflow_path", 12, rel_path)
 
     if any(token in lower_path for token in ["deprecated", "legacy", "obsolete", "migration"]):
-        score += 10
+        add("legacy_or_migration_path", 10, rel_path)
 
+    markers = sorted({item["marker"] for item in marker_evidence})
     if markers:
-        score += 6 + 2 * len(markers)
+        add("marker_presence", 6, ",".join(markers))
+        for marker in markers:
+            add(f"marker:{marker}", 2, rel_path)
 
     if size <= 64_000:
-        score += 4
+        add("small_file", 4, f"{size} bytes")
     elif size <= 256_000:
-        score += 2
+        add("medium_file", 2, f"{size} bytes")
     elif size > 800_000:
-        score -= 4
+        add("very_large_file_penalty", -4, f"{size} bytes")
 
     scope_norms = [s.strip("/").lower() for s in scopes if s.strip()]
     for scope in scope_norms:
         if lower_path == scope or lower_path.startswith(scope + "/"):
-            score += 100
+            add(f"explicit_scope_match:{scope_match}", 100, scope)
         elif scope in lower_path:
-            score += 40
+            add(f"explicit_scope_match:{scope_match}", 40, scope)
 
     for word in g_keywords:
         if word in name:
-            score += 18
+            add(f"goal_keyword:{word}", 18, Path(rel_path).name)
         elif word in lower_path:
-            score += 8
+            add(f"goal_keyword:{word}", 8, rel_path)
         elif word in parts:
-            score += 10
+            add(f"goal_keyword:{word}", 10, rel_path)
 
-    return score
+    return score, components
 
 
-def should_skip_text_file(path: Path, rel_path: str, cfg: dict) -> tuple[bool, list[str]]:
+def should_skip_text_file(
+    path: Path,
+    rel_path: str,
+    cfg: dict,
+    scope_match: str,
+) -> tuple[bool, list[str], str, list[str]]:
     reasons: list[str] = []
+    include_overrides: list[str] = []
     if path.is_symlink():
         reasons.append("symlink")
-        return True, reasons
+        return True, reasons, "unsafe_symlink", include_overrides
     if not path.is_file():
         reasons.append("not-a-regular-file")
-        return True, reasons
+        return True, reasons, "not_regular_file", include_overrides
+    if has_hard_excluded_dir(rel_path):
+        reasons.append("hard-excluded-path")
+        return True, reasons, "hard_excluded", include_overrides
+    if is_sensitive_file(rel_path):
+        reasons.append("sensitive-file-skipped-by-default")
+        return True, reasons, "unsafe_secret", include_overrides
     if is_low_signal_path(rel_path):
-        reasons.append("low-signal-artifact")
-        return True, reasons
+        if scope_match != "none":
+            include_overrides.append("explicit_scope_overrode_low_signal")
+        else:
+            reasons.append("low-signal-artifact")
+            return True, reasons, "soft_excluded", include_overrides
     if path.name in LOCKFILES and not cfg.get("include_lockfiles", False):
-        reasons.append("lockfile-skipped-by-default")
-        return True, reasons
+        if scope_match != "none":
+            include_overrides.append("explicit_scope_overrode_lockfile")
+        else:
+            reasons.append("lockfile-skipped-by-default")
+            return True, reasons, "soft_excluded", include_overrides
     if is_binary_file(path):
         reasons.append("binary")
-        return True, reasons
+        return True, reasons, "binary", include_overrides
     suffix = path.suffix.lower()
     if suffix and suffix not in TEXT_EXTENSIONS and path.name not in ROOT_HIGH_SIGNAL_BASENAMES:
         try:
             text = read_text(path)
         except OSError:
             reasons.append("unreadable")
-            return True, reasons
+            return True, reasons, "unreadable", include_overrides
         if not text.strip():
             reasons.append("empty")
-            return True, reasons
+            return True, reasons, "empty", include_overrides
     try:
         if path.stat().st_size == 0:
             reasons.append("empty")
-            return True, reasons
+            return True, reasons, "empty", include_overrides
     except OSError:
         reasons.append("unreadable")
-        return True, reasons
-    return False, reasons
+        return True, reasons, "unreadable", include_overrides
+    return False, reasons, "safe", include_overrides
 
 
 def select_focused_files(
@@ -451,6 +556,55 @@ def make_repo_tree(paths: Iterable[str]) -> str:
     for rel_path in sorted_paths:
         depth = max(rel_path.count("/"), 0)
         lines.append(f"{'  ' * depth}- {rel_path}")
+    return "\n".join(lines) + "\n"
+
+
+def validate_archive_members(archive_path: str | None, expected_paths: Sequence[str]) -> dict[str, Any]:
+    expected = sorted(expected_paths)
+    if archive_path is None:
+        return {
+            "status": "skipped",
+            "archive_path": None,
+            "expected_member_count": len(expected),
+            "actual_member_count": 0,
+            "missing": expected,
+            "unexpected": [],
+        }
+    with zipfile.ZipFile(archive_path) as zf:
+        actual = sorted(name for name in zf.namelist() if not name.endswith("/"))
+    missing = sorted(set(expected) - set(actual))
+    unexpected = sorted(set(actual) - set(expected))
+    return {
+        "status": "ok" if not missing and not unexpected else "mismatch",
+        "archive_path": archive_path,
+        "expected_member_count": len(expected),
+        "actual_member_count": len(actual),
+        "missing": missing,
+        "unexpected": unexpected,
+    }
+
+
+def render_selection_report(selection_report: dict[str, Any], records: Sequence[FileRecord]) -> str:
+    included = [rec for rec in records if rec.status == "included"]
+    skipped = [rec for rec in records if rec.status == "skipped"]
+    lines = [
+        "# Analysis Context Selection Report",
+        "",
+        f"- Policy decision: {selection_report.get('policy_decision_reason', '(unknown)')}",
+        f"- Included files: {len(included)}",
+        f"- Skipped files: {len(skipped)}",
+        f"- Explicit scope matches: {len(selection_report.get('explicit_scope_matches', []))}",
+        f"- Explicit scope skipped: {len(selection_report.get('explicit_scope_skipped', []))}",
+        "",
+        "## Included Files",
+    ]
+    for rec in sorted(included, key=lambda item: item.path):
+        reasons = ", ".join(rec.include_reasons) or "(none recorded)"
+        lines.append(f"- `{rec.path}` score={rec.score} reasons={reasons}")
+    lines.extend(["", "## Skipped Files"])
+    for rec in sorted(skipped, key=lambda item: item.path):
+        reasons = ", ".join(rec.reasons) or "(none recorded)"
+        lines.append(f"- `{rec.path}` reasons={reasons}")
     return "\n".join(lines) + "\n"
 
 
@@ -575,13 +729,15 @@ def main() -> int:
         if is_within(out_dir, path):
             continue
         rel_path = relative_posix(repo_root, path)
-        skip, reasons = should_skip_text_file(path, rel_path, cfg)
+        scope_match = scope_match_for_path(rel_path, scopes)
+        skip, reasons, safety_status, include_overrides = should_skip_text_file(path, rel_path, cfg, scope_match)
         size = 0
         try:
             size = path.stat().st_size
         except OSError:
             reasons.append("unreadable")
             skip = True
+            safety_status = "unreadable"
         category = classify_file(rel_path, bool(cfg["include_docs"]), bool(cfg["include_tests"]))
         language = language_for_path(path)
 
@@ -593,6 +749,8 @@ def main() -> int:
                 language=language,
                 status="skipped",
                 reasons=reasons,
+                scope_match=scope_match,
+                safety_status=safety_status,
             )
             records.append(rec)
             continue
@@ -607,19 +765,32 @@ def main() -> int:
                 language=language,
                 status="skipped",
                 reasons=["unreadable"],
+                scope_match=scope_match,
+                safety_status="unreadable",
             )
             records.append(rec)
             continue
 
-        markers = extract_markers(text)
-        score = score_file(rel_path, category, size, markers, scopes, g_keywords)
+        marker_evidence = extract_marker_evidence(text)
+        markers = sorted({item["marker"] for item in marker_evidence})
+        score, score_components = score_file(rel_path, category, size, marker_evidence, scope_match, scopes, g_keywords)
+        include_reasons = [component["name"] for component in score_components if component["points"] > 0]
+        if scope_match != "none":
+            include_reasons.append(f"explicit_scope_match:{scope_match}")
+        include_reasons.extend(include_overrides)
+        include_reasons = list(dict.fromkeys(include_reasons))
         rec = FileRecord(
             path=rel_path,
             size=size,
             category=category,
             language=language,
             status="included",
+            include_reasons=include_reasons,
             markers=markers,
+            marker_evidence=marker_evidence,
+            score_components=score_components,
+            scope_match=scope_match,
+            safety_status=safety_status,
             score=round(score, 2),
         )
         records.append(rec)
@@ -693,6 +864,12 @@ def main() -> int:
     elif args.mode == "full" and recommendation == "focused_file_search":
         warnings.append("Mode was forced to full, but the repository exceeds the focused-retrieval recommendation band.")
 
+    policy_decision_reason = (
+        "Focused archive recommended because the full text set is operationally heavy or focused mode was requested."
+        if recommendation == "focused_file_search"
+        else f"Full archive selected when uploadable because the full text set is {full_est_tokens:,} estimated tokens and minimizes omitted-file risk."
+    )
+
     out_dir.mkdir(parents=True, exist_ok=True)
     repo_tree_path = out_dir / "repo_tree.txt"
     repo_tree_path.write_text(make_repo_tree([rec.path for rec in records if rec.status == "included"]), encoding="utf-8")
@@ -728,6 +905,50 @@ def main() -> int:
             out_dir / "focused-source.zip",
         )
 
+    archive_validation = {
+        "full": validate_archive_members(full_archive_path, [rec.path for _, rec, _ in text_candidates]),
+        "focused": validate_archive_members(focused_archive_path, [rec.path for _, rec, _ in focused_candidates]),
+    }
+    explicit_scope_matches = [rec.path for rec in records if rec.scope_match != "none"]
+    explicit_scope_skipped = [rec.path for rec in records if rec.scope_match != "none" and rec.status == "skipped"]
+    selection_report = {
+        "policy_decision_reason": policy_decision_reason,
+        "explicit_scope_matches": explicit_scope_matches,
+        "explicit_scope_skipped": explicit_scope_skipped,
+        "included_files": [rec.path for rec in records if rec.status == "included"],
+        "skipped_files": [
+            {"path": rec.path, "reasons": rec.reasons, "safety_status": rec.safety_status}
+            for rec in records
+            if rec.status == "skipped"
+        ],
+        "archive_validation": archive_validation,
+    }
+    selection_manifest_path = out_dir / "selection-manifest.json"
+    selection_report_path = out_dir / "selection-report.md"
+    selection_manifest_payload = {
+        "repo_root": str(repo_root),
+        "goal": goal,
+        "scope": scopes,
+        "policy_decision_reason": policy_decision_reason,
+        "stats": {
+            "included_file_count": len(text_candidates),
+            "skipped_file_count": sum(1 for rec in records if rec.status == "skipped"),
+            "included_bytes": full_est_bytes,
+            "included_estimated_tokens": full_est_tokens,
+            "focused_file_count": len(focused_candidates),
+            "focused_bytes": focused_est_bytes,
+            "focused_estimated_tokens": focused_est_tokens,
+        },
+        "selections": {
+            "full_files": [rec.path for _, rec, _ in text_candidates],
+            "focused_files": [rec.path for _, rec, _ in focused_candidates],
+        },
+        "selection_report": selection_report,
+        "files": [asdict(rec) for rec in sorted(records, key=lambda r: (r.status != "included", r.path))],
+    }
+    selection_manifest_path.write_text(json.dumps(selection_manifest_payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    selection_report_path.write_text(render_selection_report(selection_report, records), encoding="utf-8")
+
     manifest = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "repo_root": str(repo_root),
@@ -753,6 +974,8 @@ def main() -> int:
         },
         "artifacts": {
             "repo_tree": str(repo_tree_path),
+            "selection_manifest": str(selection_manifest_path),
+            "selection_report": str(selection_report_path),
             "full_archive": full_archive_path,
             "focused_archive": focused_archive_path,
             "full_context_shards": full_context_shards,
@@ -762,6 +985,8 @@ def main() -> int:
             "full_files": [rec.path for _, rec, _ in text_candidates],
             "focused_files": [rec.path for _, rec, _ in focused_candidates],
         },
+        "selection_report": selection_report,
+        "archive_validation": archive_validation,
         "files": [asdict(rec) for rec in sorted(records, key=lambda r: (r.status != "included", r.path))],
         "config": cfg,
     }

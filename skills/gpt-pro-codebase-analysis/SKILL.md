@@ -142,6 +142,10 @@ Skip these by default unless the user explicitly asks for them:
 - snapshots and bulky fixtures
 - lockfiles, unless dependency analysis is part of the request
 
+Explicit scope paths override low-signal skips when the file is readable text and not unsafe. If a user explicitly scopes a fixture, generated file, vendored file, or lockfile, include it and record that the explicit scope overrode the low-signal default. If an explicit scope path is still skipped, the manifest must record that loudly in `selection_report.explicit_scope_skipped`.
+
+Never include real secret-bearing files by default. Files such as `.env`, `.npmrc`, private keys, certificates, and credential folders should be skipped as sensitive even when they are not Git-ignored. Template files such as `.env.example` and `.env.sample` can be included.
+
 ### 4) Archive policy
 
 Produce archives for reproducibility and transport, but do not assume the model should analyze an archive directly unless the user chose the manual ChatGPT Web handoff.
@@ -150,6 +154,14 @@ Use the archive to preserve the selected file set, then analyze either:
 
 - importance-ranked raw files attached as `input_file` items for direct Responses API runs, or
 - uploaded raw files through vector-store + `file_search`
+
+Every prepared run should also write selection audit artifacts:
+
+- `selection-manifest.json`
+- `selection-report.md`
+- `repo_tree.txt`
+
+Archive member lists must be validated against the manifest selections. If an archive is regenerated from a stale manifest and selected files are missing, fail instead of silently producing a partial archive.
 
 ## Selection policy inside a chosen mode
 
@@ -327,6 +339,14 @@ Under `.codex-analysis/chatgpt-web/` by default, generate for the active run. If
 - `handoff/return-to-agent-template.md`
 - `request_meta.json`
 
+The uploaded `handoff/upload-source.zip` also includes selection audit files under `__analysis_context__/`:
+
+- `__analysis_context__/selection-manifest.json`
+- `__analysis_context__/selection-report.md`
+- `__analysis_context__/repo_tree.txt` when available
+
+These files let ChatGPT Web inspect why files were included or skipped, which explicit scopes were matched, and whether the archive contents matched the manifest.
+
 By default, the helper does not copy the upload archive outside the handoff directory. `attachment_path` points at the canonical `handoff/upload-source.zip`, so manual ChatGPT Web handoff uses the file in its original generated location.
 
 Only when the helper is run with `--computer-use-handoff`, it also copies the upload archive to an easy-to-select location, normally `~/Downloads/upload-source-<run_id>.zip`, records that path as `accessible_upload_copy_path`, and sets `attachment_path` to that copy for the Computer Use file picker.
@@ -335,6 +355,7 @@ Only when the helper is run with `--computer-use-handoff`, it also copies the up
 
 - immutable fields: `prepared_handoff_identity`, `prompt_handoff_identity_block`, `prompt_handoff_identity_sha256`
 - actual submitted file fields: `attachment_path`, `attachment_name`, `attachment_sha256`, `attachment_source`
+- archive validation fields: `archive_validation_status`, `archive_selected_file_count`, `archive_member_count`, `archive_context_member_count`
 - mutable local path field: `current_artifact_paths`
 - lifecycle field: `handoff_lifecycle: "prepared"`
 
@@ -370,6 +391,7 @@ Only when the helper is run with `--computer-use-handoff`, it also copies the up
 - If `--selection-mode auto`, prefer the full archive unless:
   - the preparation step strongly recommends focused analysis, or
   - the full archive is too large to upload as a single ChatGPT file
+- When full is selected despite explicit scope hints, record that it was selected because the full archive is uploadable and minimizes omitted-file risk.
 - If the user explicitly requested `full`, do not silently switch to `focused`.
 - If the user explicitly requested `focused`, do not silently switch to `full`.
 

@@ -8,7 +8,7 @@ import shutil
 import sys
 import textwrap
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +47,9 @@ class Selection:
     estimated_bytes: int
     estimated_tokens: int
     invalid_reasons: list[str]
+    rel_paths: list[str] = field(default_factory=list)
+    archive_member_count: int = 0
+    archive_validation_status: str = "unknown"
 
     @property
     def size_bytes(self) -> int:
@@ -205,13 +208,116 @@ def create_accessible_upload_copy(source: Path, run_id: str | None, copy_dir: Pa
 
 def zip_selected_files(root: Path, rel_paths: list[str], output: Path) -> Path:
     output.parent.mkdir(parents=True, exist_ok=True)
+    missing = [rel for rel in rel_paths if not (root / rel).exists() or not (root / rel).is_file()]
+    if missing:
+        raise ValueError(f"Missing selected files for archive regeneration: {', '.join(missing[:20])}")
     with zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
         for rel in rel_paths:
             abs_path = root / rel
-            if not abs_path.exists() or not abs_path.is_file():
-                continue
             zf.write(abs_path, arcname=rel)
     return output
+
+
+def zip_member_names(path: Path) -> list[str]:
+    with zipfile.ZipFile(path) as zf:
+        return sorted(name for name in zf.namelist() if not name.endswith("/"))
+
+
+def validate_selected_members(archive_path: Path, rel_paths: list[str]) -> tuple[str, int, list[str]]:
+    if not archive_path.exists():
+        return "missing_archive", 0, rel_paths
+    names = zip_member_names(archive_path)
+    missing = sorted(set(rel_paths) - set(names))
+    status = "ok" if not missing else "missing_selected_files"
+    return status, len(names), missing
+
+
+def context_artifacts_for_upload(manifest: dict) -> list[tuple[Path, str]]:
+    artifacts = manifest.get("artifacts", {})
+    candidates = [
+        (artifacts.get("selection_manifest"), "__analysis_context__/selection-manifest.json"),
+        (artifacts.get("selection_report"), "__analysis_context__/selection-report.md"),
+        (artifacts.get("repo_tree"), "__analysis_context__/repo_tree.txt"),
+    ]
+    result: list[tuple[Path, str]] = []
+    for path_value, arcname in candidates:
+        if path_value and Path(path_value).exists():
+            result.append((Path(path_value), arcname))
+    return result
+
+
+def create_minimal_selection_manifest(manifest: dict, target: Path) -> Path:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "repo_root": manifest.get("repo_root"),
+        "goal": manifest.get("goal"),
+        "scope": manifest.get("scope", []),
+        "stats": manifest.get("stats", {}),
+        "selections": manifest.get("selections", {}),
+        "selection_report": manifest.get("selection_report", {}),
+    }
+    target.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    return target
+
+
+def create_minimal_selection_report(manifest: dict, target: Path) -> Path:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    stats = manifest.get("stats", {})
+    report = manifest.get("selection_report", {})
+    lines = [
+        "# Analysis Context Selection Report",
+        "",
+        f"- Policy decision: {report.get('policy_decision_reason', '(not recorded in manifest)')}",
+        f"- Included files: {stats.get('included_file_count', '(unknown)')}",
+        f"- Skipped files: {stats.get('skipped_file_count', '(unknown)')}",
+    ]
+    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return target
+
+
+def ensure_context_artifacts(manifest: dict, handoff_dir: Path) -> list[tuple[Path, str]]:
+    artifacts = context_artifacts_for_upload(manifest)
+    arcnames = {arcname for _, arcname in artifacts}
+    if "__analysis_context__/selection-manifest.json" not in arcnames:
+        artifacts.append(
+            (
+                create_minimal_selection_manifest(manifest, handoff_dir / "selection-manifest.json"),
+                "__analysis_context__/selection-manifest.json",
+            )
+        )
+    if "__analysis_context__/selection-report.md" not in arcnames:
+        artifacts.append(
+            (
+                create_minimal_selection_report(manifest, handoff_dir / "selection-report.md"),
+                "__analysis_context__/selection-report.md",
+            )
+        )
+    if "__analysis_context__/repo_tree.txt" not in arcnames and manifest.get("artifacts", {}).get("repo_tree"):
+        repo_tree = Path(manifest["artifacts"]["repo_tree"])
+        if repo_tree.exists():
+            artifacts.append((repo_tree, "__analysis_context__/repo_tree.txt"))
+    return artifacts
+
+
+def copy_archive_with_context(source: Path, output: Path, context_artifacts: list[tuple[Path, str]]) -> Path:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    target = output
+    temp_output = output.with_suffix(output.suffix + ".tmp") if source.resolve() == output.resolve() else output
+    with zipfile.ZipFile(source, mode="r") as source_zip, zipfile.ZipFile(temp_output, mode="w", compression=zipfile.ZIP_DEFLATED) as target_zip:
+        existing: set[str] = set()
+        for info in source_zip.infolist():
+            if info.is_dir():
+                continue
+            existing.add(info.filename)
+            target_zip.writestr(info, source_zip.read(info.filename))
+        for path, arcname in context_artifacts:
+            if arcname in existing:
+                continue
+            target_zip.write(path, arcname=arcname)
+            existing.add(arcname)
+    if temp_output != output:
+        shutil.move(temp_output, target)
+    return target
 
 
 def build_selection(manifest: dict, root: Path, out_dir: Path, key: str, max_file_bytes: int) -> Selection:
@@ -248,6 +354,20 @@ def build_selection(manifest: dict, root: Path, out_dir: Path, key: str, max_fil
                 estimated_bytes=estimated_bytes,
                 estimated_tokens=estimated_tokens,
                 invalid_reasons=[f"No {key} file selection exists in the manifest."],
+                rel_paths=rel_paths,
+            )
+        missing = [rel for rel in rel_paths if not (root / rel).exists() or not (root / rel).is_file()]
+        if missing:
+            return Selection(
+                key=key,
+                label=label,
+                archive_path=archive_path,
+                generated_archive=False,
+                file_count=len(rel_paths),
+                estimated_bytes=estimated_bytes,
+                estimated_tokens=estimated_tokens,
+                invalid_reasons=[f"Missing selected files for archive regeneration: {', '.join(missing[:20])}"],
+                rel_paths=rel_paths,
             )
         archive_path = zip_selected_files(root, rel_paths, out_dir / f"generated-{key}-source.zip")
         generated_archive = True
@@ -257,6 +377,9 @@ def build_selection(manifest: dict, root: Path, out_dir: Path, key: str, max_fil
         invalid_reasons.append(
             f"The {label} file is {archive_path.stat().st_size:,} bytes, above ChatGPT's per-file upload cap of {max_file_bytes:,} bytes."
         )
+    archive_validation_status, archive_member_count, missing_members = validate_selected_members(archive_path, rel_paths)
+    if missing_members:
+        invalid_reasons.append(f"Archive is missing selected files: {', '.join(missing_members[:20])}")
 
     return Selection(
         key=key,
@@ -267,6 +390,9 @@ def build_selection(manifest: dict, root: Path, out_dir: Path, key: str, max_fil
         estimated_bytes=estimated_bytes,
         estimated_tokens=estimated_tokens,
         invalid_reasons=invalid_reasons,
+        rel_paths=rel_paths,
+        archive_member_count=archive_member_count,
+        archive_validation_status=archive_validation_status,
     )
 
 
@@ -299,6 +425,7 @@ def choose_selection(manifest: dict, root: Path, out_dir: Path, selection_mode: 
         return focused, notes
 
     if full.is_valid_for_chatgpt_upload:
+        notes.append("Full archive selected because it is uploadable and minimizes omitted-file risk.")
         return full, notes
 
     if focused.is_valid_for_chatgpt_upload:
@@ -340,6 +467,10 @@ def build_prompt(
         - selected estimated bytes: {selection.estimated_bytes:,}
         - selected estimated tokens: {selection.estimated_tokens:,}
         - extracted keywords: {keywords}
+        - Selection audit files inside the uploaded archive:
+          - `__analysis_context__/selection-manifest.json`
+          - `__analysis_context__/selection-report.md`
+          - `__analysis_context__/repo_tree.txt` when available
 
         Local preparation notes:
         {notes_block}
@@ -413,6 +544,7 @@ def build_next_steps(
             f"- The upload zip is {selection.size_bytes:,} bytes, close to the 512MB per-file upload cap. "
             "Uploads may be slow or fail depending on the environment.\n"
         )
+    upload_cautions = size_note + (token_note or "- none\n")
     accessible_copy_line = (
         f"- Computer Use accessible copy: `{accessible_upload_copy_path}`"
         if accessible_upload_copy_path is not None
@@ -442,7 +574,7 @@ def build_next_steps(
         {warnings_block}
 
         Additional upload cautions:
-        {size_note}{token_note or '- none\n'}
+        {upload_cautions}
 
         What to do next:
         1. Open ChatGPT manually.
@@ -564,10 +696,12 @@ def main() -> int:
     )
 
     upload_zip_path = handoff_dir / "upload-source.zip"
-    if selection.archive_path.resolve() != upload_zip_path.resolve():
-        shutil.copy2(selection.archive_path, upload_zip_path)
-    else:
-        upload_zip_path = selection.archive_path
+    context_artifacts = ensure_context_artifacts(manifest, handoff_dir)
+    upload_zip_path = copy_archive_with_context(selection.archive_path, upload_zip_path, context_artifacts)
+    upload_members = zip_member_names(upload_zip_path)
+    missing_upload_members = sorted(set(selection.rel_paths) - set(upload_members))
+    if missing_upload_members:
+        raise SystemExit(f"Upload archive is missing selected files: {', '.join(missing_upload_members[:20])}")
     upload_sha256 = sha256_file(upload_zip_path)
     accessible_upload_copy_path: Path | None = None
     accessible_upload_sha256: str | None = None
@@ -672,9 +806,16 @@ def main() -> int:
         "selection_label": selection.label,
         "selection_key": selection.key,
         "selection_generated_archive": selection.generated_archive,
+        "selection_source_archive_member_count": selection.archive_member_count,
+        "selection_source_archive_validation_status": selection.archive_validation_status,
         "upload_zip_path": str(upload_zip_path),
         "upload_zip_bytes": upload_zip_path.stat().st_size,
         "upload_zip_sha256": upload_sha256,
+        "archive_validation_status": "ok",
+        "archive_selected_file_count": len(selection.rel_paths),
+        "archive_member_count": len(upload_members),
+        "archive_context_member_count": len([name for name in upload_members if name.startswith("__analysis_context__/")]),
+        "archive_missing_selected_files": missing_upload_members,
         "attachment_path": str(attachment_path),
         "attachment_name": attachment_path.name,
         "attachment_bytes": attachment_path.stat().st_size,
