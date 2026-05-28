@@ -1,6 +1,6 @@
 {
   "name": "common-skills",
-  "description": "Repository analysis skills plus Codex CLI consultation guidance",
+  "description": "Repository analysis skills plus safe cross-agent consultation guidance",
   "version": "0.1.0",
   "contextFileName": "GEMINI.md"
 }

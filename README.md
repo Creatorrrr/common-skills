@@ -33,6 +33,18 @@ Use this from Claude Code, Gemini CLI, Antigravity, or another non-Codex agent w
 
 This skill lives under `skills/` with the rest of the library. If it is invoked from inside Codex, it should warn that Codex cannot recursively call itself and stop without running `codex exec`.
 
+### `consulting-claude-code`
+
+Use this from Codex, Gemini CLI, Antigravity, or another non-Claude-Code agent when the user wants to ask the local Claude Code CLI for a second opinion, code review, design feedback, or an explicit back-and-forth between agents.
+
+If it is invoked from inside Claude Code, it should warn that Claude Code cannot recursively call itself and stop without running `claude`.
+
+### `consulting-gemini-cli`
+
+Use this from Codex, Claude Code, Antigravity, or another non-Gemini agent when the user wants to ask the local Gemini CLI for a second opinion, code review, design feedback, or an explicit back-and-forth between agents.
+
+It includes a small wrapper at `skills/consulting-gemini-cli/scripts/consult_gemini_cli.sh`. If the skill is invoked from inside Gemini CLI, it should warn that Gemini cannot recursively call itself and stop without running `gemini -p`.
+
 ## Installation
 
 ### Codex

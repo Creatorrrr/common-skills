@@ -51,7 +51,10 @@ After restart, start a new Gemini CLI session and use the installed extension wh
 
 - `gpt-pro-codebase-analysis`
 - `claude-code-agent-team-analysis`
+- `consulting-claude-code`
 - `consulting-codex-cli`
+
+The repository also contains `consulting-gemini-cli` for non-Gemini agents. Gemini CLI must not use that skill to recursively invoke `gemini -p`; it should warn and stop instead.
 
 ## Updating
 

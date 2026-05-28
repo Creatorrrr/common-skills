@@ -36,6 +36,7 @@ If a future sync ever lands this file inside a Claude-Code-visible location, the
 5. Pass the user's prompt through as faithfully as possible. Do not silently rewrite it.
 6. Never start a nested `claude` from inside a session that is already running Claude Code. This skill is one-way: non-Claude agent → Claude Code, never Claude Code → Claude Code.
 7. Unless the user explicitly says otherwise, `claude` operates on the **same repository at the same working directory** as the calling agent. Spawn `claude` from the caller's current `cwd`; do not `cd` somewhere else, do not point it at another repo, and do not append extra `--add-dir` paths that the user did not ask for. A different target path must come from an explicit user instruction (e.g. "X 리포지토리에 대해 물어봐", "이건 ~/other-repo 기준으로", "이 경로도 같이 봐줘").
+8. If the calling harness runs shell commands in a host sandbox, run real Claude CLI calls through that harness's explicit unsandboxed/escalated execution path after user approval. Sandboxed calls can hide Claude's normal auth state, browser integration, or home-directory session files.
 
 ## Defaults (when not explicitly specified)
 
@@ -108,6 +109,39 @@ claude -p "<prompt>" \
   --output-format json
 ```
 
+## Host sandbox and session recovery
+
+Some harnesses run shell commands in a sandbox even when the target CLI itself is not sandboxed. This can make Claude Code look logged out or disconnected because it cannot read its normal credentials, use browser auth, or access session files.
+
+Treat these as auth/session symptoms:
+
+- `session revoked`
+- `session expired`
+- `logged out`
+- `authentication required`
+- repeated login or browser-auth prompts
+- auth works in a normal terminal but fails from the agent harness
+
+Rules:
+
+1. If the current user request asks to consult Claude, verify Claude, authenticate Claude, or run Claude analysis, that request is permission to use the host's explicit unsandboxed/escalated execution path for the `claude` subprocess. Do not ask a second natural-language confirmation, but do use the host tool's approval mechanism when it requires one.
+2. In Codex, run `claude` with `sandbox_permissions="require_escalated"`. The justification should say that Claude Code needs normal local auth/browser/session access.
+3. For authentication/session recovery, avoid sending repository context first. Run a neutral auth smoke from `/private/tmp`:
+
+```bash
+cd /private/tmp
+claude -p "Reply exactly with: claude-auth-ok" \
+  --model opus \
+  --effort low \
+  --permission-mode plan \
+  --output-format text
+```
+
+4. If the host supports an interactive TTY and Claude opens or prompts for browser login, let the user complete login/consent in the browser.
+5. If auth smoke succeeds, retry the original Claude consultation once outside the host sandbox from the intended working directory.
+6. If the outside-sandbox retry still says the session is revoked/expired/logged out, stop and surface the exact error. The user likely needs to complete Claude Code login or account recovery outside the agent flow.
+7. Outside the host sandbox does not mean `--permission-mode bypassPermissions`. Keep Claude Code's own permission mode at `auto` unless the user explicitly asked for another mode.
+
 ## Waiting policy
 
 Response time scales with `--effort`. Rough expectations on `opus`:
@@ -173,6 +207,7 @@ If the calling agent is going to chain the response into further reasoning (e.g.
 | Calling `--permission-mode bypassPermissions` without asking | Silently disables permission checks. Always confirm with the user first. |
 | `cd`ing to a different directory before spawning `claude` without an explicit user instruction | Changes the repo Claude operates on. Claude must default to the caller's current repo and cwd. |
 | Adding `--add-dir <somewhere>` proactively "just in case" | Expands Claude's read scope beyond what the user asked for. Pass `--add-dir` only when the user named the extra path. |
+| Retrying session errors inside the host sandbox | Repeats the same broken auth environment. Use approved outside-sandbox auth smoke, then retry once. |
 
 ## Notes for the calling agent
 

@@ -72,7 +72,9 @@ After restart, Antigravity can discover these skills automatically. You can also
 
 - `common-skills:gpt-pro-codebase-analysis`
 - `common-skills:claude-code-agent-team-analysis`
+- `common-skills:consulting-claude-code`
 - `common-skills:consulting-codex-cli`
+- `common-skills:consulting-gemini-cli`
 
 ## Updating
 

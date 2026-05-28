@@ -1,6 +1,6 @@
 # common-skills for Gemini CLI
 
-This extension provides repository-analysis skill documents plus Codex CLI consultation guidance.
+This extension provides repository-analysis skill documents plus safe cross-agent consultation guidance.
 
 When a user asks for a deep codebase review, read the relevant skill file first and follow it:
 
@@ -13,9 +13,17 @@ When a user asks for a deep codebase review, read the relevant skill file first 
   - Use for a local read-only repository analysis using Claude Code CLI agent teams.
   - Use it for architecture reviews, test-gap analysis, performance review, workflow validation, and missing implementation checks.
 
+- `skills/consulting-claude-code/SKILL.md`
+  - Use when Gemini CLI, Codex, Antigravity, or another non-Claude-Code agent should ask the local Claude Code CLI for a second opinion or back-and-forth consultation.
+  - If this skill is invoked inside Claude Code, it must warn that Claude Code cannot recursively call itself and stop without running `claude`.
+
 - `skills/consulting-codex-cli/SKILL.md`
   - Use when Gemini CLI, Claude Code, Antigravity, or another non-Codex agent should ask the local Codex CLI for a second opinion or back-and-forth consultation.
   - If this skill is invoked inside Codex, it must warn that Codex cannot recursively call itself and stop without running `codex exec`.
+
+- `skills/consulting-gemini-cli/SKILL.md`
+  - This exists for non-Gemini agents only.
+  - If this skill is invoked inside Gemini CLI, warn that Gemini cannot recursively call itself and stop without running `gemini -p`.
 
 General rules:
 
@@ -24,3 +32,4 @@ General rules:
 - Do not silently switch execution modes after a failure.
 - Prefer the skill file's workflow over ad-hoc analysis when the task matches it.
 - Do not let Codex invoke `codex exec` recursively.
+- Do not let Gemini CLI invoke `gemini -p` recursively.
