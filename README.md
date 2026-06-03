@@ -37,6 +37,8 @@ This skill lives under `skills/` with the rest of the library. If it is invoked 
 
 Use this from Codex, Gemini CLI, Antigravity, or another non-Claude-Code agent when the user wants to ask the local Claude Code CLI for a second opinion, code review, design feedback, or an explicit back-and-forth between agents.
 
+It includes a small wrapper at `skills/consulting-claude-code/scripts/consult_claude_code.sh` that enforces stdout responses and avoids Claude Code plan permission mode.
+
 If it is invoked from inside Claude Code, it should warn that Claude Code cannot recursively call itself and stop without running `claude`.
 
 ### `consulting-gemini-cli`

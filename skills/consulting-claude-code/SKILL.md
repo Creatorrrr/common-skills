@@ -37,6 +37,8 @@ If a future sync ever lands this file inside a Claude-Code-visible location, the
 6. Never start a nested `claude` from inside a session that is already running Claude Code. This skill is one-way: non-Claude agent → Claude Code, never Claude Code → Claude Code.
 7. Unless the user explicitly says otherwise, `claude` operates on the **same repository at the same working directory** as the calling agent. Spawn `claude` from the caller's current `cwd`; do not `cd` somewhere else, do not point it at another repo, and do not append extra `--add-dir` paths that the user did not ask for. A different target path must come from an explicit user instruction (e.g. "X 리포지토리에 대해 물어봐", "이건 ~/other-repo 기준으로", "이 경로도 같이 봐줘").
 8. If the calling harness runs shell commands in a host sandbox, run real Claude CLI calls through that harness's explicit unsandboxed/escalated execution path after user approval. Sandboxed calls can hide Claude's normal auth state, browser integration, or home-directory session files.
+9. Require a console response. Claude must put the complete answer in stdout. It must not answer by only saying it wrote a plan, report, markdown file, or other artifact.
+10. Do not use Claude Code's plan permission mode for this skill. Planning requests are still valid, but the plan must be returned as text through stdout while keeping `--permission-mode auto`.
 
 ## Defaults (when not explicitly specified)
 
@@ -50,7 +52,7 @@ If a future sync ever lands this file inside a Claude-Code-visible location, the
 | Working directory | caller's current `cwd` (same repo) | inherited from the shell; no `cd`, no extra `--add-dir` |
 | Budget cap | none | (do NOT pass `--max-budget-usd`) |
 
-If the user provides a different model (e.g. "sonnet에게 물어봐"), effort (e.g. "effort xhigh로"), or permission mode (e.g. "plan 모드로", "edits 까지 허용"), use the user-specified value and leave the rest at defaults.
+If the user provides a different model (e.g. "sonnet에게 물어봐"), effort (e.g. "effort xhigh로"), or permission mode other than plan mode (e.g. "edits 까지 허용"), use the user-specified value and leave the rest at defaults. If the user asks for plan mode, do not pass `--permission-mode plan`; keep `--permission-mode auto` and ask Claude to return the plan in stdout.
 
 ## Effort selection guidance
 
@@ -75,39 +77,80 @@ When the user **does not state an effort**:
 3. If it sits between two rows, prefer the **lower** level. Escalation is cheap (the user can ask again with a higher effort); over-spending compute is not.
 4. Never silently raise effort because "the model might do better" — that defeats the medium default and burns time the user did not ask for.
 
+## Resolve the bundled script
+
+Prefer the bundled wrapper because it encodes the defaults above, prevents `--permission-mode plan`, adds the stdout-only consultation prompt, and retries once if Claude replies only with a file-artifact notice.
+
+Resolve the script path in this order:
+
+1. Start from the directory that contains this `SKILL.md`.
+2. Use `scripts/consult_claude_code.sh` relative to that directory.
+3. If the active workspace does not contain this skill, look in the linked `common-skills/skills/consulting-claude-code/` checkout or the agent's global skill install path.
+
+Do not assume `scripts/consult_claude_code.sh` is project-local unless the user has vendored this skill into that project.
+
 ## Canonical invocation
 
-Spawn `claude` from the calling agent's current `cwd`. By default that means the **same repository at the same path** the caller is already working in — no `cd`, no path override.
+Spawn the wrapper from the calling agent's current `cwd`. By default that means the **same repository at the same path** the caller is already working in — no `cd`, no path override.
+
+For a short prompt:
 
 ```bash
-claude -p "<user prompt verbatim>" \
-  --model opus \
-  --effort medium \
-  --permission-mode auto \
-  --output-format text
+/path/to/consult_claude_code.sh "user prompt here"
 ```
 
-Only when the **user explicitly** asks Claude to look at a different or additional repository, scope it with `--add-dir` (or, if the user named a different root, change `cwd` to that root before spawning):
+For a detailed or shell-sensitive prompt, pass it through stdin:
 
 ```bash
-# User said: "이 경로도 같이 봐줘: ~/other-repo"
-claude -p "<prompt>" \
-  --model opus \
-  --effort medium \
-  --permission-mode auto \
-  --output-format text \
-  --add-dir "$HOME/other-repo"
+/path/to/consult_claude_code.sh <<'PROMPT'
+<user prompt verbatim>
+PROMPT
 ```
 
-When the calling agent needs to parse the response, switch the output format only — never strip the defaults above:
+For a repo-specific question, set the working directory only when the user explicitly named that target:
 
 ```bash
-claude -p "<prompt>" \
-  --model opus \
-  --effort medium \
-  --permission-mode auto \
-  --output-format json
+/path/to/consult_claude_code.sh --cd /absolute/path/to/repo <<'PROMPT'
+<question about this repository>
+PROMPT
 ```
+
+Only when the **user explicitly** asks Claude to look at an additional directory alongside the current repo, scope it with `--add-dir`:
+
+```bash
+/path/to/consult_claude_code.sh --add-dir "$HOME/other-repo" <<'PROMPT'
+<question that explicitly includes the extra path>
+PROMPT
+```
+
+For an explicit model or effort override:
+
+```bash
+/path/to/consult_claude_code.sh --model sonnet --effort high "user prompt here"
+```
+
+When the calling agent needs to parse the response, switch the output format only:
+
+```bash
+/path/to/consult_claude_code.sh --output-format json <<'PROMPT'
+<prompt>
+PROMPT
+```
+
+## Console response contract
+
+Always use the bundled wrapper when available. It wraps the user's prompt with a console-response instruction. This wrapper is not a rewrite of the user's request; it is an execution constraint that prevents Claude Code from replacing stdout with a file-artifact notice.
+
+The wrapper sends this constraint before the user's prompt:
+
+```text
+Return the complete answer directly in stdout.
+Do not create, write, or update files as the answer artifact for this consultation.
+Do not respond only by saying that you wrote a plan, report, markdown file, or other artifact.
+If a plan, report, diff, checklist, or markdown document would be useful, include its full contents in this stdout response instead.
+```
+
+If Claude still replies only with a file path or a message like "I wrote the plan to ...", the wrapper retries once with the same user prompt and an explicit "print the full answer now" correction. Do not inspect or summarize a generated plan file as a substitute for stdout unless the user explicitly asks you to read that file.
 
 ## Host sandbox and session recovery
 
@@ -124,17 +167,12 @@ Treat these as auth/session symptoms:
 
 Rules:
 
-1. If the current user request asks to consult Claude, verify Claude, authenticate Claude, or run Claude analysis, that request is permission to use the host's explicit unsandboxed/escalated execution path for the `claude` subprocess. Do not ask a second natural-language confirmation, but do use the host tool's approval mechanism when it requires one.
-2. In Codex, run `claude` with `sandbox_permissions="require_escalated"`. The justification should say that Claude Code needs normal local auth/browser/session access.
-3. For authentication/session recovery, avoid sending repository context first. Run a neutral auth smoke from `/private/tmp`:
+1. If the current user request asks to consult Claude, verify Claude, authenticate Claude, or run Claude analysis, that request is permission to use the host's explicit unsandboxed/escalated execution path for the wrapper's `claude` subprocess. Do not ask a second natural-language confirmation, but do use the host tool's approval mechanism when it requires one.
+2. In Codex, run the wrapper with `sandbox_permissions="require_escalated"`. The justification should say that Claude Code needs normal local auth/browser/session access.
+3. For authentication/session recovery, avoid sending repository context first. Run the wrapper's neutral auth smoke from `/private/tmp`:
 
 ```bash
-cd /private/tmp
-claude -p "Reply exactly with: claude-auth-ok" \
-  --model opus \
-  --effort low \
-  --permission-mode plan \
-  --output-format text
+/path/to/consult_claude_code.sh --auth-smoke
 ```
 
 4. If the host supports an interactive TTY and Claude opens or prompts for browser login, let the user complete login/consent in the browser.
@@ -158,7 +196,7 @@ Rules regardless of level:
 - Only treat the call as failed if `claude` exits with a non-zero status, prints a hard authentication or quota error, or the user explicitly cancels.
 - Do not start a second `claude` call to "speed it up" while the first is still running.
 
-If the run is happening inside a wrapper that does need a heartbeat, prefer launching `claude -p ...` as a background job and polling for completion rather than killing it.
+If the run is happening inside a host that does need a heartbeat, prefer launching the wrapper as a background job and polling for completion rather than killing it.
 
 ## Permission mode notes
 
@@ -166,11 +204,11 @@ If the run is happening inside a wrapper that does need a heartbeat, prefer laun
 
 Override only when the user explicitly asks for it:
 
-- `--permission-mode plan` — review-only / planning consultation, no edits
 - `--permission-mode acceptEdits` — auto-accept edits Claude proposes
 - `--permission-mode bypassPermissions` — only if the user explicitly opts in; warn them first since it disables permission checks entirely
 - `--permission-mode dontAsk` / `default` — explicit user choice only
 
+Do not use `--permission-mode plan` in this skill. If the user wants a plan, request a plan-shaped stdout answer while keeping `--permission-mode auto`.
 Never silently upgrade to `bypassPermissions`.
 
 ## What to send back to the user
@@ -183,26 +221,28 @@ If the calling agent is going to chain the response into further reasoning (e.g.
 
 | Situation | Command shape |
 |-----------|---------------|
-| Default ask (same repo, same cwd) | `claude -p "..." --model opus --effort medium --permission-mode auto --output-format text` (spawn from caller's cwd; no `--add-dir`) |
-| User explicitly named another repo/path | Either `cd` to that root before spawning, or add `--add-dir <path>` if the user asked to include it alongside the current repo |
-| User specified a different model | Replace `--model opus` with the requested model alias or full ID |
-| Request is harder than "medium" | Raise `--effort` to `high`, `xhigh`, or `max` per the Effort selection guidance |
-| Request is trivial | Lower `--effort` to `low` |
-| User specified a different effort | Use the user-specified level verbatim, no second-guessing |
-| User wants planning only | Replace `--permission-mode auto` with `--permission-mode plan` |
-| Caller needs structured output | Replace `--output-format text` with `--output-format json` |
+| Default ask (same repo, same cwd) | `/path/to/consult_claude_code.sh "..."` |
+| User explicitly named another repo/path | Use `--cd <path>` for a different target root, or `--add-dir <path>` if the user asked to include it alongside the current repo |
+| User specified a different model | Pass `--model <model>` |
+| Request is harder than "medium" | Pass `--effort high`, `--effort xhigh`, or `--effort max` per the Effort selection guidance |
+| Request is trivial | Pass `--effort low` |
+| User specified a different effort | Pass the user-specified effort verbatim, no second-guessing |
+| User wants planning only | Keep the wrapper default `--permission-mode auto`; ask Claude to return the plan in stdout and not write a plan file |
+| Caller needs structured output | Pass `--output-format json` |
 
 ## Common mistakes
 
 | Mistake | Effect |
 |---------|--------|
 | Adding `--max-budget-usd` | Violates "no budget limit". The response can be truncated mid-stream. |
-| Omitting `-p` | `claude` enters interactive mode and the subprocess hangs forever. |
+| Bypassing the wrapper and omitting `-p` | `claude` enters interactive mode and the subprocess hangs forever. |
 | Imposing a short shell timeout (e.g. 60s) | High-effort runs (`high`/`xhigh`/`max`) never finish; the call is killed and the caller reports a false failure. |
 | Silently changing the model or effort because the run feels slow | Misrepresents the consultation. Slow is expected at high effort; keep the chosen settings. |
 | Defaulting to `xhigh`/`max` for every request | Wastes time and compute on trivial questions. The default is `medium` — escalate only when the request earns it. |
 | Lowering effort below the user's explicit choice "to save time" | The user picked that level on purpose. Honor it. |
 | Rewriting the user's prompt before sending | Loses nuance the user wanted Claude to see. Pass it verbatim, or quote it inside a wrapper sentence at most. |
+| Asking Claude for a plan without the console-response wrapper | Claude Code may write a plan artifact and leave stdout with only a file notice. |
+| Using `--permission-mode plan` for this skill | Plan mode can encourage file-backed planning instead of the stdout consultation the caller needs. |
 | Starting nested `claude` calls from inside a Claude Code session | Causes recursive sessions and is explicitly disallowed by this skill. |
 | Calling `--permission-mode bypassPermissions` without asking | Silently disables permission checks. Always confirm with the user first. |
 | `cd`ing to a different directory before spawning `claude` without an explicit user instruction | Changes the repo Claude operates on. Claude must default to the caller's current repo and cwd. |
@@ -211,7 +251,7 @@ If the calling agent is going to chain the response into further reasoning (e.g.
 
 ## Notes for the calling agent
 
-- This skill is one-shot per request. If the user asks for an ongoing back-and-forth, run `claude -p ...` once per turn and keep the conversation transcript on the caller side; do not try to keep `claude` interactive.
+- This skill is one-shot per request. If the user asks for an ongoing back-and-forth, run the wrapper once per turn and keep the conversation transcript on the caller side; do not try to keep `claude` interactive.
 - If `claude` is not on PATH, surface the error to the user rather than guessing an install location. The user keeps `claude` at the binary returned by `which claude`.
 - The defaults (`opus` + `medium`) are deliberate. Do not swap the model away without an explicit user instruction. For effort, follow the Effort selection guidance: judge per request, prefer the lower of two adjacent levels when uncertain, and never override an explicit user choice.
 - The default scope is **the caller's current repository at its current path**. Treat any other repo or path as opt-in: the user must name it explicitly before you `cd` or add it via `--add-dir`.
