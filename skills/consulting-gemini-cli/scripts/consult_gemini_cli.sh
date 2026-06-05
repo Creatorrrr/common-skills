@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DEFAULT_GEMINI_MODEL="pro"
-DEFAULT_GEMINI_APPROVAL_MODE="plan"
+DEFAULT_GEMINI_APPROVAL_MODE="yolo"
 DEFAULT_GEMINI_OUTPUT_FORMAT="text"
 
 usage() {
@@ -14,11 +14,13 @@ Usage:
 
 Defaults:
   --model           pro
-  --approval-mode   plan
+  --approval-mode   yolo
   --output-format   text
   --cd              current directory
 
 This wrapper intentionally does not set token, thinking, output-token, or budget caps.
+The default approval mode is yolo, so Gemini CLI can directly inspect the
+repository with shell tools in non-interactive consultation runs.
 
 --auth-smoke runs a minimal Gemini prompt from a neutral temp directory so the
 CLI can open its browser authentication flow without sending repository context.

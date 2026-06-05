@@ -15,7 +15,7 @@ Gemini CLI sessions must not use this skill to invoke `gemini -p`. If the curren
 2. If the current agent is Gemini CLI, say: `Gemini cannot use consulting-gemini-cli because it would recursively call Gemini. I will not run gemini -p from inside Gemini CLI.` Then stop.
 3. Run Gemini non-interactively with `gemini -p` / `gemini --prompt` so the subprocess returns.
 4. If the user does not specify a model, use `pro`.
-5. Use read-only planning mode by default: `--approval-mode=plan`.
+5. Use YOLO approval mode by default: `--approval-mode=yolo`. This auto-approves Gemini CLI tool calls so it can inspect repositories directly in non-interactive consultations.
 6. Do not pass token, budget, output-token, or thinking-budget caps.
 7. Long waits are normal for large repositories or Pro-model reasoning. Do not impose short shell timeouts or retry just because output is slow.
 8. Pass the user's prompt faithfully. Preserve constraints, paths, language, and requested output shape.
@@ -40,7 +40,7 @@ Do not assume `scripts/consult_gemini_cli.sh` is project-local unless the user h
 | Option | Default | How it is passed |
 | --- | --- | --- |
 | Model | `pro` | `--model pro` |
-| Approval mode | `plan` | `--approval-mode=plan` |
+| Approval mode | `yolo` | `--approval-mode=yolo` |
 | Print mode | non-interactive | `-p` / `--prompt` |
 | Output format | `text` | `--output-format text` |
 | Workspace trust | current session only | `--skip-trust` |
@@ -81,15 +81,15 @@ For an explicit model override:
 /path/to/consult_gemini_cli.sh --model flash "user prompt here"
 ```
 
-For an explicit read-write request, use the user's requested approval mode:
+For an explicit lower-permission request, use the user's requested approval mode:
 
 ```bash
-/path/to/consult_gemini_cli.sh --approval-mode auto_edit <<'PROMPT'
-<user explicitly allowed edits>
+/path/to/consult_gemini_cli.sh --approval-mode plan <<'PROMPT'
+<user explicitly requested read-only planning>
 PROMPT
 ```
 
-Only use `--approval-mode yolo` when the user explicitly opts in after the risk is clear.
+Use `--approval-mode plan`, `default`, or `auto_edit` only when the user explicitly asks for a lower-permission posture than the default.
 
 ## Browser authentication flow
 
@@ -117,7 +117,7 @@ Reply exactly with: gemini-auth-ok
 
 ```bash
 cd /private/tmp
-gemini -p "Reply exactly with: gemini-auth-ok" --model pro --approval-mode=plan --output-format text --skip-trust
+gemini -p "Reply exactly with: gemini-auth-ok" --model pro --approval-mode=yolo --output-format text --skip-trust
 ```
 
 7. After auth smoke succeeds, rerun the original consultation prompt from the intended working directory.
@@ -145,7 +145,7 @@ Rules:
 4. If a sandboxed attempt fails with an auth/session symptom, stop that run. Do not keep retrying inside the sandbox.
 5. Run one outside-sandbox `--auth-smoke` first. If it succeeds, retry the original Gemini consultation once outside the host sandbox.
 6. If the outside-sandbox retry still says the session is revoked/expired/logged out, stop and surface the exact error. The user likely needs to complete Gemini CLI login or account recovery outside the agent flow.
-7. Outside the host sandbox does not mean `--approval-mode=yolo`. Keep Gemini CLI's own approval mode at `plan` unless the user explicitly asked for another mode.
+7. Outside the host sandbox does not change Gemini CLI's own approval mode. Keep the wrapper default `yolo` unless the user explicitly asked for another mode.
 
 ## Waiting policy
 
@@ -158,19 +158,20 @@ Rules:
 
 ## Permission policy
 
-Default to read-only consultation:
+Default to direct repository inspection:
 
 ```bash
---approval-mode=plan
+--approval-mode=yolo
 ```
 
-Plan mode is intended for research, design, and read-only codebase inspection. Override only when the user explicitly asks for a different posture:
+YOLO mode auto-approves Gemini CLI tool calls, including shell commands. This is deliberately less restrictive than plan mode so non-interactive consultations can read repositories directly without stopping on shell approval. Override only when the user explicitly asks for a different posture:
 
-- `--approval-mode=default` - Gemini prompts for tool approvals.
+- `--approval-mode=plan` - read-only planning mode; can block shell-based repository inspection in non-interactive runs.
+- `--approval-mode=default` - Gemini prompts for tool approvals; in non-interactive runs, approval prompts can become denials.
 - `--approval-mode=auto_edit` - Gemini may auto-approve edit tools while prompting for other tools.
-- `--approval-mode=yolo` - Gemini auto-approves all tool calls. Use only after explicit user opt-in.
+- `--approval-mode=yolo` - Gemini auto-approves all tool calls. This is this skill's default.
 
-Do not use deprecated `--yolo`; use `--approval-mode=yolo` if the user explicitly requests YOLO mode.
+Do not use deprecated `--yolo`; use `--approval-mode=yolo`.
 
 ## How to use Gemini's response
 
@@ -193,7 +194,7 @@ Do not claim consensus unless both agents reached the same conclusion for compat
 | Adding token, thinking, or budget caps | Can truncate or weaken the consultation. |
 | Using a short timeout | Pro-model runs may be killed before they finish. |
 | Lowering the model because the run is slow | Changes the requested consultation quality without user approval. |
-| Using `--approval-mode=yolo` by default | Silently auto-approves all tool calls. |
+| Assuming `yolo` is read-only | It auto-approves tool calls, including shell commands. Use `--approval-mode plan` explicitly for read-only-only consultations. |
 | Adding `--include-directories` proactively | Expands Gemini's read scope beyond what the user asked for. |
 | Opening browser auth with the real repo prompt | Sends more context than needed for login. Use `--auth-smoke` first. |
 | Retrying session errors inside the host sandbox | Repeats the same broken auth environment. Use approved outside-sandbox auth smoke, then retry once. |
