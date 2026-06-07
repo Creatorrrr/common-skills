@@ -14,7 +14,7 @@ Gemini CLI sessions must not use this skill to invoke `gemini -p`. If the curren
 1. The user's explicit instructions override these defaults.
 2. If the current agent is Gemini CLI, say: `Gemini cannot use consulting-gemini-cli because it would recursively call Gemini. I will not run gemini -p from inside Gemini CLI.` Then stop.
 3. Run Gemini non-interactively with `gemini -p` / `gemini --prompt` so the subprocess returns.
-4. If the user does not specify a model, use `pro`.
+4. If the user does not specify a model, use the Gemini CLI default by omitting `--model`. The wrapper accepts convenience aliases `pro`, `flash`, `lite`, and `flash-lite` for explicit overrides.
 5. Use YOLO approval mode by default: `--approval-mode=yolo`. This auto-approves Gemini CLI tool calls so it can inspect repositories directly in non-interactive consultations.
 6. Do not pass token, budget, output-token, or thinking-budget caps.
 7. Long waits are normal for large repositories or Pro-model reasoning. Do not impose short shell timeouts or retry just because output is slow.
@@ -39,17 +39,24 @@ Do not assume `scripts/consult_gemini_cli.sh` is project-local unless the user h
 
 | Option | Default | How it is passed |
 | --- | --- | --- |
-| Model | `pro` | `--model pro` |
+| Model | Gemini CLI default | no `--model` argument |
 | Approval mode | `yolo` | `--approval-mode=yolo` |
 | Print mode | non-interactive | `-p` / `--prompt` |
 | Output format | `text` | `--output-format text` |
-| Workspace trust | current session only | `--skip-trust` |
+| Workspace trust | Gemini CLI default | no trust flag |
 | Working directory | caller's current `cwd` | inherited unless `--cd` is explicitly used |
 | Extra directories | none | do not pass `--include-directories` unless the user names extra paths |
 | Sandbox | Gemini CLI default | do not pass `--sandbox` unless the user asks |
 | Budget/token caps | none | do not pass any cap flags |
 
 If the user explicitly names another model, approval mode, working directory, output format, sandbox setting, or extra include directory, use that value and keep the remaining defaults.
+
+Model aliases accepted by the wrapper:
+
+- `pro` -> `gemini-2.5-pro`
+- `flash` -> `gemini-2.5-flash`
+- `lite` or `flash-lite` -> `gemini-2.5-flash-lite`
+- `default` or `cli-default` -> omit `--model` and let Gemini CLI choose
 
 ## Canonical invocation
 
@@ -78,8 +85,10 @@ PROMPT
 For an explicit model override:
 
 ```bash
-/path/to/consult_gemini_cli.sh --model flash "user prompt here"
+/path/to/consult_gemini_cli.sh --model gemini-2.5-flash "user prompt here"
 ```
+
+Short aliases such as `--model flash` are also supported by the wrapper, but exact Gemini model IDs are preferred in examples because Gemini CLI itself does not treat bare `pro` or `flash` as model aliases.
 
 For an explicit lower-permission request, use the user's requested approval mode:
 
@@ -89,7 +98,42 @@ For an explicit lower-permission request, use the user's requested approval mode
 PROMPT
 ```
 
-Use `--approval-mode plan`, `default`, or `auto_edit` only when the user explicitly asks for a lower-permission posture than the default.
+Use `--approval-mode plan`, `default`, or `auto_edit` only when the user explicitly asks for a lower-permission posture than the default. If the installed Gemini CLI does not support `plan`, the wrapper maps that explicit lower-permission request to `default` and prints a status note before running Gemini.
+
+## Image and media file analysis
+
+Gemini models can analyze images, but this wrapper does not automatically forward image attachments from the calling chat UI. The wrapper sends text to `gemini -p`; Gemini CLI only receives local image content when the prompt uses Gemini CLI file-context syntax.
+
+Rules for image, audio, video, and PDF analysis:
+
+1. Resolve the real local filesystem path first. Do not assume a chat attachment, Markdown image, or plain path string is available to the Gemini subprocess.
+2. Use `@path` syntax in the prompt for every media file Gemini must inspect. A plain path such as `/tmp/image.png` is only text; `@image.png` is file context.
+3. Prefer `--cd` to a directory that contains the media file, then reference the file with a relative `@` path:
+
+```bash
+/path/to/consult_gemini_cli.sh --cd /absolute/path/to/images <<'PROMPT'
+Analyze this image: @image.png
+PROMPT
+```
+
+4. Escape spaces and shell-sensitive characters inside the `@` path. For example:
+
+```text
+Analyze this image: @generated\ image\ 1.png
+```
+
+5. If the media file is outside the consultation working directory, only use `--include-dir` when the user explicitly named that extra path. Then reference a path that Gemini CLI can resolve inside the configured workspace.
+6. Do not rely on `@directory/` to include images. Gemini CLI's multi-file reader is primarily text-oriented and may skip image, audio, video, or PDF files unless their exact file name or extension is explicitly requested. For visual analysis, name each image directly: `@a.png @b.jpg`.
+7. If Gemini says it cannot see or analyze the image, inspect the invocation before blaming the model: check that the prompt used `@`, the file existed, spaces were escaped, the path was inside Gemini's workspace/include directories, and the file was not ignored by `.gitignore` or `.geminiignore`.
+8. If headless Gemini rejects the image directory as untrusted, do not silently retry with a broader trust scope. Surface the error unless the user's current request explicitly asks to analyze that local image path; in that case, use the installed CLI's documented trust bypass only for that run when available, and state that the media directory is being trusted for the consultation.
+
+For a quick visual smoke, ask Gemini to prove it received the image:
+
+```bash
+/path/to/consult_gemini_cli.sh --cd /absolute/path/to/images <<'PROMPT'
+Look at @image.png. Start your answer with VISUAL_OK if you can see it, or VISUAL_NOT_AVAILABLE if you cannot. Then summarize the visible subject in one sentence.
+PROMPT
+```
 
 ## Browser authentication flow
 
@@ -117,7 +161,7 @@ Reply exactly with: gemini-auth-ok
 
 ```bash
 cd /private/tmp
-gemini -p "Reply exactly with: gemini-auth-ok" --model pro --approval-mode=yolo --output-format text --skip-trust
+gemini -p "Reply exactly with: gemini-auth-ok" --approval-mode=yolo --output-format text
 ```
 
 7. After auth smoke succeeds, rerun the original consultation prompt from the intended working directory.
@@ -149,7 +193,7 @@ Rules:
 
 ## Waiting policy
 
-`pro` can take many minutes on large or cross-cutting questions. Treat that as normal.
+Gemini CLI default or Pro-model runs can take many minutes on large or cross-cutting questions. Treat that as normal.
 
 - Set a generous shell timeout. Use at least `3600000` ms when the host tool requires a timeout value.
 - If the process is still running and there is no hard error, continue waiting.
@@ -171,7 +215,7 @@ YOLO mode auto-approves Gemini CLI tool calls, including shell commands. This is
 - `--approval-mode=auto_edit` - Gemini may auto-approve edit tools while prompting for other tools.
 - `--approval-mode=yolo` - Gemini auto-approves all tool calls. This is this skill's default.
 
-Do not use deprecated `--yolo`; use `--approval-mode=yolo`.
+Do not use deprecated `--yolo`; use `--approval-mode=yolo`. Some Gemini CLI versions do not support `plan`; the wrapper maps an explicit `plan` request to `default` only when `plan` is unavailable.
 
 ## How to use Gemini's response
 
@@ -194,8 +238,12 @@ Do not claim consensus unless both agents reached the same conclusion for compat
 | Adding token, thinking, or budget caps | Can truncate or weaken the consultation. |
 | Using a short timeout | Pro-model runs may be killed before they finish. |
 | Lowering the model because the run is slow | Changes the requested consultation quality without user approval. |
-| Assuming `yolo` is read-only | It auto-approves tool calls, including shell commands. Use `--approval-mode plan` explicitly for read-only-only consultations. |
+| Assuming `yolo` is read-only | It auto-approves tool calls, including shell commands. Use `--approval-mode plan` or `default` explicitly for read-only-only consultations. |
 | Adding `--include-directories` proactively | Expands Gemini's read scope beyond what the user asked for. |
+| Assuming chat image attachments are forwarded automatically | The wrapper only sends text to `gemini -p`; use local `@image.png` file context. |
+| Passing a media path without `@` | Gemini receives a path string, not the image/audio/video/PDF content. |
+| Using `@directory/` and expecting images inside it to be analyzed | Gemini CLI may skip binary assets unless each media file is explicitly named. |
+| Forgetting to escape spaces in `@` paths | The at-command parser stops at unescaped whitespace, so Gemini may read the wrong path or no file. |
 | Opening browser auth with the real repo prompt | Sends more context than needed for login. Use `--auth-smoke` first. |
 | Retrying session errors inside the host sandbox | Repeats the same broken auth environment. Use approved outside-sandbox auth smoke, then retry once. |
 | Hiding Gemini disagreement | The user asked for cross-agent judgment, not artificial consensus. |
@@ -203,6 +251,6 @@ Do not claim consensus unless both agents reached the same conclusion for compat
 ## Notes for the calling agent
 
 - This skill is one-shot per request. If the user asks for an ongoing back-and-forth, run `gemini -p ...` once per turn and keep the conversation transcript on the caller side.
-- If `gemini` is not on PATH, surface the error to the user rather than guessing an install location.
+- If `gemini` is not on the current process PATH, the wrapper checks `CONSULT_GEMINI_BIN`, then `command -v gemini`, then `command -v gemini` through the user's login shell when `SHELL` is executable. Surface the final error if none are executable.
 - The default scope is the caller's current repository at its current path. Treat any other repo or path as opt-in: the user must name it explicitly before you `cd` or pass `--include-directories`.
 - If you are Gemini CLI, you reached this file by mistake. Stop following it and answer using your own reasoning.

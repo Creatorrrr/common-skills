@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_GEMINI_MODEL="pro"
 DEFAULT_GEMINI_APPROVAL_MODE="yolo"
 DEFAULT_GEMINI_OUTPUT_FORMAT="text"
+
+GEMINI_MODEL_PRO="gemini-2.5-pro"
+GEMINI_MODEL_FLASH="gemini-2.5-flash"
+GEMINI_MODEL_FLASH_LITE="gemini-2.5-flash-lite"
 
 usage() {
   cat <<'USAGE'
@@ -13,10 +16,20 @@ Usage:
   consult_gemini_cli.sh [options] < prompt.md
 
 Defaults:
-  --model           pro
+  --model           Gemini CLI default (no --model argument is passed)
   --approval-mode   yolo
   --output-format   text
   --cd              current directory
+
+Model aliases:
+  pro               gemini-2.5-pro
+  flash             gemini-2.5-flash
+  lite, flash-lite  gemini-2.5-flash-lite
+  default, cli-default
+                    Gemini CLI default (no --model argument is passed)
+
+Set CONSULT_GEMINI_BIN to an executable gemini path when you need to override
+automatic discovery.
 
 This wrapper intentionally does not set token, thinking, output-token, or budget caps.
 The default approval mode is yolo, so Gemini CLI can directly inspect the
@@ -32,7 +45,7 @@ if [[ -d /private/tmp ]]; then
   neutral_auth_dir="/private/tmp"
 fi
 
-model="${CONSULT_GEMINI_MODEL:-${GEMINI_MODEL:-$DEFAULT_GEMINI_MODEL}}"
+model="${CONSULT_GEMINI_MODEL:-${GEMINI_MODEL:-}}"
 approval_mode="${CONSULT_GEMINI_APPROVAL_MODE:-$DEFAULT_GEMINI_APPROVAL_MODE}"
 output_format="${CONSULT_GEMINI_OUTPUT_FORMAT:-$DEFAULT_GEMINI_OUTPUT_FORMAT}"
 workdir="${CONSULT_GEMINI_WORKDIR:-$PWD}"
@@ -133,15 +146,113 @@ if [[ -n "${GEMINI_CLI:-}" || -n "${GEMINI_CLI_SESSION_ID:-}" || "${GEMINI_INTER
   exit 0
 fi
 
-if ! command -v gemini >/dev/null 2>&1; then
-  echo "gemini CLI is not on PATH" >&2
+print_executable_path() {
+  local candidate="$1"
+  if [[ -n "$candidate" && -x "$candidate" && ! -d "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  return 1
+}
+
+resolve_gemini_bin() {
+  local current_path_candidate shell_bin shell_lookup_output candidate
+
+  if [[ -n "${CONSULT_GEMINI_BIN:-}" ]]; then
+    if print_executable_path "$CONSULT_GEMINI_BIN"; then
+      return 0
+    fi
+    echo "CONSULT_GEMINI_BIN is set but is not executable: $CONSULT_GEMINI_BIN" >&2
+    exit 127
+  fi
+
+  current_path_candidate="$(command -v gemini 2>/dev/null || true)"
+  if print_executable_path "$current_path_candidate"; then
+    return 0
+  fi
+
+  shell_bin="${SHELL:-}"
+  if [[ -n "$shell_bin" && -x "$shell_bin" ]]; then
+    shell_lookup_output="$("$shell_bin" -lc 'command -v "$1"' _ gemini 2>/dev/null || true)"
+    while IFS= read -r candidate; do
+      if print_executable_path "$candidate"; then
+        return 0
+      fi
+    done <<<"$shell_lookup_output"
+  fi
+
+  cat >&2 <<'ERROR'
+gemini CLI was not found.
+Checked:
+  - CONSULT_GEMINI_BIN
+  - command -v gemini in the current process PATH
+  - command -v gemini from the user's login shell, when SHELL is executable
+Install Gemini CLI, set CONSULT_GEMINI_BIN, or add gemini to your shell PATH.
+ERROR
   exit 127
-fi
+}
+
+normalize_model() {
+  case "$1" in
+    ""|default|cli-default)
+      printf '\n'
+      ;;
+    pro)
+      printf '%s\n' "$GEMINI_MODEL_PRO"
+      ;;
+    flash)
+      printf '%s\n' "$GEMINI_MODEL_FLASH"
+      ;;
+    lite|flash-lite)
+      printf '%s\n' "$GEMINI_MODEL_FLASH_LITE"
+      ;;
+    *)
+      printf '%s\n' "$1"
+      ;;
+  esac
+}
+
+help_supports_approval_mode() {
+  local help_text="$1"
+  local mode="$2"
+  [[ "$help_text" == *"\"$mode\""* ]]
+}
+
+normalize_approval_mode() {
+  local requested="$1"
+  local help_text="$2"
+
+  case "$requested" in
+    default|auto_edit|yolo)
+      if help_supports_approval_mode "$help_text" "$requested"; then
+        printf '%s\n' "$requested"
+        return 0
+      fi
+      ;;
+    plan)
+      if help_supports_approval_mode "$help_text" plan; then
+        printf 'plan\n'
+      else
+        echo "Gemini CLI does not support --approval-mode=plan; using --approval-mode=default for this lower-permission request." >&2
+        printf 'default\n'
+      fi
+      return 0
+      ;;
+  esac
+
+  echo "Gemini CLI does not support --approval-mode=$requested" >&2
+  exit 64
+}
 
 if [[ ! -d "$workdir" ]]; then
   echo "Working directory does not exist: $workdir" >&2
   exit 66
 fi
+
+gemini_bin="$(resolve_gemini_bin)"
+gemini_help="$("$gemini_bin" --help 2>&1 || true)"
+model="$(normalize_model "$model")"
+approval_mode="$(normalize_approval_mode "$approval_mode" "$gemini_help")"
 
 stdin_prompt=""
 if [[ ! -t 0 ]]; then
@@ -189,11 +300,13 @@ $stdin_prompt"
 fi
 
 gemini_args=(
-  --model "$model"
   --approval-mode="$approval_mode"
   --output-format "$output_format"
-  --skip-trust
 )
+
+if [[ -n "$model" ]]; then
+  gemini_args=(--model "$model" "${gemini_args[@]}")
+fi
 
 if [[ "$use_sandbox" == true ]]; then
   gemini_args+=(--sandbox)
@@ -205,10 +318,16 @@ if ((${#include_dirs[@]} > 0)); then
   done
 fi
 
+model_status="$model"
+if [[ -z "$model_status" ]]; then
+  model_status="Gemini CLI default"
+fi
+
 cat >&2 <<STATUS
 Starting Gemini consultation.
   mode: $([[ "$auth_smoke" == true ]] && printf 'auth-smoke' || printf 'consultation')
-  model: ${model}
+  gemini: ${gemini_bin}
+  model: ${model_status}
   approval mode: ${approval_mode}
   output format: ${output_format}
   sandbox: ${use_sandbox}
@@ -216,7 +335,34 @@ Starting Gemini consultation.
 Recommended host timeout: at least 3600000 ms.
 STATUS
 
-(
-  cd "$workdir"
-  gemini "${gemini_args[@]}" -p "$request_prompt"
-)
+run_gemini() {
+  (
+    cd "$workdir"
+    "$gemini_bin" "${gemini_args[@]}" -p "$request_prompt"
+  )
+}
+
+if [[ "$auth_smoke" == true ]]; then
+  set +e
+  auth_output="$(run_gemini)"
+  auth_status=$?
+  set -e
+
+  if ((auth_status != 0)); then
+    printf '%s\n' "$auth_output"
+    exit "$auth_status"
+  fi
+
+  normalized_auth_output="$(printf '%s\n' "$auth_output" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e '/^$/d')"
+  if [[ "$normalized_auth_output" != "gemini-auth-ok" ]]; then
+    echo "Gemini auth smoke did not return the expected exact output." >&2
+    echo "Expected: gemini-auth-ok" >&2
+    echo "Actual output:" >&2
+    printf '%s\n' "$auth_output" >&2
+    exit 65
+  fi
+
+  printf 'gemini-auth-ok\n'
+else
+  run_gemini
+fi
