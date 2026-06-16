@@ -20,6 +20,9 @@ Defaults:
   --output-format     text
   --cd                current directory
 
+Set CONSULT_CLAUDE_BIN to an executable claude path when you need to override
+automatic discovery.
+
 This wrapper intentionally does not set budget caps and intentionally does not
 use Claude Code's plan permission mode. Planning requests are returned through
 stdout while keeping --permission-mode auto.
@@ -135,15 +138,58 @@ while (($#)); do
   esac
 done
 
-if ! command -v claude >/dev/null 2>&1; then
-  echo "claude CLI is not on PATH" >&2
+print_executable_path() {
+  local candidate="$1"
+  if [[ -n "$candidate" && -x "$candidate" && ! -d "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  return 1
+}
+
+resolve_claude_bin() {
+  local current_path_candidate shell_bin shell_lookup_output candidate
+
+  if [[ -n "${CONSULT_CLAUDE_BIN:-}" ]]; then
+    if print_executable_path "$CONSULT_CLAUDE_BIN"; then
+      return 0
+    fi
+    echo "CONSULT_CLAUDE_BIN is set but is not executable: $CONSULT_CLAUDE_BIN" >&2
+    exit 127
+  fi
+
+  current_path_candidate="$(command -v claude 2>/dev/null || true)"
+  if print_executable_path "$current_path_candidate"; then
+    return 0
+  fi
+
+  shell_bin="${SHELL:-}"
+  if [[ -n "$shell_bin" && -x "$shell_bin" ]]; then
+    shell_lookup_output="$("$shell_bin" -lc 'command -v "$1"' _ claude 2>/dev/null || true)"
+    while IFS= read -r candidate; do
+      if print_executable_path "$candidate"; then
+        return 0
+      fi
+    done <<<"$shell_lookup_output"
+  fi
+
+  cat >&2 <<'ERROR'
+claude CLI was not found.
+Checked:
+  - CONSULT_CLAUDE_BIN
+  - command -v claude in the current process PATH
+  - command -v claude from the user's login shell, when SHELL is executable
+Install Claude Code, set CONSULT_CLAUDE_BIN, or add claude to your shell PATH.
+ERROR
   exit 127
-fi
+}
 
 if [[ ! -d "$workdir" ]]; then
   echo "Working directory does not exist: $workdir" >&2
   exit 66
 fi
+
+claude_bin="$(resolve_claude_bin)"
 
 if [[ "$permission_mode" == "plan" ]]; then
   echo "consulting-claude-code does not use --permission-mode plan; using auto instead." >&2
@@ -217,6 +263,7 @@ fi
 cat >&2 <<STATUS
 Starting Claude Code consultation.
   mode: $([[ "$auth_smoke" == true ]] && printf 'auth-smoke' || printf 'consultation')
+  claude: ${claude_bin}
   model: ${model}
   effort: ${effort}
   permission mode: ${permission_mode}
@@ -229,7 +276,7 @@ run_claude() {
   local prompt="$1"
   (
     cd "$workdir"
-    claude -p "$prompt" "${claude_args[@]}"
+    "$claude_bin" -p "$prompt" "${claude_args[@]}"
   )
 }
 

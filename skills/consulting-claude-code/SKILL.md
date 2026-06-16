@@ -252,7 +252,7 @@ If the calling agent is going to chain the response into further reasoning (e.g.
 ## Notes for the calling agent
 
 - This skill is one-shot per request. If the user asks for an ongoing back-and-forth, run the wrapper once per turn and keep the conversation transcript on the caller side; do not try to keep `claude` interactive.
-- If `claude` is not on PATH, surface the error to the user rather than guessing an install location. The user keeps `claude` at the binary returned by `which claude`.
+- If `claude` is not on the current process PATH, the wrapper checks `CONSULT_CLAUDE_BIN`, then `command -v claude`, then `command -v claude` through the user's login shell when `SHELL` is executable. Surface the final error if none are executable.
 - The defaults (`opus` + `medium`) are deliberate. Do not swap the model away without an explicit user instruction. For effort, follow the Effort selection guidance: judge per request, prefer the lower of two adjacent levels when uncertain, and never override an explicit user choice.
 - The default scope is **the caller's current repository at its current path**. Treat any other repo or path as opt-in: the user must name it explicitly before you `cd` or add it via `--add-dir`.
 - If you are Claude Code, you reached this file by mistake. Stop following it — see the "Audience boundary" section above.
