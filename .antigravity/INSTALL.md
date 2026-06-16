@@ -75,6 +75,7 @@ After restart, Antigravity can discover these skills automatically. You can also
 - `common-skills:consulting-claude-code`
 - `common-skills:consulting-codex-cli`
 - `common-skills:consulting-gemini-cli`
+- `common-skills:goal-planner`
 
 ## Updating
 

@@ -77,6 +77,7 @@ readlink ~/.claude/skills/gpt-pro-codebase-analysis
 readlink ~/.claude/skills/claude-code-agent-team-analysis
 readlink ~/.claude/skills/consulting-codex-cli
 readlink ~/.claude/skills/consulting-gemini-cli
+readlink ~/.claude/skills/goal-planner
 ```
 
 You should see paths pointing into the selected source checkout, either under `~/.claude/common-skills/skills` or under your chosen local repository path.
@@ -89,6 +90,7 @@ After restart, Claude Code can discover the skills automatically when the task m
 - `claude-code-agent-team-analysis`
 - `consulting-codex-cli`
 - `consulting-gemini-cli`
+- `goal-planner`
 
 `consulting-claude-code` may exist in the shared checkout, but Claude Code must not use it to recursively invoke `claude`; it should warn and stop instead.
 
@@ -113,7 +115,7 @@ If you linked your active development checkout, Claude Code sees file changes im
 For either install mode, remove the exposed skill links:
 
 ```bash
-for skill_name in gpt-pro-codebase-analysis claude-code-agent-team-analysis consulting-codex-cli consulting-gemini-cli consulting-claude-code; do
+for skill_name in gpt-pro-codebase-analysis claude-code-agent-team-analysis consulting-codex-cli consulting-gemini-cli consulting-claude-code goal-planner; do
   rm -f ~/.claude/skills/"$skill_name"
 done
 ```
