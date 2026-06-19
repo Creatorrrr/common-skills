@@ -1,6 +1,6 @@
 # common-skills
 
-`common-skills` is a shared skill library for Codex, Claude Code, Gemini CLI, and Antigravity. It currently focuses on deep codebase analysis workflows, cross-agent consultation helpers, and Codex goal-mode planning.
+`common-skills` is a shared skill library for Codex, Claude Code, Antigravity, and legacy Gemini CLI extension contexts. It currently focuses on deep codebase analysis workflows, cross-agent consultation helpers, and Codex goal-mode planning.
 
 ## Included skills
 
@@ -41,11 +41,11 @@ It includes a small wrapper at `skills/consulting-claude-code/scripts/consult_cl
 
 If it is invoked from inside Claude Code, it should warn that Claude Code cannot recursively call itself and stop without running `claude`.
 
-### `consulting-gemini-cli`
+### `consulting-antigravity-cli`
 
-Use this from Codex, Claude Code, Antigravity, or another non-Gemini agent when the user wants to ask the local Gemini CLI for a second opinion, code review, design feedback, or an explicit back-and-forth between agents.
+Use this from Codex, Claude Code, legacy Gemini CLI, or another non-Antigravity agent when the user wants to ask the local Antigravity CLI for a second opinion, code review, design feedback, or an explicit back-and-forth between agents.
 
-It includes a small wrapper at `skills/consulting-gemini-cli/scripts/consult_gemini_cli.sh`. If the skill is invoked from inside Gemini CLI, it should warn that Gemini cannot recursively call itself and stop without running `gemini -p`.
+It includes a small wrapper at `skills/consulting-antigravity-cli/scripts/consult_antigravity_cli.sh`. If the skill is invoked from inside Antigravity CLI, it should warn that Antigravity cannot recursively call itself and stop without running `agy -p`.
 
 ### `goal-planner`
 

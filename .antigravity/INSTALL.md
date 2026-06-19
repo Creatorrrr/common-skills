@@ -74,8 +74,10 @@ After restart, Antigravity can discover these skills automatically. You can also
 - `common-skills:claude-code-agent-team-analysis`
 - `common-skills:consulting-claude-code`
 - `common-skills:consulting-codex-cli`
-- `common-skills:consulting-gemini-cli`
+- `common-skills:consulting-antigravity-cli`
 - `common-skills:goal-planner`
+
+`consulting-antigravity-cli` is discoverable in Antigravity for consistency, but when invoked from an Antigravity session it must only warn that Antigravity cannot recursively call itself and then stop without running `agy -p`.
 
 ## Updating
 

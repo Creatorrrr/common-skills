@@ -74,7 +74,7 @@ After restart, Codex can discover these skills automatically. You can also call 
 - `common-skills:claude-code-agent-team-analysis`
 - `common-skills:consulting-claude-code`
 - `common-skills:consulting-codex-cli`
-- `common-skills:consulting-gemini-cli`
+- `common-skills:consulting-antigravity-cli`
 - `common-skills:goal-planner`
 
 `consulting-codex-cli` is discoverable in Codex for consistency, but when invoked from a Codex session it must only warn that Codex cannot recursively call itself and then stop without running `codex exec`.

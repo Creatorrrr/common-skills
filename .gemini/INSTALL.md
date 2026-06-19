@@ -1,6 +1,6 @@
 # Installing common-skills for Gemini CLI
 
-Install this repository as a Gemini CLI extension. The required extension metadata lives at the repository root in `gemini-extension.json`, and Gemini CLI loads `GEMINI.md` as the extension context.
+Install this repository as a legacy Gemini CLI extension. The required extension metadata lives at the repository root in `gemini-extension.json`, and Gemini CLI loads `GEMINI.md` as the extension context.
 
 ## Prerequisites
 
@@ -53,9 +53,10 @@ After restart, start a new Gemini CLI session and use the installed extension wh
 - `claude-code-agent-team-analysis`
 - `consulting-claude-code`
 - `consulting-codex-cli`
+- `consulting-antigravity-cli`
 - `goal-planner`
 
-The repository also contains `consulting-gemini-cli` for non-Gemini agents. Gemini CLI must not use that skill to recursively invoke `gemini -p`; it should warn and stop instead.
+`consulting-antigravity-cli` is for non-Antigravity agents that need to ask the local Antigravity CLI through `agy -p`. Antigravity CLI must not use that skill recursively.
 
 ## Updating
 
