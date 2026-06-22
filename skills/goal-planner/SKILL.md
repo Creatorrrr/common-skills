@@ -24,6 +24,8 @@ Respond in the user's language. If the user writes Korean, respond in Korean.
 - If a plan already exists, review it before writing the final goal.
 - Do not enable self-directed target increases unless the user explicitly opts in.
 - Make every completion condition verifiable. Prefer commands, tests, benchmarks, generated artifacts, screenshots, reports, or exact acceptance criteria.
+- For non-trivial implementation goals, require an independent final verification step whenever possible. Prefer a separate subagent or clean environment such as a fresh checkout, clean worktree, temporary directory, or container.
+- If independent verification is unavailable, require the goal to record why and perform the strongest practical substitute verification, such as clean worktree checks, dependency reinstall/build, test reruns, or artifact regeneration.
 - If a numeric performance target is impossible to know from the prompt, define a baseline-measurement step and target-selection rule rather than inventing unsupported numbers.
 - Bound the work. "Do not stop until achieved" means continue through reasonable verification and repair loops, but pause and report evidence if blocked by missing credentials, destructive actions, approval requirements, unsafe changes, external service failures, or targets that appear infeasible under the stated constraints.
 
@@ -36,6 +38,7 @@ Treat the user as having a usable plan only if the provided content includes all
 - Stage-level target spec or performance level for every stage.
 - Final target spec or performance level.
 - Verification method for stage targets and final target.
+- Independent final verification policy for non-trivial implementation goals.
 - Constraints, non-goals, or boundaries.
 
 If any required element is missing, treat the plan as incomplete and either ask focused questions or propose a patched plan.
@@ -56,6 +59,7 @@ Useful questions to ask when missing:
 - 단계별 목표: 중간 단계별로 어떤 스펙이나 성능 수준을 만족해야 하나?
 - 최종 목표: 숫자, 테스트 통과 조건, UX/기능 수용 기준, 보고서 산출물 등 완료 기준은 무엇인가?
 - 검증 방법: 어떤 명령, 테스트, 벤치마크, 수동 확인, 스크린샷, 리포트로 성공을 판단할까?
+- 독립 검증: 별도 서브에이전트, clean worktree, fresh checkout, 컨테이너 등 어떤 독립 환경에서 최종 검증할까? 불가능하면 어떤 대체 검증을 쓸까?
 - 제약/금지사항: 바꾸면 안 되는 API, 파일, DB, 비용, 보안, 라이선스, 호환성, 스타일 규칙은 무엇인가?
 
 If the user asks for an immediate draft and information is incomplete, make explicit assumptions, mark them as assumptions, keep stretch disabled unless they opted in, and ask them to adjust the draft before use.
@@ -87,6 +91,13 @@ When creating a plan, use this structure:
 - 회귀 방지 기준:
 - 산출물:
 
+## 독립 검증 정책
+- 최종 완료 선언 전 독립 검증 필요 여부:
+- 권장 검증 주체/환경: 별도 서브에이전트, fresh checkout, clean worktree, 임시 디렉터리, 컨테이너 등
+- 독립 검증자가 확인할 기준:
+- 독립 검증이 불가능할 때의 대체 검증:
+- 최종 보고에 포함할 검증 증거:
+
 ## 성능 목표 상향 정책
 - 사용자 동의 여부: 예/아니오/미확인
 - 동의한 경우: 필수 목표 달성 후 최대 3회까지 상향 가능
@@ -116,6 +127,7 @@ Check these items:
 8. 진행 로그 또는 체크포인트 보고 방식이 있는가?
 9. 중단/사용자 질문 조건이 있는가?
 10. 성능 목표 상향 opt-in 여부가 명시되어 있는가?
+11. 단순하지 않은 구현 목표라면 독립 최종 검증 주체/환경, 검증 기준, 불가 시 대체 검증이 명시되어 있는가?
 
 If the review is not `통과`, show the smallest patch needed to make it pass. Do not produce a final `/goal` prompt until the patched plan is sufficient, unless the user explicitly asks for a rough draft.
 
@@ -151,6 +163,8 @@ Prefer a direct `/goal` block when it is short enough. Keep it compact and actio
 - 각 단계 완료 후 검증을 실행하고 결과를 기록한다.
 - 실패하면 원인을 분석하고 수정-검증 루프를 반복한다.
 - 최종 완료 기준이 모두 통과할 때까지 멈추지 않는다.
+- 최종 완료 선언 전, 가능하면 구현을 수행한 주 에이전트와 분리된 서브에이전트 또는 clean 환경에서 최종 완료 기준과 회귀 방지 기준을 재검증한다.
+- 독립 검증이 불가능하면 이유를 기록하고 clean worktree 확인, 의존성 재설치/빌드, 테스트 재실행, 산출물 재생성 등 가능한 가장 강한 대체 검증을 수행한다.
 - 단, 권한/비밀값/파괴적 변경/외부 장애/목표 infeasible 증거가 있으면 멈추고 근거와 다음 선택지를 보고한다.
 - 진행 보고에는 현재 단계, 변경 사항, 검증 결과, 남은 일, 차단 여부를 포함한다.
 
@@ -175,7 +189,7 @@ Instead output:
 2. A short copyable goal:
 
 ```text
-/goal Follow GOAL_PLAN.md exactly. First review the plan against its checklist, patch any missing plan details, then execute checkpoint by checkpoint until all final completion criteria pass. Keep a compact progress log. Pause only for missing approvals, credentials, destructive changes, external blockers, or evidence that the target is infeasible under the stated constraints.
+/goal Follow GOAL_PLAN.md exactly. First review the plan against its checklist, patch any missing plan details, then execute checkpoint by checkpoint until all final completion criteria pass. Before final completion, run independent verification with a separate subagent or clean environment when possible; if not possible, record why and run the strongest practical substitute verification. Keep a compact progress log. Pause only for missing approvals, credentials, destructive changes, external blockers, or evidence that the target is infeasible under the stated constraints.
 ```
 
 ## Output format
