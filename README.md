@@ -1,6 +1,6 @@
 # common-skills
 
-`common-skills` is a shared skill library for Codex, Claude Code, Antigravity, and legacy Gemini CLI extension contexts. It currently focuses on deep codebase analysis workflows, cross-agent consultation helpers, and Codex goal-mode planning.
+`common-skills` is a shared skill library for Codex, Claude Code, Antigravity, and legacy Gemini CLI extension contexts. It currently focuses on deep codebase analysis workflows, cross-agent consultation helpers, and goal-mode planning.
 
 ## Included skills
 
@@ -49,7 +49,7 @@ It includes a small wrapper at `skills/consulting-antigravity-cli/scripts/consul
 
 ### `goal-planner`
 
-Use this when the user wants to create or review a plan-first Codex `/goal` prompt for long-running work. The skill helps define measurable stage targets, verification, boundaries, progress logging, stop conditions, and optional bounded target uplift.
+Use this when the user wants to create or review a plan-first Codex or Claude Code `/goal` prompt for long-running work. The skill helps define measurable stage targets, verification, boundaries, progress logging, transcript-visible evidence, stop conditions, and optional bounded target uplift.
 
 ## Installation
 
