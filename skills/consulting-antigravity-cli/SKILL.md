@@ -5,7 +5,7 @@ description: Use when a non-Antigravity agent wants to consult the local Antigra
 
 # Consulting Antigravity CLI
 
-This skill lets Codex, Claude Code, legacy Gemini CLI, or another non-Antigravity agent invoke the local `agy` CLI as a subprocess, collect Antigravity's opinion, and compare it with the calling agent's own reasoning.
+This skill lets Codex, Claude Code, legacy Gemini CLI, or another non-Antigravity agent invoke the local `agy` CLI as a subprocess, collect Antigravity's opinion, and compare it with the calling agent's own reasoning. Calls are one-shot by default; when the user explicitly needs an ongoing back-and-forth, use the wrapper's named `--chain` mode.
 
 Antigravity CLI sessions must not use this skill to invoke `agy -p`. If the current agent is Antigravity CLI and this skill is triggered, respond with a warning and stop.
 
@@ -22,6 +22,7 @@ Antigravity CLI sessions must not use this skill to invoke `agy -p`. If the curr
 9. Present Antigravity's response before synthesizing agreement or disagreement.
 10. Unless the user explicitly says otherwise, Antigravity operates on the same repository at the same working directory as the calling agent.
 11. If the calling harness runs shell commands in a host sandbox that hides normal auth/session files, use that harness's approved normal-local execution path for real Antigravity CLI calls after user approval.
+12. Default calls are independent. Use `--chain <key>` only when the user explicitly asks to continue the same Antigravity consultation across turns. Use `--reset-chain <key>` when a chain should be cleared.
 
 ## Resolve the bundled script
 
@@ -47,6 +48,7 @@ Do not assume `scripts/consult_antigravity_cli.sh` is project-local unless the u
 | Working directory | caller's current `cwd` | inherited unless `--cd` is explicitly used |
 | Extra directories | none | no include-directory flag is passed |
 | Sandbox | Antigravity CLI default | no `--sandbox` unless the user asks |
+| Conversation chain | disabled | no `--chain` |
 | Budget/token caps | none | do not pass any cap flags |
 
 If the user explicitly names another model, working directory, sandbox setting, or permission posture, use that value and keep the remaining defaults.
@@ -81,6 +83,26 @@ For a repo-specific question, set the working directory:
 <question about this repository>
 PROMPT
 ```
+
+For an explicit ongoing back-and-forth, opt in with a stable chain key:
+
+```bash
+/path/to/consult_antigravity_cli.sh --chain main <<'PROMPT'
+<first question>
+PROMPT
+
+/path/to/consult_antigravity_cli.sh --chain main <<'PROMPT'
+<follow-up that should see the earlier Antigravity context>
+PROMPT
+```
+
+Clear a named chain before starting over:
+
+```bash
+/path/to/consult_antigravity_cli.sh --reset-chain main
+```
+
+The chain key is scoped by the consultation working directory and persisted in `${XDG_STATE_HOME:-$HOME/.local/state}/common-skills/consultations/antigravity/` unless `CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR` is set. On the first chained call the wrapper writes an internal `--log-file`, extracts Antigravity's created conversation ID, and later resumes with `--conversation <id>`. Do not use plain `--continue` for wrapper-managed chains because it can attach to whichever Antigravity conversation is most recent.
 
 For an explicit model override:
 
@@ -233,6 +255,8 @@ Do not claim consensus unless both agents reached the same conclusion for compat
 | --- | --- |
 | Running `agy -p` from Antigravity CLI | Recursive. Warn and stop instead. |
 | Omitting `-p` | Can start an interactive TUI session that never returns. |
+| Using `--chain` automatically for every call | Bleeds unrelated consultations together. Chain mode is opt-in only. |
+| Using `--continue` for wrapper-managed chains | It resumes the most recent Antigravity conversation, which may be unrelated. Use wrapper-managed `--chain` so `--conversation <id>` is used. |
 | Adding token, thinking, or budget caps | Can truncate or weaken the consultation. |
 | Using a short timeout | High-reasoning runs may be killed before they finish. |
 | Lowering the model because the run is slow | Changes the requested consultation quality without user approval. |
@@ -248,7 +272,7 @@ Do not claim consensus unless both agents reached the same conclusion for compat
 
 ## Notes for the calling agent
 
-- This skill is one-shot per request. If the user asks for an ongoing back-and-forth, run `agy -p ...` once per turn and keep the conversation transcript on the caller side.
+- This skill is one-shot per request by default. If the user asks for an ongoing back-and-forth, run the wrapper once per turn with `--chain <key>` so Antigravity resumes the saved conversation in non-interactive print mode; do not try to keep `agy` interactive.
 - If `agy` is not on the current process PATH, the wrapper checks `CONSULT_ANTIGRAVITY_BIN`, `CONSULT_AGY_BIN`, then `command -v agy`/`antigravity`, then those commands through the user's login shell when `SHELL` is executable. Surface the final error if none are executable.
 - The wrapper treats inherited Antigravity environment variables as weak signals when a known non-Antigravity caller is present; deliberate recursion blocks should use `CONSULT_ANTIGRAVITY_CLI_FROM_ANTIGRAVITY=1`.
 - The default scope is the caller's current repository at its current path. Treat any other repo or path as opt-in: the user must name it explicitly before you `cd`.

@@ -93,6 +93,7 @@ run_wrapper() {
     CONSULT_CLAUDE_EFFORT= \
     CONSULT_CLAUDE_PERMISSION_MODE= \
     CONSULT_CLAUDE_OUTPUT_FORMAT= \
+    CONSULT_CLAUDE_CHAIN_STATE_DIR="${CONSULT_CLAUDE_CHAIN_STATE_DIR:-}" \
     MOCK_LOG="$mock_log" \
     MOCK_BEHAVIOR="$behavior" \
     "$wrapper" "$@" >"$stdout_file" 2>"$stderr_file" </dev/null
@@ -118,6 +119,7 @@ run_wrapper_discovered() {
     CONSULT_CLAUDE_EFFORT= \
     CONSULT_CLAUDE_PERMISSION_MODE= \
     CONSULT_CLAUDE_OUTPUT_FORMAT= \
+    CONSULT_CLAUDE_CHAIN_STATE_DIR="${CONSULT_CLAUDE_CHAIN_STATE_DIR:-}" \
     MOCK_DISCOVERY_BIN="$mock_bin" \
     MOCK_LOG="$mock_log" \
     MOCK_BEHAVIOR="$behavior" \
@@ -148,6 +150,22 @@ assert_contains "$mock_log" "<auto>"
 
 run_wrapper 0 auth-ok --auth-smoke
 assert_stdout_exact "claude-auth-ok"
+
+chain_state_dir="$tmp_dir/claude-chain-state"
+CONSULT_CLAUDE_CHAIN_STATE_DIR="$chain_state_dir" run_wrapper 0 ok --chain main "first chained question"
+assert_contains "$mock_log" "<--session-id>"
+chain_session_file="$(find "$chain_state_dir" -type f -name '*.session-id' 2>/dev/null | head -n 1 || true)"
+if [[ -z "$chain_session_file" ]]; then
+  fail "expected Claude chain session file to be created"
+fi
+chain_session_id="$(cat "$chain_session_file")"
+
+CONSULT_CLAUDE_CHAIN_STATE_DIR="$(dirname "$chain_session_file")" run_wrapper 0 ok --chain main "follow-up chained question"
+assert_contains "$mock_log" "<--resume>"
+assert_contains "$mock_log" "<$chain_session_id>"
+
+CONSULT_CLAUDE_CHAIN_STATE_DIR="$(dirname "$chain_session_file")" run_wrapper 0 ok --reset-chain main
+[[ ! -e "$chain_session_file" ]] || fail "expected Claude chain session file to be removed"
 
 run_wrapper_discovered 0 ok "hello"
 assert_contains "$stderr_file" "claude: $mock_bin"

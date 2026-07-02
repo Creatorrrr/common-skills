@@ -23,6 +23,10 @@ Usage: agy [options]
       Run terminal commands in sandbox mode.
   --dangerously-skip-permissions
       Skip permission prompts.
+  --log-file string
+      Override CLI log file path.
+  --conversation string
+      Resume a previous conversation by ID.
 HELP
 
 cat >"$mock_bin" <<'MOCK'
@@ -33,6 +37,15 @@ if [[ "${1:-}" == "--help" ]]; then
   cat "${MOCK_HELP:?}"
   exit 0
 fi
+
+cli_log_file=""
+previous_arg=""
+for arg in "$@"; do
+  if [[ "$previous_arg" == "--log-file" ]]; then
+    cli_log_file="$arg"
+  fi
+  previous_arg="$arg"
+done
 
 : >"${MOCK_LOG:?}"
 printf '<env:ANTIGRAVITY_CLI=%s>\n' "${ANTIGRAVITY_CLI:-}" >>"$MOCK_LOG"
@@ -45,6 +58,10 @@ done
 
 case "${MOCK_BEHAVIOR:-ok}" in
   ok)
+    if [[ -n "$cli_log_file" ]]; then
+      mkdir -p "$(dirname "$cli_log_file")"
+      printf 'I0702 mock] Created conversation %s\n' "${MOCK_CONVERSATION_ID:-11111111-2222-3333-4444-555555555555}" >>"$cli_log_file"
+    fi
     printf 'mock-ok\n'
     ;;
   auth-ok)
@@ -125,9 +142,11 @@ run_wrapper() {
     CONSULT_ANTIGRAVITY_MODEL= \
     AGY_MODEL= \
     CONSULT_ANTIGRAVITY_PERMISSION_MODE= \
+    CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="${CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR:-}" \
     MOCK_HELP="$mock_help" \
     MOCK_LOG="$mock_log" \
     MOCK_BEHAVIOR="$behavior" \
+    MOCK_CONVERSATION_ID="${MOCK_CONVERSATION_ID:-11111111-2222-3333-4444-555555555555}" \
     "$wrapper" "$@" >"$stdout_file" 2>"$stderr_file" </dev/null
   local status=$?
   set -e
@@ -151,9 +170,11 @@ run_wrapper_stdin() {
     CONSULT_ANTIGRAVITY_MODEL= \
     AGY_MODEL= \
     CONSULT_ANTIGRAVITY_PERMISSION_MODE= \
+    CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="${CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR:-}" \
     MOCK_HELP="$mock_help" \
     MOCK_LOG="$mock_log" \
     MOCK_BEHAVIOR="$behavior" \
+    MOCK_CONVERSATION_ID="${MOCK_CONVERSATION_ID:-11111111-2222-3333-4444-555555555555}" \
     "$wrapper" "$@" >"$stdout_file" 2>"$stderr_file"
   local status=$?
   set -e
@@ -176,10 +197,12 @@ run_wrapper_discovered() {
     CONSULT_ANTIGRAVITY_MODEL= \
     AGY_MODEL= \
     CONSULT_ANTIGRAVITY_PERMISSION_MODE= \
+    CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="${CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR:-}" \
     MOCK_DISCOVERY_BIN="$mock_bin" \
     MOCK_HELP="$mock_help" \
     MOCK_LOG="$mock_log" \
     MOCK_BEHAVIOR="$behavior" \
+    MOCK_CONVERSATION_ID="${MOCK_CONVERSATION_ID:-11111111-2222-3333-4444-555555555555}" \
     PATH="/usr/bin:/bin" \
     SHELL="$fake_shell" \
     "$wrapper" "$@" >"$stdout_file" 2>"$stderr_file" </dev/null
@@ -228,6 +251,23 @@ run_wrapper_stdin 0 ok $'line1\nline2\n'
 assert_contains "$mock_log" "Request from stdin:"
 assert_contains "$mock_log" "line1"
 assert_contains "$mock_log" "line2"
+
+chain_state_dir="$tmp_dir/antigravity-chain-state"
+chain_conversation_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="$chain_state_dir" MOCK_CONVERSATION_ID="$chain_conversation_id" run_wrapper 0 ok --chain main "first chained question"
+assert_contains "$mock_log" "<--log-file>"
+chain_conversation_file="$(find "$chain_state_dir" -type f -name '*.conversation-id' 2>/dev/null | head -n 1 || true)"
+if [[ -z "$chain_conversation_file" ]]; then
+  fail "expected Antigravity chain conversation file to be created"
+fi
+[[ "$(cat "$chain_conversation_file")" == "$chain_conversation_id" ]] || fail "expected Antigravity conversation ID to be stored"
+
+CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="$chain_state_dir" run_wrapper 0 ok --chain main "follow-up chained question"
+assert_contains "$mock_log" "<--conversation>"
+assert_contains "$mock_log" "<$chain_conversation_id>"
+
+CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="$chain_state_dir" run_wrapper 0 ok --reset-chain main
+[[ ! -e "$chain_conversation_file" ]] || fail "expected Antigravity chain conversation file to be removed"
 
 run_wrapper 64 ok
 assert_contains "$stderr_file" "No Antigravity request prompt received from command arguments or stdin."

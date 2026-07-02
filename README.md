@@ -37,7 +37,7 @@ This skill lives under `skills/` with the rest of the library. If it is invoked 
 
 Use this from Codex, Gemini CLI, Antigravity, or another non-Claude-Code agent when the user wants to ask the local Claude Code CLI for a second opinion, code review, design feedback, or an explicit back-and-forth between agents.
 
-It includes a small wrapper at `skills/consulting-claude-code/scripts/consult_claude_code.sh` that enforces stdout responses and avoids Claude Code plan permission mode.
+It includes a small wrapper at `skills/consulting-claude-code/scripts/consult_claude_code.sh` that enforces stdout responses, avoids Claude Code plan permission mode, and supports explicit named follow-up chains with `--chain`.
 
 If it is invoked from inside Claude Code, it should warn that Claude Code cannot recursively call itself and stop without running `claude`.
 
@@ -45,7 +45,7 @@ If it is invoked from inside Claude Code, it should warn that Claude Code cannot
 
 Use this from Codex, Claude Code, legacy Gemini CLI, or another non-Antigravity agent when the user wants to ask the local Antigravity CLI for a second opinion, code review, design feedback, or an explicit back-and-forth between agents.
 
-It includes a small wrapper at `skills/consulting-antigravity-cli/scripts/consult_antigravity_cli.sh`. If the skill is invoked from inside Antigravity CLI, it should warn that Antigravity cannot recursively call itself and stop without running `agy -p`.
+It includes a small wrapper at `skills/consulting-antigravity-cli/scripts/consult_antigravity_cli.sh` with explicit named follow-up chains via `--chain`. If the skill is invoked from inside Antigravity CLI, it should warn that Antigravity cannot recursively call itself and stop without running `agy -p`.
 
 ### `goal-planner`
 

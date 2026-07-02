@@ -7,7 +7,7 @@ description: Use when a non-Claude-Code agent (Codex, Gemini CLI, etc.) wants to
 
 This skill defines how a **non-Claude-Code** agent session (Codex, Gemini CLI, or any other harness) invokes the local `claude` CLI as a subprocess to obtain Claude Code's opinion, then surfaces the response back to the user (or feeds it into further reasoning on the caller side).
 
-It is a thin, one-shot bridge — not a full multi-agent analysis pipeline. For a heavy repository review, prefer `claude-code-agent-team-analysis` instead.
+It is a thin, one-shot bridge by default — not a full multi-agent analysis pipeline. For a heavy repository review, prefer `claude-code-agent-team-analysis` instead. When the user explicitly needs an ongoing back-and-forth, use the wrapper's named `--chain` mode.
 
 ## Audience boundary (READ FIRST)
 
@@ -39,6 +39,7 @@ If a future sync ever lands this file inside a Claude-Code-visible location, the
 8. If the calling harness runs shell commands in a host sandbox, run real Claude CLI calls through that harness's explicit unsandboxed/escalated execution path after user approval. Sandboxed calls can hide Claude's normal auth state, browser integration, or home-directory session files.
 9. Require a console response. Claude must put the complete answer in stdout. It must not answer by only saying it wrote a plan, report, markdown file, or other artifact.
 10. Do not use Claude Code's plan permission mode for this skill. Planning requests are still valid, but the plan must be returned as text through stdout while keeping `--permission-mode auto`.
+11. Default calls are independent. Use `--chain <key>` only when the user explicitly asks to continue the same Claude consultation across turns. Use `--reset-chain <key>` when a chain should be cleared.
 
 ## Defaults (when not explicitly specified)
 
@@ -50,6 +51,7 @@ If a future sync ever lands this file inside a Claude-Code-visible location, the
 | Print mode | non-interactive | `-p` |
 | Output format | text | `--output-format text` |
 | Working directory | caller's current `cwd` (same repo) | inherited from the shell; no `cd`, no extra `--add-dir` |
+| Conversation chain | disabled | no `--chain` |
 | Budget cap | none | (do NOT pass `--max-budget-usd`) |
 
 If the user provides a different model (e.g. "sonnet에게 물어봐"), effort (e.g. "effort xhigh로"), or permission mode other than plan mode (e.g. "edits 까지 허용"), use the user-specified value and leave the rest at defaults. If the user asks for plan mode, do not pass `--permission-mode plan`; keep `--permission-mode auto` and ask Claude to return the plan in stdout.
@@ -122,6 +124,26 @@ Only when the **user explicitly** asks Claude to look at an additional directory
 <question that explicitly includes the extra path>
 PROMPT
 ```
+
+For an explicit ongoing back-and-forth, opt in with a stable chain key:
+
+```bash
+/path/to/consult_claude_code.sh --chain main <<'PROMPT'
+<first question>
+PROMPT
+
+/path/to/consult_claude_code.sh --chain main <<'PROMPT'
+<follow-up that should see the earlier Claude context>
+PROMPT
+```
+
+Clear a named chain before starting over:
+
+```bash
+/path/to/consult_claude_code.sh --reset-chain main
+```
+
+The chain key is scoped by the consultation working directory and persisted in `${XDG_STATE_HOME:-$HOME/.local/state}/common-skills/consultations/claude/` unless `CONSULT_CLAUDE_CHAIN_STATE_DIR` is set. The wrapper creates a Claude session with `--session-id <uuid>` on the first chained call and resumes it with `--resume <uuid>` on later calls.
 
 For an explicit model or effort override:
 
@@ -229,6 +251,7 @@ If the calling agent is going to chain the response into further reasoning (e.g.
 | User specified a different effort | Pass the user-specified effort verbatim, no second-guessing |
 | User wants planning only | Keep the wrapper default `--permission-mode auto`; ask Claude to return the plan in stdout and not write a plan file |
 | Caller needs structured output | Pass `--output-format json` |
+| User wants follow-up context preserved | Pass `--chain <stable-key>`; use `--reset-chain <stable-key>` to clear stale context |
 
 ## Common mistakes
 
@@ -244,6 +267,7 @@ If the calling agent is going to chain the response into further reasoning (e.g.
 | Asking Claude for a plan without the console-response wrapper | Claude Code may write a plan artifact and leave stdout with only a file notice. |
 | Using `--permission-mode plan` for this skill | Plan mode can encourage file-backed planning instead of the stdout consultation the caller needs. |
 | Starting nested `claude` calls from inside a Claude Code session | Causes recursive sessions and is explicitly disallowed by this skill. |
+| Using `--chain` automatically for every call | Bleeds unrelated consultations together. Chain mode is opt-in only. |
 | Calling `--permission-mode bypassPermissions` without asking | Silently disables permission checks. Always confirm with the user first. |
 | `cd`ing to a different directory before spawning `claude` without an explicit user instruction | Changes the repo Claude operates on. Claude must default to the caller's current repo and cwd. |
 | Adding `--add-dir <somewhere>` proactively "just in case" | Expands Claude's read scope beyond what the user asked for. Pass `--add-dir` only when the user named the extra path. |
@@ -251,7 +275,7 @@ If the calling agent is going to chain the response into further reasoning (e.g.
 
 ## Notes for the calling agent
 
-- This skill is one-shot per request. If the user asks for an ongoing back-and-forth, run the wrapper once per turn and keep the conversation transcript on the caller side; do not try to keep `claude` interactive.
+- This skill is one-shot per request by default. If the user asks for an ongoing back-and-forth, run the wrapper once per turn with `--chain <key>` so Claude Code resumes the saved session in non-interactive print mode; do not try to keep `claude` interactive.
 - If `claude` is not on the current process PATH, the wrapper checks `CONSULT_CLAUDE_BIN`, then `command -v claude`, then `command -v claude` through the user's login shell when `SHELL` is executable. Surface the final error if none are executable.
 - The defaults (`opus` + `medium`) are deliberate. Do not swap the model away without an explicit user instruction. For effort, follow the Effort selection guidance: judge per request, prefer the lower of two adjacent levels when uncertain, and never override an explicit user choice.
 - The default scope is **the caller's current repository at its current path**. Treat any other repo or path as opt-in: the user must name it explicitly before you `cd` or add it via `--add-dir`.

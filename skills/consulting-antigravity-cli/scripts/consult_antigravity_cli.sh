@@ -6,9 +6,10 @@ DEFAULT_ANTIGRAVITY_PERMISSION_MODE="dangerously-skip-permissions"
 usage() {
   cat <<'USAGE'
 Usage:
-  consult_antigravity_cli.sh [--model MODEL] [--permission-mode MODE] [--cd DIR] [--sandbox] [request...]
+  consult_antigravity_cli.sh [--model MODEL] [--permission-mode MODE] [--cd DIR] [--sandbox] [--chain KEY] [request...]
   consult_antigravity_cli.sh [--dangerously-skip-permissions|--no-dangerously-skip-permissions] [request...]
   consult_antigravity_cli.sh --auth-smoke
+  consult_antigravity_cli.sh --reset-chain KEY [--cd DIR]
   consult_antigravity_cli.sh [options] < prompt.md
 
 Defaults:
@@ -16,6 +17,7 @@ Defaults:
   --permission-mode               dangerously-skip-permissions
   --cd                            current directory
   --sandbox                       disabled unless explicitly requested
+  --chain                         disabled; named chains resume prior Antigravity context
 
 Permission modes:
   dangerously-skip-permissions    pass --dangerously-skip-permissions
@@ -48,6 +50,8 @@ workdir="${CONSULT_ANTIGRAVITY_WORKDIR:-$PWD}"
 use_sandbox=false
 auth_smoke=false
 prompt_args=()
+chain_key="${CONSULT_ANTIGRAVITY_CHAIN_KEY:-}"
+reset_chain_key=""
 
 set_permission_mode() {
   permission_mode="$1"
@@ -130,6 +134,30 @@ while (($#)); do
       if [[ "$permission_mode_explicit" == false ]]; then
         permission_mode="sandbox"
       fi
+      shift
+      ;;
+    --chain)
+      if (($# < 2)); then
+        echo "Missing value for $1" >&2
+        exit 64
+      fi
+      chain_key="$2"
+      shift 2
+      ;;
+    --chain=*)
+      chain_key="${1#*=}"
+      shift
+      ;;
+    --reset-chain)
+      if (($# < 2)); then
+        echo "Missing value for $1" >&2
+        exit 64
+      fi
+      reset_chain_key="$2"
+      shift 2
+      ;;
+    --reset-chain=*)
+      reset_chain_key="${1#*=}"
       shift
       ;;
     --auth-smoke|--auth-check)
@@ -243,6 +271,63 @@ ERROR
   exit 127
 }
 
+hash_chain_identity() {
+  local identity="$1"
+
+  if command -v shasum >/dev/null 2>&1; then
+    printf '%s' "$identity" | shasum -a 256 | awk '{print $1}'
+    return 0
+  fi
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    printf '%s' "$identity" | sha256sum | awk '{print $1}'
+    return 0
+  fi
+
+  printf '%s' "$identity" | cksum | awk '{print $1}'
+}
+
+chain_state_root() {
+  if [[ -n "${CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR:-}" ]]; then
+    printf '%s\n' "$CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR"
+  elif [[ -n "${XDG_STATE_HOME:-}" ]]; then
+    printf '%s/common-skills/consultations/antigravity\n' "$XDG_STATE_HOME"
+  elif [[ -n "${HOME:-}" ]]; then
+    printf '%s/.local/state/common-skills/consultations/antigravity\n' "$HOME"
+  else
+    printf '%s/common-skills/consultations/antigravity\n' "$neutral_auth_dir"
+  fi
+}
+
+chain_state_base_for() {
+  local key="$1"
+  local root identity digest
+
+  root="$(chain_state_root)"
+  identity="consulting-antigravity-cli
+workdir=$workdir
+key=$key"
+  digest="$(hash_chain_identity "$identity")"
+  printf '%s/%s\n' "$root" "$digest"
+}
+
+is_uuid() {
+  [[ "$1" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]
+}
+
+extract_conversation_id() {
+  local log_file="$1"
+
+  if [[ ! -f "$log_file" ]]; then
+    return 1
+  fi
+
+  sed -nE \
+    -e 's/.*Created conversation ([0-9a-fA-F-]{36}).*/\1/p' \
+    -e 's/.*Print mode: conversation=([0-9a-fA-F-]{36}).*/\1/p' \
+    "$log_file" | tail -n 1 | tr '[:upper:]' '[:lower:]'
+}
+
 normalize_model() {
   case "$1" in
     ""|default|cli-default)
@@ -276,6 +361,20 @@ normalize_permission_mode() {
 if [[ ! -d "$workdir" ]]; then
   echo "Working directory does not exist: $workdir" >&2
   exit 66
+fi
+
+workdir="$(cd "$workdir" && pwd -P)"
+
+if [[ "$auth_smoke" == true && -n "$chain_key" ]]; then
+  echo "--chain cannot be combined with --auth-smoke" >&2
+  exit 64
+fi
+
+if [[ -n "$reset_chain_key" ]]; then
+  chain_state_base="$(chain_state_base_for "$reset_chain_key")"
+  rm -f "${chain_state_base}.conversation-id" "${chain_state_base}.log"
+  printf 'Removed Antigravity chain state for key: %s\n' "$reset_chain_key"
+  exit 0
 fi
 
 antigravity_bin="$(resolve_antigravity_bin)"
@@ -350,6 +449,35 @@ if [[ "$permission_mode" == "dangerously-skip-permissions" ]]; then
   antigravity_args+=(--dangerously-skip-permissions)
 fi
 
+chain_status="disabled"
+chain_state_base=""
+chain_conversation_file=""
+chain_log_file=""
+chain_conversation_id=""
+chain_is_new=false
+if [[ -n "$chain_key" ]]; then
+  chain_state_base="$(chain_state_base_for "$chain_key")"
+  mkdir -p "$(dirname "$chain_state_base")"
+  chain_conversation_file="${chain_state_base}.conversation-id"
+  chain_log_file="${chain_state_base}.log"
+
+  if [[ -s "$chain_conversation_file" ]]; then
+    chain_conversation_id="$(sed -n '1p' "$chain_conversation_file" | tr -d '[:space:]')"
+    if ! is_uuid "$chain_conversation_id"; then
+      echo "Stored Antigravity chain conversation ID is invalid for key '$chain_key': $chain_conversation_id" >&2
+      echo "Run --reset-chain '$chain_key' to clear it." >&2
+      exit 65
+    fi
+    antigravity_args+=(--conversation "$chain_conversation_id")
+    chain_status="resume:$chain_key"
+  else
+    : >"$chain_log_file"
+    antigravity_args+=(--log-file "$chain_log_file")
+    chain_is_new=true
+    chain_status="new:$chain_key"
+  fi
+fi
+
 model_status="$model"
 if [[ -z "$model_status" ]]; then
   model_status="Antigravity CLI default"
@@ -363,6 +491,7 @@ Starting Antigravity consultation.
   permission mode: ${permission_mode}
   sandbox: ${use_sandbox}
   workdir: ${workdir}
+  chain: ${chain_status}
 Recommended host timeout: at least 3600000 ms.
 STATUS
 
@@ -407,5 +536,27 @@ if [[ "$auth_smoke" == true ]]; then
 
   printf 'antigravity-auth-ok\n'
 else
-  run_antigravity
+  if [[ "$chain_is_new" == true ]]; then
+    set +e
+    antigravity_output="$(run_antigravity)"
+    antigravity_status=$?
+    set -e
+
+    printf '%s\n' "$antigravity_output"
+
+    if ((antigravity_status != 0)); then
+      exit "$antigravity_status"
+    fi
+
+    chain_conversation_id="$(extract_conversation_id "$chain_log_file")"
+    if ! is_uuid "$chain_conversation_id"; then
+      echo "Antigravity chain '$chain_key' completed, but no conversation ID could be found in: $chain_log_file" >&2
+      echo "The response above is valid, but this chain cannot be resumed until the ID is available." >&2
+      exit 65
+    fi
+
+    printf '%s\n' "$chain_conversation_id" >"$chain_conversation_file"
+  else
+    run_antigravity
+  fi
 fi
