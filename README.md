@@ -49,7 +49,7 @@ It includes a small wrapper at `skills/consulting-antigravity-cli/scripts/consul
 
 ### `goal-planner`
 
-Use this when the user wants to create or review a plan-first Codex or Claude Code `/goal` prompt for long-running work. The skill helps define measurable stage targets, verification, boundaries, progress logging, transcript-visible evidence, stop conditions, and optional bounded target uplift.
+Use this when the user wants to create or review an outcome-first Codex or Claude Code `/goal` prompt for long-running work. The skill keeps the requested product or deliverable ahead of verification, bounds validation-only work, applies risk-proportional evidence, and prevents tests, documents, or verifier infrastructure from replacing the requested result.
 
 ## Installation
 

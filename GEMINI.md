@@ -26,8 +26,8 @@ When a user asks for a deep codebase review, read the relevant skill file first 
   - If this skill is invoked inside Antigravity CLI, warn that Antigravity cannot recursively call itself and stop without running `agy -p`.
 
 - `skills/goal-planner/SKILL.md`
-  - Use when the user wants to create or review a plan-first Codex `/goal` prompt for long-running work.
-  - Do not use it for ordinary project execution or generic planning unless the user explicitly wants a Codex `/goal` prompt.
+  - Use when the user wants to create or review an outcome-first Codex or Claude Code `/goal` prompt for long-running work.
+  - Keep the requested product or deliverable ahead of verification, bound validation-only work, and do not use it for ordinary project execution unless the user explicitly wants a long-running agent goal.
 
 General rules:
 
