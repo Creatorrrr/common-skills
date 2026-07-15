@@ -6,7 +6,7 @@
 
 ### `gpt-pro-codebase-analysis`
 
-Use this when you want a second-opinion repository analysis through a GPT Pro workflow. The skill prepares repository context, then supports two explicit execution modes:
+Use this when you want a second-opinion repository analysis through a GPT Pro workflow. The Responses API path defaults to `gpt-5.6-sol` with `reasoning.mode: pro`; the skill prepares repository context, then supports two explicit execution modes:
 
 - `responses_api`: direct analysis through the OpenAI Responses API
 - `chatgpt_web_assisted`: prepare an upload archive and prompt for manual use in ChatGPT Web

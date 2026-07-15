@@ -16,8 +16,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from analysis_contract import render_required_output_sections
-from analysis_run import resolve_tool_output_dir
+from analysis_contract import render_finding_contract, render_required_output_sections  # noqa: E402
+from analysis_run import resolve_tool_output_dir  # noqa: E402
 
 
 DEFAULTS = {
@@ -450,59 +450,57 @@ def build_prompt(
     handoff_identity: HandoffIdentity,
 ) -> str:
     scope = ", ".join(manifest.get("scope", [])) or "(none provided)"
-    keywords = ", ".join(manifest.get("keywords", [])) or "(none)"
     warnings_block = "\n".join(f"- {item}" for item in warnings) if warnings else "- none"
     notes_block = "\n".join(f"- {item}" for item in notes) if notes else "- none"
     resolved_goal = goal or manifest.get("goal") or "(none provided)"
+    if handoff_identity.goal != resolved_goal:
+        raise ValueError("Handoff identity goal does not match the prompt goal.")
+    finding_fields = render_finding_contract()
+    sections = render_required_output_sections()
 
-    body = textwrap.dedent(
-        f"""
-        Preparation context:
-        - selected archive: {selection.label}
-        - repo root: {manifest.get('repo_root')}
-        - explicit scope hints: {scope}
-        - preparation mode: {manifest.get('preparation_mode')}
-        - local recommendation: {manifest.get('mode_recommendation')}
-        - selected file count: {selection.file_count}
-        - selected estimated bytes: {selection.estimated_bytes:,}
-        - selected estimated tokens: {selection.estimated_tokens:,}
-        - extracted keywords: {keywords}
-        - Selection audit files inside the uploaded archive:
-          - `__analysis_context__/selection-manifest.json`
-          - `__analysis_context__/selection-report.md`
-          - `__analysis_context__/repo_tree.txt` when available
-
-        Local preparation notes:
-        {notes_block}
-
-        Local warnings:
-        {warnings_block}
-
-        Instructions:
-        - Follow the user's goal first.
-        - If the goal is ambiguous, prioritize correctness, workflow/design validity, missing implementation, tests, refactoring, performance, then deprecated or unused logic.
-        - Build a short system map first if the repo shape is unclear.
-        - Trace at least one relevant end-to-end workflow.
-        - Base claims on concrete evidence from the uploaded archive.
-        - If the archive cannot be inspected reliably in this chat, say that clearly before making file-specific claims.
-        - In the first output section, repeat the handoff identity values that are visible from this prompt so the caller can verify this answer belongs to the current handoff.
-        - Separate confirmed findings from inference or uncertainty.
-        - Do not use external web research unless I ask for it explicitly.
-        - Use concise Markdown.
-        - Do not reveal chain-of-thought.
-
-        Required output sections unless I later ask for something else:
-        """
-    ).strip()
-    return "\n\n".join(
+    return "\n".join(
         [
-            "Analyze the uploaded repository archive as the primary source of truth.",
+            "Act as a senior repository auditor. Analyze the uploaded repository archive as the only source of truth.",
+            "",
             handoff_identity.prompt_block(),
-            f"Primary goal:\n{resolved_goal}",
-            body,
-            render_required_output_sections(),
+            "",
+            "Prepared context:",
+            f"- selected archive: {selection.label}",
+            f"- explicit scope: {scope}",
+            f"- local recommendation: {manifest.get('mode_recommendation')}",
+            f"- selected file count: {selection.file_count}",
+            f"- selected estimated tokens: {selection.estimated_tokens:,}",
+            "- audit files: __analysis_context__/selection-manifest.json, selection-report.md, and repo_tree.txt when present",
+            "",
+            "Local preparation notes:",
+            notes_block,
+            "",
+            "Local warnings:",
+            warnings_block,
+            "",
+            "Evidence contract:",
+            "- Base every material claim on concrete files from the archive.",
+            "- Do not make repository-wide claims unless inspected coverage supports them.",
+            f"- Each finding must contain: {finding_fields}.",
+            "- Cite path:line only when stable line information exists; otherwise cite path and symbol or section. Never invent line numbers.",
+            "- A missing, dead, duplicate, deprecated, or unused claim must check definitions, callers or wiring, configuration, and relevant tests. Otherwise label it unconfirmed.",
+            "- Put unsupported questions under Unknowns and missing context instead of guessing.",
+            "- If the archive cannot be inspected reliably, say so before making file-specific claims.",
+            "- Do not use external web research unless explicitly requested.",
+            "",
+            "Method:",
+            "1. Map only the goal-relevant modules and runtime boundaries.",
+            "2. Trace one to three concrete end-to-end workflows.",
+            "3. Rank consequential findings and check each against callers, tests, and configuration.",
+            "4. State which relevant areas were not inspected.",
+            "",
+            "In Verdict, repeat the visible handoff identity values so the caller can verify this answer belongs to the current handoff.",
+            "",
+            "Required output sections unless I later request another format:",
+            sections,
+            "",
         ]
-    ) + "\n"
+    )
 
 
 def build_next_steps(

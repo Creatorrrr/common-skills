@@ -5,10 +5,8 @@ import argparse
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
-import textwrap
 import zipfile
 from collections import Counter
 from dataclasses import asdict, dataclass, field
@@ -20,7 +18,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from analysis_run import prepare_run_layout
+from analysis_run import prepare_run_layout  # noqa: E402
 
 DEFAULT_CONFIG = {
     "direct_token_threshold": 180000,
@@ -32,7 +30,6 @@ DEFAULT_CONFIG = {
     "full_retrieval_total_bytes_threshold": 200_000_000,
     "focused_token_budget": 180000,
     "focused_context_shard_chars": 350000,
-    "max_inline_file_bytes": 400000,
     "include_docs": True,
     "include_tests": True,
     "include_lockfiles": False,
@@ -608,32 +605,19 @@ def render_selection_report(selection_report: dict[str, Any], records: Sequence[
     return "\n".join(lines) + "\n"
 
 
-def truncate_for_inline(text: str, max_bytes: int) -> tuple[str, bool]:
-    encoded = text.encode("utf-8")
-    if len(encoded) <= max_bytes:
-        return text, False
-    target_chars = max(1000, max_bytes // 2)
-    head = text[: target_chars]
-    tail = text[-target_chars:]
-    combined = (
-        head
-        + "\n\n[... TRUNCATED FOR DIRECT MODE ...]\n\n"
-        + tail
-    )
-    return combined, True
-
-
 def render_file_block(path: str, category: str, language: str | None, text: str) -> str:
     fence = language or "text"
-    return textwrap.dedent(
-        f"""
-        ===== BEGIN FILE: {path} | category={category} =====
-        ```{fence}
-        {text}
-        ```
-        ===== END FILE: {path} =====
-        """
-    ).strip() + "\n\n"
+    return "\n".join(
+        [
+            f"===== BEGIN FILE: {path} | category={category} =====",
+            f"```{fence}",
+            text,
+            "```",
+            f"===== END FILE: {path} =====",
+            "",
+            "",
+        ]
+    )
 
 
 def shard_context(
@@ -641,7 +625,6 @@ def shard_context(
     out_dir: Path,
     prefix: str,
     shard_chars: int,
-    max_inline_file_bytes: int,
 ) -> list[str]:
     if not items:
         return []
@@ -664,10 +647,12 @@ def shard_context(
         shard_index += 1
 
     for _, rec, raw_text in items:
-        prepared_text, truncated = truncate_for_inline(raw_text, max_inline_file_bytes)
-        rec.inline_truncated = truncated
-        rec.bytes_inlined = len(prepared_text.encode("utf-8"))
-        block = render_file_block(rec.path, rec.category, rec.language, prepared_text)
+        # Direct-mode shards are a lossless representation of the selected text set.
+        # A large file may create a shard above the preferred character target, but it
+        # must never be silently truncated while the run is described as full context.
+        rec.inline_truncated = False
+        rec.bytes_inlined = len(raw_text.encode("utf-8"))
+        block = render_file_block(rec.path, rec.category, rec.language, raw_text)
         if current_chars and current_chars + len(block) > shard_chars:
             flush()
         current_lines.append(block)
@@ -809,11 +794,6 @@ def main() -> int:
     focused_est_tokens = estimated_tokens_from_text(focused_text) if focused_text else 0
     focused_est_bytes = sum(path.stat().st_size for path, _, _ in focused_candidates if path.exists())
 
-    full_context_items = text_candidates if args.mode == "full" else [
-        item for item in text_candidates
-        if full_est_tokens <= int(cfg["long_context_threshold"])
-    ]
-
     warnings: list[str] = []
     recommendation = "direct"
 
@@ -884,7 +864,6 @@ def main() -> int:
             full_context_dir,
             "full-context",
             int(cfg["focused_context_shard_chars"]),
-            int(cfg["max_inline_file_bytes"]),
         )
 
     focused_context_shards = shard_context(
@@ -892,7 +871,6 @@ def main() -> int:
         focused_context_dir,
         "focused-context",
         int(cfg["focused_context_shard_chars"]),
-        int(cfg["max_inline_file_bytes"]),
     )
 
     full_archive_path: str | None = None

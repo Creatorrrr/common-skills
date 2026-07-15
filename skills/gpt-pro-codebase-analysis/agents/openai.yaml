@@ -1,0 +1,4 @@
+interface:
+  display_name: "GPT Pro Codebase Analysis"
+  short_description: "Deep evidence-based repository analysis handoffs"
+  default_prompt: "Use $gpt-pro-codebase-analysis to prepare a deep, evidence-based second-opinion review of this repository."

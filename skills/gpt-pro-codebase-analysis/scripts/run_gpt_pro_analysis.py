@@ -5,7 +5,6 @@ import argparse
 import json
 import os
 import sys
-import textwrap
 from pathlib import Path
 from time import monotonic, sleep
 from typing import Any
@@ -14,8 +13,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from analysis_contract import render_required_output_sections
-from analysis_run import resolve_tool_output_dir
+from analysis_contract import render_finding_contract, render_required_output_sections  # noqa: E402
+from analysis_run import resolve_tool_output_dir  # noqa: E402
 
 
 def require_openai() -> Any:
@@ -29,8 +28,10 @@ def require_openai() -> Any:
 
 
 DEFAULTS = {
-    "model": "gpt-5.5-pro",
+    "model": "gpt-5.6-sol",
+    "reasoning_mode": "pro",
     "reasoning_effort": "high",
+    "reasoning_context": "auto",
     "verbosity": "high",
     "background": True,
     "store": True,
@@ -101,89 +102,99 @@ def serialize_sdk_object(obj: Any) -> Any:
     return str(obj)
 
 
-def build_instructions(goal: str) -> str:
-    return textwrap.dedent(
-        f"""
-        You are analyzing a bounded software repository context assembled from a repository map and selected repository files.
-
-        Your job is to produce an evidence-driven engineering analysis, not a speculative essay.
-
-        Follow the user's goal first.
-        If the user's goal is ambiguous, prioritize:
-        correctness, workflow/design validity, missing implementation, test gaps,
-        refactoring opportunities, performance risks, then deprecated or unused logic.
-
-        Hard rules:
-        - Treat the attached files as the source of truth.
-        - Do not make repository-wide claims unless the attached evidence is broad enough to support them.
-        - Distinguish clearly between:
-          1. confirmed findings,
-          2. plausible inferences,
-          3. unknowns caused by missing context.
-        - For every important finding, include file paths and line references when available.
-        - If a line reference is unavailable, say "line unknown" rather than implying precision.
-        - If the available context is insufficient, say exactly what is missing.
-        Do not reveal chain-of-thought.
-        Use concise Markdown and optimize for engineering usefulness.
-
-        User goal:
-        {goal or '(none provided)'}
-
-        Required output sections unless the user requested something else:
-        {render_required_output_sections()}
-        """
-    ).strip()
+def build_instructions() -> str:
+    sections = render_required_output_sections()
+    finding_fields = render_finding_contract()
+    return "\n".join(
+        [
+            "Act as a senior repository auditor. Produce an evidence-driven engineering analysis of the provided repository context.",
+            "",
+            "Evidence contract:",
+            "- Treat the provided repository files as the only source of truth.",
+            "- Do not make repository-wide claims unless the inspected coverage supports them.",
+            f"- Each finding must contain: {finding_fields}.",
+            "- Cite path:line only when stable line information exists; otherwise cite path and symbol or section. Never invent line numbers.",
+            "- A claim that logic is missing, dead, duplicate, deprecated, or unused must check definitions, callers or wiring, configuration, and relevant tests. Otherwise label it unconfirmed.",
+            "- Put unsupported questions under Unknowns and missing context instead of guessing.",
+            "",
+            "Method:",
+            "1. Map only the modules and runtime boundaries relevant to the goal.",
+            "2. Trace one to three concrete end-to-end workflows that matter to the goal.",
+            "3. Rank the most consequential findings and check each against callers, tests, and configuration.",
+            "4. State which relevant areas were not inspected.",
+            "",
+            "Required output sections unless the user requests another format:",
+            sections,
+        ]
+    )
 
 
-def build_user_prompt(goal: str, recommendation: str, warnings: list[str], mode: str) -> str:
+def build_user_prompt(
+    goal: str,
+    recommendation: str,
+    warnings: list[str],
+    mode: str,
+    manifest: dict[str, Any] | None = None,
+) -> str:
+    manifest = manifest or {}
     warning_block = "\n".join(f"- {item}" for item in warnings) if warnings else "- none"
     if mode == "direct":
-        context_block = (
-            "A repository map and selected repository files are attached as input_file items.\n"
-            "Use the repository map for orientation, but base findings on the concrete attached file contents."
-        )
+        has_shards = bool(manifest.get("artifacts", {}).get("full_context_shards"))
+        direct_sources = "lossless selected-source context shards" if has_shards else "the complete selected raw-file set"
+        context_block = f"A repository map, selection audit, and {direct_sources} are attached as input_file items."
     elif mode in {"file_search_full", "focused_file_search"}:
-        context_block = (
-            "A repository map is included for orientation and the selected repository files are available through file_search.\n"
-            "Use file_search to retrieve concrete evidence before making important claims."
-        )
+        context_block = "A repository map is included for orientation and selected raw files are available through file_search. Retrieve entrypoints, wiring, tests, and configuration before making important claims."
     else:
-        context_block = (
-            "Repository context is provided through attached files and/or retrieval.\n"
-            "Base findings on concrete retrieved evidence."
-        )
-    return textwrap.dedent(
-        f"""
-        Analyze this repository context.
+        context_block = "Repository context is provided through attachments or retrieval."
 
-        Goal:
-        {goal or '(none provided)'}
-
-        Packaging recommendation from the local preparation step: {recommendation}
-
-        Local warnings:
-        {warning_block}
-
-        {context_block}
-
-        Be evidence-driven. If a claim depends on missing context, say so explicitly.
-        """
-    ).strip()
+    stats = manifest.get("stats", {})
+    scope = ", ".join(manifest.get("scope", [])) or "(none provided)"
+    return "\n".join(
+        [
+            "Goal:",
+            goal or "(none provided)",
+            "",
+            "Prepared context:",
+            f"- execution mode: {mode}",
+            f"- local recommendation: {recommendation}",
+            f"- explicit scope: {scope}",
+            f"- selected full files: {stats.get('included_file_count', 'unknown')}",
+            f"- selected focused files: {stats.get('focused_file_count', 'unknown')}",
+            f"- context contract: {context_block}",
+            "",
+            "Local warnings:",
+            warning_block,
+            "",
+            "Start with the verdict. Keep the report concise enough to prioritize action, while preserving evidence and material caveats.",
+        ]
+    )
 
 
 def compute_pro_poll_interval_seconds(elapsed_seconds: int) -> int:
     if elapsed_seconds < 1800:
-        return 600
+        return 60
     if elapsed_seconds < 2400:
-        return 300
+        return 45
     if elapsed_seconds < 3000:
-        return 180
-    return 60
+        return 30
+    return 15
 
 
-def poll_response(client: Any, response: Any, interval_seconds: int, model: str) -> Any:
+def build_reasoning_config(args: argparse.Namespace) -> dict[str, str]:
+    if args.reasoning_mode == "pro" and args.reasoning_effort in {"none", "low"}:
+        raise ValueError("GPT-5.6 Pro mode requires reasoning effort medium or higher.")
+    config = {
+        "mode": args.reasoning_mode,
+        "effort": args.reasoning_effort,
+    }
+    if args.reasoning_context != "auto":
+        config["context"] = args.reasoning_context
+    return config
+
+
+def poll_response(client: Any, response: Any, interval_seconds: int, reasoning_mode: str) -> Any:
     poll_started_at = monotonic()
-    use_pro_schedule = "pro" in model.lower()
+    use_pro_schedule = reasoning_mode == "pro"
 
     while getattr(response, "status", None) in {"queued", "in_progress"}:
         print(f"[info] Response status: {response.status}", file=sys.stderr)
@@ -194,9 +205,19 @@ def poll_response(client: Any, response: Any, interval_seconds: int, model: str)
             next_interval = interval_seconds
         sleep(next_interval)
         response = client.responses.retrieve(response.id)
-    if getattr(response, "status", None) == "failed":
-        print("[warn] Response ended with status=failed. Not retrying.", file=sys.stderr)
+    if getattr(response, "status", None) != "completed":
+        print(f"[warn] Response ended with status={getattr(response, 'status', None)}. Not retrying.", file=sys.stderr)
     return response
+
+
+def completed_output_text(response: Any) -> tuple[str | None, str | None]:
+    status = getattr(response, "status", None)
+    if status != "completed":
+        return None, f"response_status={status or 'unknown'}"
+    output_text = getattr(response, "output_text", None)
+    if not isinstance(output_text, str) or not output_text.strip():
+        return None, "completed_response_missing_output_text"
+    return output_text, None
 
 
 def build_run_meta(
@@ -210,11 +231,15 @@ def build_run_meta(
     exact_input_tokens: int | None,
     report_path: Path | None,
     terminal_failure: bool,
+    failure_reason: str | None = None,
 ) -> dict[str, Any]:
     run_meta = {
         "transport": "responses_api",
         "run_id": manifest.get("run_id"),
         "model": args.model,
+        "reasoning_mode": args.reasoning_mode,
+        "reasoning_effort": args.reasoning_effort,
+        "reasoning_context": args.reasoning_context,
         "mode": mode,
         "response_id": getattr(response, "id", None),
         "status": getattr(response, "status", None),
@@ -225,6 +250,7 @@ def build_run_meta(
         "report_path": str(report_path) if report_path else None,
         "response_json_path": str(out_dir / "response.json"),
         "terminal_failure": terminal_failure,
+        "failure_reason": failure_reason,
     }
     if terminal_failure:
         run_meta["no_retry_performed"] = True
@@ -241,6 +267,7 @@ def write_terminal_failure_artifacts(
     response_dict: Any,
     vector_store: Any = None,
     exact_input_tokens: int | None = None,
+    failure_reason: str | None = None,
 ) -> dict[str, Any]:
     save_json(out_dir / "response.json", response_dict)
     report_path = out_dir / "analysis_report.md"
@@ -256,6 +283,7 @@ def write_terminal_failure_artifacts(
         exact_input_tokens=exact_input_tokens,
         report_path=None,
         terminal_failure=True,
+        failure_reason=failure_reason,
     )
     save_json(out_dir / "run_meta.json", run_meta)
     return run_meta
@@ -300,35 +328,34 @@ def select_direct_input_files(
 ) -> list[dict[str, Any]]:
     selections = manifest.get("selections", {})
     artifacts = manifest.get("artifacts", {})
-    candidate_keys = [preferred_key]
-    if preferred_key != "focused":
-        candidate_keys.append("focused")
-
     selected: list[dict[str, Any]] = []
     selected_paths: set[Path] = set()
     total_bytes = 0
 
-    def maybe_add(path: Path, logical_path: str) -> bool:
+    def add_required(path: Path, logical_path: str) -> None:
         nonlocal total_bytes
         if len(selected) >= max_files:
-            return False
+            raise ValueError(
+                f"Direct context requires more than {max_files} input files. "
+                "Choose file_search_full or prepare fewer lossless context shards."
+            )
         if path in selected_paths:
-            return False
+            return
         if not path.exists() or not path.is_file():
-            print(f"[warn] Skipping missing direct input file: {logical_path}", file=sys.stderr)
-            return False
+            raise ValueError(f"Required direct input file is missing: {logical_path}")
         size = path.stat().st_size
         if size <= 0:
-            print(f"[warn] Skipping empty direct input file: {logical_path}", file=sys.stderr)
-            return False
+            raise ValueError(f"Required direct input file is empty: {logical_path}")
         if size > max_total_bytes:
-            print(
-                f"[warn] Skipping direct input file larger than total budget: {logical_path} ({size:,} bytes)",
-                file=sys.stderr,
+            raise ValueError(
+                f"Required direct input file exceeds the {max_total_bytes:,}-byte request budget: "
+                f"{logical_path} ({size:,} bytes)."
             )
-            return False
         if total_bytes + size > max_total_bytes:
-            return False
+            raise ValueError(
+                f"Complete direct context exceeds the {max_total_bytes:,}-byte request budget. "
+                "Choose file_search_full instead of sending a partial direct request."
+            )
         selected.append({
             "logical_path": logical_path,
             "path": str(path),
@@ -336,22 +363,41 @@ def select_direct_input_files(
         })
         selected_paths.add(path)
         total_bytes += size
-        return True
 
     repo_tree_value = artifacts.get("repo_tree")
     if repo_tree_value:
         repo_tree_path = Path(repo_tree_value).resolve()
-        maybe_add(repo_tree_path, "repo_tree.txt")
+        add_required(repo_tree_path, "__analysis_context__/repo_tree.txt")
 
-    for key in candidate_keys:
-        rel_paths = list(selections.get(f"{key}_files") or [])
+    selection_report_value = artifacts.get("selection_report")
+    if selection_report_value:
+        selection_report_path = Path(selection_report_value).resolve()
+        add_required(selection_report_path, "__analysis_context__/selection-report.md")
+
+    shard_paths = list(artifacts.get(f"{preferred_key}_context_shards") or [])
+    if shard_paths:
+        selected_rel_paths = set(selections.get(f"{preferred_key}_files") or [])
+        lossy_paths = sorted(
+            record.get("path", "")
+            for record in manifest.get("files", [])
+            if record.get("path") in selected_rel_paths and record.get("inline_truncated")
+        )
+        if lossy_paths:
+            sample = ", ".join(lossy_paths[:20])
+            raise ValueError(
+                "Prepared direct-context shards are lossy. Rerun prepare_analysis_context.py with the current helper "
+                f"before a direct analysis. Truncated paths: {sample}"
+            )
+        for index, shard_value in enumerate(shard_paths, start=1):
+            shard_path = Path(shard_value).resolve()
+            add_required(shard_path, f"__analysis_context__/{preferred_key}-context-{index:03d}.md")
+    else:
+        rel_paths = list(selections.get(f"{preferred_key}_files") or [])
+        if not rel_paths:
+            raise ValueError(f"No {preferred_key} direct-context selection exists in the manifest.")
         for rel_path in rel_paths:
             abs_path = (repo_root / rel_path).resolve()
-            maybe_add(abs_path, rel_path)
-            if len(selected) >= max_files or total_bytes >= max_total_bytes:
-                break
-        if any(item["logical_path"] != "repo_tree.txt" for item in selected):
-            break
+            add_required(abs_path, rel_path)
 
     return selected
 
@@ -385,15 +431,28 @@ def upload_vector_store_files(client: Any, vector_store_name: str, root: Path, r
         client.vector_stores.files.create(vector_store_id=vector_store.id, file_id=file_obj.id)
         uploaded_meta.append({"path": rel_path, "file_id": file_obj.id})
 
-    # Best-effort polling: we consider the vector store ready when no listed file remains in progress.
+    if not uploaded_meta:
+        raise RuntimeError("No files were uploaded to the vector store.")
+
+    # Poll every uploaded file explicitly so pagination cannot hide a failed or
+    # still-ingesting item. Retrieval runs must never proceed with a partial store.
     while True:
-        result = client.vector_stores.files.list(vector_store_id=vector_store.id)
-        data = list(getattr(result, "data", []) or [])
-        statuses = [getattr(item, "status", None) for item in data]
-        if all(status not in {"in_progress", "queued"} for status in statuses):
+        statuses: dict[str, str | None] = {}
+        for item in uploaded_meta:
+            vector_file = client.vector_stores.files.retrieve(
+                vector_store_id=vector_store.id,
+                file_id=item["file_id"],
+            )
+            statuses[item["path"]] = getattr(vector_file, "status", None)
+        if not any(status in {"in_progress", "queued"} for status in statuses.values()):
             break
         print(f"[info] Waiting for vector-store ingestion: {statuses}", file=sys.stderr)
         sleep(3)
+
+    failed = {path: status for path, status in statuses.items() if status != "completed"}
+    if failed:
+        sample = ", ".join(f"{path}={status}" for path, status in list(failed.items())[:20])
+        raise RuntimeError(f"Vector-store ingestion was incomplete; refusing a partial analysis: {sample}")
 
     return vector_store, uploaded_meta
 
@@ -411,13 +470,13 @@ def estimate_exact_tokens(client: Any, model: str, instructions: str, input_file
             continue
         content_parts.append({
             "type": "input_text",
-            "text": textwrap.dedent(
-                f"""
-                ===== BEGIN FILE: {item["logical_path"]} =====
-                {text}
-                ===== END FILE: {item["logical_path"]} =====
-                """
-            ).strip(),
+            "text": "\n".join(
+                [
+                    f"===== BEGIN FILE: {item['logical_path']} =====",
+                    text,
+                    f"===== END FILE: {item['logical_path']} =====",
+                ]
+            ),
         })
     content_parts.append({"type": "input_text", "text": user_prompt})
     try:
@@ -444,7 +503,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Execution mode. 'auto' follows the manifest recommendation.",
     )
     parser.add_argument("--model", default=DEFAULTS["model"], help="OpenAI model id.")
-    parser.add_argument("--reasoning-effort", choices=["medium", "high", "xhigh"], default=DEFAULTS["reasoning_effort"])
+    parser.add_argument("--reasoning-mode", choices=["standard", "pro"], default=DEFAULTS["reasoning_mode"])
+    parser.add_argument(
+        "--reasoning-effort",
+        choices=["none", "low", "medium", "high", "xhigh", "max"],
+        default=DEFAULTS["reasoning_effort"],
+    )
+    parser.add_argument(
+        "--reasoning-context",
+        choices=["auto", "current_turn", "all_turns"],
+        default=DEFAULTS["reasoning_context"],
+        help="Persisted reasoning policy. Use all_turns only when the prior response keeps the same goal and assumptions.",
+    )
     parser.add_argument("--verbosity", choices=["low", "medium", "high"], default=DEFAULTS["verbosity"])
     parser.add_argument("--background", dest="background", action="store_true", default=DEFAULTS["background"])
     parser.add_argument("--no-background", dest="background", action="store_false")
@@ -493,8 +563,12 @@ def main() -> int:
     OpenAI = require_openai()
     client = OpenAI()
 
-    instructions = build_instructions(goal)
-    user_prompt = build_user_prompt(goal, recommendation, warnings, mode)
+    instructions = build_instructions()
+    user_prompt = build_user_prompt(goal, recommendation, warnings, mode, manifest)
+    try:
+        reasoning = build_reasoning_config(args)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
 
     exact_input_tokens = None
     response = None
@@ -502,13 +576,16 @@ def main() -> int:
     uploaded_meta: list[dict] = []
 
     if mode == "direct":
-        direct_input_files = select_direct_input_files(
-            manifest,
-            repo_root,
-            preferred_key="full",
-            max_total_bytes=DEFAULTS["direct_input_max_bytes"],
-            max_files=DEFAULTS["direct_input_max_files"],
-        )
+        try:
+            direct_input_files = select_direct_input_files(
+                manifest,
+                repo_root,
+                preferred_key="full",
+                max_total_bytes=DEFAULTS["direct_input_max_bytes"],
+                max_files=DEFAULTS["direct_input_max_files"],
+            )
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
         if not direct_input_files:
             raise SystemExit("No direct input files were found in the manifest.")
 
@@ -550,7 +627,7 @@ def main() -> int:
             "model": args.model,
             "instructions": instructions,
             "input": [{"role": "user", "content": content}],
-            "reasoning": {"effort": args.reasoning_effort},
+            "reasoning": reasoning,
             "text": {"verbosity": args.verbosity},
             "background": args.background,
             "store": args.store,
@@ -573,15 +650,15 @@ def main() -> int:
 
         repo_tree_path = Path(manifest["artifacts"]["repo_tree"])
         repo_tree = repo_tree_path.read_text(encoding="utf-8") if repo_tree_path.exists() else ""
-        seed_summary = textwrap.dedent(
-            f"""
-            Repository map:
-            {repo_tree[:20000]}
-
-            Use file_search to retrieve the concrete files needed for the analysis.
-            Prefer the repo map for orientation, not as your only evidence.
-            """
-        ).strip()
+        seed_summary = "\n".join(
+            [
+                "Repository map:",
+                repo_tree[:20000],
+                "",
+                "Use file_search to retrieve the concrete files needed for the analysis.",
+                "Prefer the repo map for orientation, not as your only evidence.",
+            ]
+        )
 
         request = {
             "model": args.model,
@@ -599,7 +676,7 @@ def main() -> int:
                 "max_num_results": args.file_search_max_num_results,
             }],
             "include": ["file_search_call.results"],
-            "reasoning": {"effort": args.reasoning_effort},
+            "reasoning": reasoning,
             "text": {"verbosity": args.verbosity},
             "background": args.background,
             "store": args.store,
@@ -612,11 +689,12 @@ def main() -> int:
         raise SystemExit(f"Unsupported mode: {mode}")
 
     if args.background:
-        response = poll_response(client, response, args.poll_interval_seconds, args.model)
+        response = poll_response(client, response, args.poll_interval_seconds, args.reasoning_mode)
 
     response_dict = serialize_sdk_object(response)
-    if getattr(response, "status", None) == "failed":
-        print("[warn] Response ended with status=failed. Saving failure artifacts and exiting non-zero.", file=sys.stderr)
+    output_text, failure_reason = completed_output_text(response)
+    if failure_reason:
+        print(f"[warn] Response did not produce a completed report ({failure_reason}). Saving failure artifacts and exiting non-zero.", file=sys.stderr)
         run_meta = write_terminal_failure_artifacts(
             out_dir=out_dir,
             manifest=manifest,
@@ -626,15 +704,12 @@ def main() -> int:
             response_dict=response_dict,
             vector_store=vector_store,
             exact_input_tokens=exact_input_tokens,
+            failure_reason=failure_reason,
         )
         print(json.dumps(run_meta, indent=2, ensure_ascii=False))
         return 1
 
-    output_text = getattr(response, "output_text", None)
-    if not output_text:
-        # Best-effort fallback for SDK structures without the helper.
-        output_text = json.dumps(response_dict, indent=2, ensure_ascii=False, default=str)
-
+    assert output_text is not None
     run_meta = write_success_artifacts(
         out_dir=out_dir,
         manifest=manifest,
