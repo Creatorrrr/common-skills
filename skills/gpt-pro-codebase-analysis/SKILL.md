@@ -1,6 +1,6 @@
 ---
 name: gpt-pro-codebase-analysis
-description: Prepare and run a deep, evidence-based second-opinion analysis of a large repository through GPT-5.6 Sol Pro on the OpenAI Responses API or through a manual ChatGPT Web handoff. Use for architecture review, refactoring strategy, test-gap analysis, performance, workflow validity, missing implementation, migration risk, or deprecated and unused logic when a dedicated packaging and analysis pass is valuable.
+description: Prepare and run a deep, evidence-based second-opinion analysis of a large repository through GPT-5.6 Sol Pro on the OpenAI Responses API or through a manual or explicitly automated ChatGPT Web handoff. Use for architecture review, refactoring strategy, test-gap analysis, performance, workflow validity, missing implementation, migration risk, or deprecated and unused logic when a dedicated packaging and analysis pass is valuable.
 ---
 
 # GPT Pro codebase analysis
@@ -18,6 +18,8 @@ Prepare a reproducible repository context, run exactly one user-selected externa
 7. Ground every material conclusion in concrete repository files and distinguish confirmed facts, inference, and missing context.
 8. Warn before upload when repository contents may be sensitive. Make retention behavior explicit for Responses API runs.
 9. Treat external analysis as a second opinion. Verify important findings locally before planning or editing.
+10. Keep ChatGPT Web manual by default. Automate it only when the user explicitly requests automation in the current request.
+11. For authorized Web automation, honor an explicitly required surface; otherwise use Chrome control first, then Computer Use. Never invent another browser-control fallback.
 
 ## Resolve bundled helpers
 
@@ -53,10 +55,12 @@ Before packaging for an external run, ask the user to choose exactly one:
 ```text
 Choose the analysis execution mode:
 - responses_api: run GPT-5.6 Sol through the OpenAI Responses API
-- chatgpt_web_assisted: prepare a manual ChatGPT Web upload and prompt
+- chatgpt_web_assisted: prepare a ChatGPT Web upload and prompt; manual by default, with optional explicit automation
 
 I will not switch modes automatically after a failure. Repository files will be
-uploaded externally, so mention any retention restriction before the run.
+uploaded externally, so mention any retention restriction before the run. If you
+choose chatgpt_web_assisted, manual handoff is the default; explicitly request
+browser automation if you want it.
 ```
 
 Do not run either external path until the choice is explicit. Preparing local context is allowed only when it does not contradict the user's instruction to wait before any work.
@@ -108,7 +112,7 @@ Stop if an explicit scope was skipped unexpectedly, an archive is incomplete, or
 ### 5. Run only the selected path
 
 - For `responses_api`, read [references/responses-api.md](references/responses-api.md) completely before execution.
-- For `chatgpt_web_assisted`, read [references/chatgpt-web-handoff.md](references/chatgpt-web-handoff.md) completely before preparing the handoff.
+- For `chatgpt_web_assisted`, read [references/chatgpt-web-handoff.md](references/chatgpt-web-handoff.md) completely before preparing the handoff. If the user explicitly requests automation, prefer the available Chrome control skill, then Computer Use as documented there.
 - For analysis goals, evidence rules, and report acceptance, read [references/analysis-method.md](references/analysis-method.md).
 
 ### 6. Accept or reject the result

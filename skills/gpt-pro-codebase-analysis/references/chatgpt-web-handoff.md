@@ -4,29 +4,31 @@
 
 1. Authorization boundary
 2. Prepare the handoff
-3. Manual handoff
-4. Computer Use exception
-5. Identity verification
-6. Failure behavior
-7. Archived runs
+3. Choose the interaction surface
+4. Manual handoff
+5. Chrome automation
+6. Computer Use fallback
+7. Identity verification
+8. Failure behavior
+9. Archived runs
 
 ## Authorization boundary
 
-`chatgpt_web_assisted` is a manual handoff by default. Without an explicit current-turn request to use Computer Use, do not:
+`chatgpt_web_assisted` is manual by default. Browser-control availability is not authorization. Without an explicit current-request instruction to automate this ChatGPT Web handoff, do not:
 
 - open ChatGPT Web
 - automate a browser
 - attach or submit files
-- scrape or ingest the answer
+- collect the answer from the page
 - use Playwright, shell browser control, or another automation fallback
 
-Computer Use availability is not authorization. It becomes usable only when the current request explicitly opts into Computer Use for this handoff.
+An explicit request to automate `chatgpt_web_assisted`, made after the repository-upload warning and mode confirmation, authorizes attaching the prepared archive to ChatGPT. If the request does not clearly cover that upload, pause immediately before attaching the file and obtain confirmation.
 
 For ChatGPT Web Pro, select Extended reasoning unless the user requests another level. State before submission that the analysis may take more than 30 minutes.
 
 ## Prepare the handoff
 
-Run the manual preparation helper:
+For a manual handoff, run:
 
 ```bash
 python <skill-dir>/scripts/run_chatgpt_web_assisted.py \
@@ -34,6 +36,18 @@ python <skill-dir>/scripts/run_chatgpt_web_assisted.py \
   --goal "<user goal>" \
   --selection-mode auto
 ```
+
+For an explicitly automated handoff, add `--automation-handoff`:
+
+```bash
+python <skill-dir>/scripts/run_chatgpt_web_assisted.py \
+  --manifest .codex-analysis/context/manifest.json \
+  --goal "<user goal>" \
+  --selection-mode auto \
+  --automation-handoff
+```
+
+`--computer-use-handoff` remains a compatibility alias for `--automation-handoff`; do not use it in new instructions.
 
 The active handoff lives under `.codex-analysis/chatgpt-web/`:
 
@@ -49,7 +63,18 @@ The upload archive includes audit artifacts under `__analysis_context__/`:
 - `selection-report.md`
 - `repo_tree.txt` when available
 
-Validate that every selected file appears in the archive before returning it.
+Validate that every selected file appears in the archive before returning it. Automated preparation also creates a run-id-named accessible copy such as `~/Downloads/upload-source-<run_id>.zip` and records the exact attachment path and SHA-256 in `request_meta.json`.
+
+## Choose the interaction surface
+
+For an explicitly automated handoff, use this order:
+
+1. Honor a browser-control surface explicitly required by the user.
+2. Otherwise, if `$chrome:control-chrome` is available in the current session and its extension binding can initialize, use Chrome.
+3. If Chrome control is unavailable, use `@Computer Use` when its skill and runtime are available.
+4. If neither is available, stop automation and return the manual handoff files.
+
+Do not treat an installed plugin alone as proof that its runtime is usable. Read the selected control skill completely before interaction and follow its current runtime, documentation, authentication, file-upload, and confirmation rules. Do not combine browser-control surfaces during a healthy run.
 
 ## Manual handoff
 
@@ -62,32 +87,38 @@ For the default manual path:
 5. Do not create a duplicate upload copy under Downloads or Desktop.
 6. Do not operate ChatGPT Web on the user's behalf.
 
-## Computer Use exception
+## Chrome automation
 
-Only after explicit opt-in, prepare with:
+When Chrome is selected:
 
-```bash
-python <skill-dir>/scripts/run_chatgpt_web_assisted.py \
-  --manifest .codex-analysis/context/manifest.json \
-  --goal "<user goal>" \
-  --selection-mode auto \
-  --computer-use-handoff
-```
+1. Read and follow `$chrome:control-chrome` completely.
+2. Use the Chrome skill's browser-client runtime and extension browser binding. Read the full browser documentation required by that skill before the first interaction.
+3. If setup or communication fails, follow the skill's `chrome-troubleshooting` procedure before declaring Chrome unavailable.
+4. Open a fresh ChatGPT conversation in Chrome; do not reuse an unrelated active tab or conversation.
+5. If ChatGPT authentication is required, pause and ask the user to sign in in Chrome. Do not expose credentials, cookies, or session tokens.
+6. Record the immutable handoff identity before submission.
+7. Select Pro with Extended reasoning unless directed otherwise.
+8. Attach the recorded `attachment_path`, paste the complete generated prompt, and submit.
+9. Wait for completion while keeping the user informed during a long run.
+10. Verify the visible conversation against the immutable identity before collecting the full answer.
 
-This creates a run-id-named accessible copy such as `~/Downloads/upload-source-<run_id>.zip` and records it in `request_meta.json`.
+Use only the interaction mechanisms authorized by the Chrome skill. Do not substitute Playwright, shell browser control, or raw Chrome debugging APIs.
 
-Then:
+## Computer Use fallback
 
-1. Open a new browser window for `chatgpt.com`; do not reuse an unrelated active ChatGPT tab.
-2. If authentication is required, pause and ask the user to authenticate.
-3. Record the immutable handoff identity before submission.
-4. Select Pro with Extended reasoning unless directed otherwise.
-5. Attach the recorded `attachment_path` through ChatGPT's attach button and the OS file picker.
-6. Paste the complete generated prompt and submit.
-7. Wait for completion.
-8. Verify the visible conversation against the immutable identity before collecting the answer.
+Use Computer Use only when the user explicitly required it or a generic automation request cannot use Chrome control.
 
-Never substitute Playwright or another automation method if Computer Use fails.
+1. Read and follow the available Computer Use skill completely.
+2. Use its plugin-owned client and persistent runtime rather than standalone UI automation.
+3. Open a fresh ChatGPT conversation; do not reuse an unrelated active conversation.
+4. If authentication is required, pause and ask the user to authenticate.
+5. Record the immutable handoff identity before submission.
+6. Select Pro with Extended reasoning unless directed otherwise.
+7. Attach the recorded `attachment_path` through ChatGPT's attach control and the OS file picker.
+8. Paste the complete generated prompt, submit, and wait for completion.
+9. Verify the visible conversation against the immutable identity before collecting the full answer.
+
+Do not use Computer Use merely because it is installed. The current request must explicitly authorize automation, and the selected skill's confirmation rules still apply.
 
 ## Identity verification
 
@@ -114,7 +145,7 @@ Before importing a browser result, match:
 
 Do not identify the right answer merely by tab position, completion time, or displayed filename. ChatGPT may rename duplicate uploads.
 
-If several tabs or sessions exist and the match is uncertain, stop and ask the user to identify the correct tab or rerun in a fresh window.
+If several tabs or sessions exist and the match is uncertain, stop and ask the user to identify the correct tab or rerun in a fresh conversation.
 
 ## Failure behavior
 
@@ -124,13 +155,19 @@ If preparation fails:
 - do not change full or focused selection silently
 - report the exact validation or upload-size blocker
 
-If Computer Use fails after preparation:
+If Chrome control fails after its required troubleshooting:
+
+- for a generic automation request, continue with Computer Use only when it is available and its skill permits the same upload
+- for an explicit Chrome-only request, ask before switching surfaces
+- preserve the prepared handoff and report the Chrome failure
+
+If Computer Use fails, or neither automation surface is usable:
 
 - stop browser automation
-- return the canonical handoff paths and partial browser state
+- return the canonical handoff paths and any partial browser state
 - do not use another browser-control mechanism
 
-If ChatGPT reports that it cannot inspect the archive reliably, return that result and ask the user how to proceed. Do not convert it into file-specific findings.
+Falling back from browser automation to manual handoff does not authorize switching to Responses API. If ChatGPT reports that it cannot inspect the archive reliably, return that result and ask the user how to proceed. Do not convert it into file-specific findings.
 
 ## Archived runs
 
@@ -143,4 +180,4 @@ python <skill-dir>/scripts/run_chatgpt_web_assisted.py \
   --selection-mode auto
 ```
 
-Write the handoff beside the archived run. Preserve prepared identity and use current paths only for file lookup.
+Write the handoff beside the archived run. Preserve prepared identity and use current paths only for file lookup. Add `--automation-handoff` only when the current request explicitly authorizes automation of that archived handoff.

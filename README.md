@@ -9,7 +9,7 @@
 Use this when you want a second-opinion repository analysis through a GPT Pro workflow. The Responses API path defaults to `gpt-5.6-sol` with `reasoning.mode: pro`; the skill prepares repository context, then supports two explicit execution modes:
 
 - `responses_api`: direct analysis through the OpenAI Responses API
-- `chatgpt_web_assisted`: prepare an upload archive and prompt for manual use in ChatGPT Web
+- `chatgpt_web_assisted`: prepare an upload archive and prompt for manual use by default, or explicitly automate ChatGPT Web with Chrome control first and Computer Use as fallback
 
 This skill is useful for architecture review, refactoring strategy, test-gap analysis, performance review, and finding missing or deprecated logic. When you use it through an agent, choose one mode explicitly before execution starts.
 

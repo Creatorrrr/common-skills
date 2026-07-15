@@ -114,7 +114,7 @@ class PromptContractTests(unittest.TestCase):
                 upload_zip_sha256="abc",
                 attachment_path=archive,
                 attachment_sha256="abc",
-                computer_use_handoff=False,
+                automation_handoff=False,
                 accessible_upload_copy_path=None,
                 accessible_upload_copy_sha256=None,
                 prompt_path=prompt_path,
@@ -135,6 +135,70 @@ class PromptContractTests(unittest.TestCase):
             self.assertIn("severity, confidence, claim, evidence, impact, recommendation, validation", prompt)
             self.assertIn("1. Verdict", prompt)
             self.assertNotIn("Do not reveal chain-of-thought", prompt)
+
+    def test_chatgpt_handoff_automation_is_explicit_and_chrome_first(self) -> None:
+        parser = run_chatgpt_web_assisted.build_parser()
+
+        default_args = parser.parse_args(["--manifest", "manifest.json"])
+        automation_args = parser.parse_args(["--manifest", "manifest.json", "--automation-handoff"])
+        legacy_args = parser.parse_args(["--manifest", "manifest.json", "--computer-use-handoff"])
+
+        self.assertFalse(run_chatgpt_web_assisted.automation_handoff_requested(default_args))
+        self.assertTrue(run_chatgpt_web_assisted.automation_handoff_requested(automation_args))
+        self.assertTrue(run_chatgpt_web_assisted.automation_handoff_requested(legacy_args))
+        normalized_help = " ".join(parser.format_help().split())
+        self.assertIn("chooses Chrome first when available, then Computer Use", normalized_help)
+
+    def test_automated_next_steps_prefer_chrome_then_computer_use(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = root / "upload-source.zip"
+            accessible_copy = root / "upload-source-run-1.zip"
+            prompt_path = root / "chatgpt-prompt.txt"
+            response_template_path = root / "return-to-agent-template.md"
+            archive.write_bytes(b"zip")
+            accessible_copy.write_bytes(b"zip")
+            selection = run_chatgpt_web_assisted.Selection(
+                key="full",
+                label="full repository archive",
+                archive_path=archive,
+                generated_archive=False,
+                file_count=10,
+                estimated_bytes=1000,
+                estimated_tokens=250,
+                invalid_reasons=[],
+            )
+            identity = run_chatgpt_web_assisted.HandoffIdentity(
+                run_id="run-1",
+                goal="Review checkout correctness",
+                handoff_dir=root,
+                upload_zip_path=archive,
+                upload_zip_sha256="abc",
+                attachment_path=accessible_copy,
+                attachment_sha256="abc",
+                automation_handoff=True,
+                accessible_upload_copy_path=accessible_copy,
+                accessible_upload_copy_sha256="abc",
+                prompt_path=prompt_path,
+                request_meta_path=root / "request_meta.json",
+            )
+
+            next_steps = run_chatgpt_web_assisted.build_next_steps(
+                selection,
+                archive,
+                accessible_copy,
+                prompt_path,
+                response_template_path,
+                [],
+                [],
+                handoff_identity=identity,
+                accessible_upload_copy_path=accessible_copy,
+            )
+
+            self.assertIn("use the Chrome control skill when available", next_steps)
+            self.assertIn("then Computer Use only when Chrome control is unavailable", next_steps)
+            self.assertNotIn("Open ChatGPT manually", next_steps)
+            self.assertFalse(any(line.startswith("        ") for line in next_steps.splitlines()))
 
 
 class DirectContextTests(unittest.TestCase):
