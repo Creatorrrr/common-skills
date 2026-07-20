@@ -197,6 +197,8 @@ class PromptContractTests(unittest.TestCase):
 
             self.assertIn("use the Chrome control skill when available", next_steps)
             self.assertIn("then Computer Use only when Chrome control is unavailable", next_steps)
+            self.assertIn("Select `Pro` in the model picker", next_steps)
+            self.assertNotIn("Extended", next_steps)
             self.assertNotIn("Open ChatGPT manually", next_steps)
             self.assertFalse(any(line.startswith("        ") for line in next_steps.splitlines()))
 

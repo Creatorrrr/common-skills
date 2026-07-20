@@ -24,7 +24,7 @@
 
 An explicit request to automate `chatgpt_web_assisted`, made after the repository-upload warning and mode confirmation, authorizes attaching the prepared archive to ChatGPT. If the request does not clearly cover that upload, pause immediately before attaching the file and obtain confirmation.
 
-For ChatGPT Web Pro, select Extended reasoning unless the user requests another level. State before submission that the analysis may take more than 30 minutes.
+For ChatGPT Web, select the `Pro` model unless the user requests another model. Do not require a separate reasoning-level selection. State before submission that the analysis may take more than 30 minutes.
 
 ## Prepare the handoff
 
@@ -82,7 +82,7 @@ For the default manual path:
 
 1. Return the canonical archive, prompt, metadata, and next-step paths.
 2. Tell the user to upload `handoff/upload-source.zip` in ChatGPT Web.
-3. Tell the user to select Pro with Extended reasoning unless they requested another level.
+3. Tell the user to select `Pro` in the model picker unless they requested another model.
 4. Tell the user to paste all of `chatgpt-prompt.txt`.
 5. Do not create a duplicate upload copy under Downloads or Desktop.
 6. Do not operate ChatGPT Web on the user's behalf.
@@ -97,7 +97,7 @@ When Chrome is selected:
 4. Open a fresh ChatGPT conversation in Chrome; do not reuse an unrelated active tab or conversation.
 5. If ChatGPT authentication is required, pause and ask the user to sign in in Chrome. Do not expose credentials, cookies, or session tokens.
 6. Record the immutable handoff identity before submission.
-7. Select Pro with Extended reasoning unless directed otherwise.
+7. Select `Pro` in the model picker unless directed otherwise.
 8. Attach the recorded `attachment_path`, paste the complete generated prompt, and submit.
 9. Wait for completion while keeping the user informed during a long run.
 10. Verify the visible conversation against the immutable identity before collecting the full answer.
@@ -113,7 +113,7 @@ Use Computer Use only when the user explicitly required it or a generic automati
 3. Open a fresh ChatGPT conversation; do not reuse an unrelated active conversation.
 4. If authentication is required, pause and ask the user to authenticate.
 5. Record the immutable handoff identity before submission.
-6. Select Pro with Extended reasoning unless directed otherwise.
+6. Select `Pro` in the model picker unless directed otherwise.
 7. Attach the recorded `attachment_path` through ChatGPT's attach control and the OS file picker.
 8. Paste the complete generated prompt, submit, and wait for completion.
 9. Verify the visible conversation against the immutable identity before collecting the full answer.

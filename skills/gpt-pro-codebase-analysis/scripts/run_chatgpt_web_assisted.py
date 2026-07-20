@@ -555,9 +555,9 @@ def build_next_steps(
             1. Honor a user-requested browser surface. Otherwise use the Chrome control skill when available, then Computer Use only when Chrome control is unavailable.
             2. Read the selected browser-control skill completely and follow its runtime, documentation, authentication, and confirmation rules.
             3. Open a new ChatGPT conversation; do not reuse an unrelated active tab or conversation.
-            4. Select `Pro` with `Extended(확장)` reasoning unless the user explicitly requested another reasoning level.
+            4. Select `Pro` in the model picker unless the user explicitly requested another model. Do not require a separate reasoning-level selection.
             5. Attach `{attachment_path.name}` from `{attachment_path.parent}`, paste all of `{prompt_path.name}`, and submit.
-            6. Let ChatGPT finish. Pro Extended analysis can take more than 30 minutes.
+            6. Let ChatGPT finish. Pro analysis can take more than 30 minutes.
             7. Verify the visible conversation against the immutable handoff identity before collecting the answer.
             8. Save the full answer with `{response_template_path.name}` and return it to the calling agent.
             """
@@ -567,10 +567,10 @@ def build_next_steps(
             f"""
             1. Open ChatGPT manually.
             2. Start a new chat.
-            3. In the model picker, manually choose `Pro` with `Extended(확장)` reasoning unless the user explicitly requested another reasoning level.
+            3. In the model picker, manually choose `Pro` unless the user explicitly requested another model.
             4. Use ChatGPT's attach-file button and select `{attachment_path.name}` from `{attachment_path.parent}`.
             5. Open `{prompt_path.name}`, copy all of its contents, and paste them as the message.
-            6. Submit the message and let ChatGPT finish. Pro Extended analysis can take more than 30 minutes.
+            6. Submit the message and let ChatGPT finish. Pro analysis can take more than 30 minutes.
             7. Copy the full final answer.
             8. Open `{response_template_path.name}`, replace the placeholder area with the full answer, then return to Codex and paste the same content or attach that file.
             """
