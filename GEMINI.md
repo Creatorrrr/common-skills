@@ -27,7 +27,7 @@ When a user asks for a deep codebase review, read the relevant skill file first 
 
 - `skills/goal-planner/SKILL.md`
   - Use when the user wants to create or review an outcome-first Codex or Claude Code `/goal` prompt for long-running work.
-  - Keep the requested product or deliverable ahead of verification, bound validation-only work, and do not use it for ordinary project execution unless the user explicitly wants a long-running agent goal.
+  - Keep the requested product or deliverable ahead of verification, bound validation-only work, persist reusable failures under `docs/failed-reports/`, consult relevant reports on later goals, and do not use it for ordinary project execution unless the user explicitly wants a long-running agent goal.
 
 General rules:
 
