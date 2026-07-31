@@ -34,13 +34,10 @@ Adapt this template to the user's language and task. Remove empty sections rathe
 - 사용자 요청에 없는 외부·장기 검증을 완료 blocker로 추가하지 않는다.
 - 자동 목표 상향은 비활성이다.
 
-실행 지식 재사용:
-- 시작·재개 시 목표, 관련 경로, 명령, 오류, 환경, 접근법으로 `docs/failed-reports/`와 `docs/passed-reports/`를 함께 검색하고 관련 보고서를 읽은 뒤 적용한 경로와 교훈을 로그에 남긴다.
-- 과거 보고서는 범위가 있는 증거로 취급한다. 현재 소스와 직접 증거를 우선하고, 코드나 실행 조건이 달라졌으면 다시 확인한다.
-- 재시도 전에 가정 무효화, 완료 기준 실패, rollback·redesign·blocker 유발 또는 재발 가능성이 있는 실패를 기존 관련 보고서에 갱신하거나 `docs/failed-reports/YYYY-MM-DD-<short-slug>.md`로 저장한다.
-- 모든 최종 완료 기준을 통과한 뒤에만, 비자명하고 반복 가능하거나 중요한 결정으로서 재사용 가치가 있는 성공을 `docs/passed-reports/YYYY-MM-DD-<short-slug>.md`에 저장한다. 중간 build·test 통과와 사소한 명령 성공은 제외한다.
-- 실패 보고서에는 조건, 기대/관측 결과, 증거, 원인 확신도, 시도, 다음 안전한 단계를 남긴다. 성공 보고서에는 문제 서명, 환경·버전·commit, 적용/제외 범위, 성공 순서와 결정, 직접 증거, 완료 기준 결과, 무효화 조건을 남긴다. 동등 사례는 통합하고 더 이상 유효하지 않은 성공은 `superseded`로 표시한다.
-- 적용·생성·갱신한 보고서 경로를 최종 결과에 남긴다. 보고서 작성 자체를 제품 진척이나 완료로 계산하지 않는다.
+실행 지식:
+- 시작·재개 시 `failed-reports`/`passed-reports` 메타데이터로 범위·환경·상태·최신순을 평가해 최대 5건만 읽고, 현재 증거를 우선하며 stale 항목은 양방향 갱신한다.
+- material failure는 재시도 전에 통합한다. 성공은 최종 기준 통과 후 실패 해결·기본안 실패 뒤 비자명한 대안·필수 재현 절차 중 하나일 때만 목표당 기본 1건 기록한다.
+- 보고서·로그의 비밀·민감·고객/개인정보를 제거하고 필요하면 제한된 증거를 참조한다. 보고는 checkpoint나 진척이 아니며 최종 경로만 남긴다.
 
 중단 조건:
 - 권한, credential, 파괴적 변경, 외부 상태 변경 또는 실질적 범위 확대가 필요하면 근거와 선택지를 보고한다.
@@ -75,11 +72,11 @@ Use these only after creating or reviewing a complete `GOAL_PLAN.md`.
 ### Codex
 
 ```text
-/goal Treat GOAL_PLAN.md as the authoritative outcome-first execution plan. Preserve its scope, progress contract, validation budget, completion criteria, and execution-knowledge contract. Before choosing or repeating an approach, search relevant docs/failed-reports and docs/passed-reports, apply only scoped current lessons, and report their paths. Before retrying a material failure, update a matching failed report or create docs/failed-reports/YYYY-MM-DD-<short-slug>.md with evidence, cause confidence, attempts, next safe step, and reuse guidance. Only after all final criteria pass, record a non-obvious reusable success in docs/passed-reports/YYYY-MM-DD-<short-slug>.md with environment/ref, scope, decisive sequence, direct evidence, criterion results, and invalidation conditions; skip intermediate or trivial passes. Mark stale successes superseded and link later failures. Reporting is not product progress. Do not add verification programs or external gates unless the plan requires them or a real product defect makes them necessary. After setup, advance through product or measured-result checkpoints, use focused verification during iteration, and run one risk-proportional final verification. Ask before any material scope or validation expansion.
+/goal Treat GOAL_PLAN.md as the authoritative outcome-first execution plan. Preserve its scope, progress contract, validation budget, completion criteria, and full execution-knowledge contract. Use metadata-first report search with at most five full reads by default; current evidence wins. Sanitize stored evidence, update stale or resolved reports bidirectionally, record material failures before retry, and create at most one qualified reusable success by default only after all final criteria pass. Reporting is not product progress or a separate checkpoint. After setup, advance through product or measured-result checkpoints, use focused verification during iteration, and run one risk-proportional final verification. Do not add verification programs or external gates unless the plan requires them or a real product defect makes them necessary. Ask before any material scope or validation expansion.
 ```
 
 ### Claude Code
 
 ```text
-/goal Treat GOAL_PLAN.md as the authoritative outcome-first completion plan. Preserve its scope, progress contract, validation budget, completion criteria, and execution-knowledge contract. Before choosing or repeating an approach, search relevant docs/failed-reports and docs/passed-reports, apply only scoped current lessons, and show their paths. Before retrying a material failure, update a matching failed report or create docs/failed-reports/YYYY-MM-DD-<short-slug>.md with evidence, cause confidence, attempts, next safe step, and reuse guidance. Only after all final criteria pass, record a non-obvious reusable success in docs/passed-reports/YYYY-MM-DD-<short-slug>.md with environment/ref, scope, decisive sequence, direct evidence, criterion results, and invalidation conditions; skip intermediate or trivial passes. Mark stale successes superseded and link later failures. Reporting is not product progress. Do not add verification programs or external gates unless required by the plan or a real product defect. After setup, each checkpoint must produce a product delta or measured result. The final transcript must show the resulting artifact or behavior, direct verification evidence, completion-criteria pass/fail, report paths, and remaining risks. Ask before material scope or validation expansion.
+/goal Treat GOAL_PLAN.md as the authoritative outcome-first completion plan. Preserve its scope, progress contract, validation budget, completion criteria, and full execution-knowledge contract. Use metadata-first report search with at most five full reads by default; current evidence wins. Sanitize stored evidence, update stale or resolved reports bidirectionally, record material failures before retry, and create at most one qualified reusable success by default only after all final criteria pass. Reporting is not product progress or a separate checkpoint. After setup, each checkpoint must produce a product delta or measured result. Do not add verification programs or external gates unless required by the plan or a real product defect. The final transcript must show the resulting artifact or behavior, direct verification evidence, completion-criteria pass/fail, report paths, and remaining risks. Ask before material scope or validation expansion.
 ```

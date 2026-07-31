@@ -1,7 +1,9 @@
+<!-- Before saving: use the current system date and time, remove empty optional sections, and sanitize all evidence. Never store credentials, tokens, secrets, sensitive internal endpoints, or customer or personal data here or in progress logs. Use a sanitized conclusion plus an access-controlled evidence reference when raw evidence is sensitive. -->
+
 # [Failure case title]
 
 - Recorded: YYYY-MM-DD HH:MM TZ
-- Status: open | resolved | blocked
+- Status: open | resolved | blocked | superseded
 - Goal/checkpoint:
 - Affected scope:
 - Search terms:
@@ -17,7 +19,7 @@
 
 ## Evidence
 
-- Command, test, log, trace, or artifact:
+- Sanitized command, test, log, trace, artifact, or access-controlled reference:
 - Result:
 
 ## Cause assessment
@@ -44,3 +46,9 @@
 - Prefer:
 - Applicable when:
 - Re-check when:
+
+## Supersession
+
+- Supersedes:
+- Superseded by:
+- Reason:
