@@ -1,6 +1,6 @@
 ---
 name: goal-planner
-description: Create or review outcome-first long-running /goal prompts and GOAL_PLAN.md files for Codex or Claude Code. Use when the user asks for goal mode, a durable execution plan, plan review, or a measurable performance/implementation goal. Keep user-visible or product outcomes ahead of verification, bound validation-only work, apply risk-proportional evidence, persist reusable failure cases under docs/failed-reports, consult relevant past failures on later goals, and prevent tests, documents, or verifier infrastructure from replacing the requested result. Do not use for ordinary execution or generic planning unless the user explicitly wants a long-running agent goal.
+description: Create or review outcome-first long-running /goal prompts and GOAL_PLAN.md files for Codex or Claude Code. Use when the user asks for goal mode, a durable execution plan, plan review, or a measurable performance/implementation goal. Keep user-visible or product outcomes ahead of verification, bound validation-only work, apply risk-proportional evidence, persist reusable failures under docs/failed-reports and validated successes under docs/passed-reports, consult relevant past execution knowledge on later goals, and prevent tests, documents, or verifier infrastructure from replacing the requested result. Do not use for ordinary execution or generic planning unless the user explicitly wants a long-running agent goal.
 ---
 
 # Goal Planner
@@ -54,18 +54,21 @@ For analysis or report goals, keep the requested explanation or decision as the 
 - Do not add prospective waiting periods, live samples, manual review panels, or production traffic as mandatory gates unless the user asked for deployment/readiness or the requested claim cannot be made without them.
 - Record failures honestly, then return to the product cause. Do not respond to a failed product metric by expanding the verifier unless the measurement itself is demonstrably wrong.
 
-## Reuse failure knowledge
+## Reuse execution knowledge
 
-Treat the target repository's `docs/failed-reports/` as durable execution memory:
+Treat the target repository's `docs/failed-reports/` and `docs/passed-reports/` as durable execution memory:
 
-- At goal creation, review, start, and resume, search existing reports by the goal, affected modules or paths, commands, error text, and proposed approach. Read only relevant reports before choosing or repeating an approach.
-- Apply relevant lessons to the baseline, risks, execution steps, and stop conditions. Cite each applied report path in the plan or progress log. Treat old reports as scoped evidence, not immutable truth; re-check advice when code or operating conditions have changed.
+- At goal creation, review, start, and resume, search both report sets by the goal, affected modules or paths, commands, error text, environment, and proposed approach. Read only relevant reports before choosing or repeating an approach.
+- Apply relevant lessons to the baseline, risks, execution steps, verification path, and stop conditions. Cite each applied report path in the plan or progress log. Treat old reports as scoped evidence, not immutable truth; current source and direct evidence win, and changed code or operating conditions require re-checking.
 - During execution, persist every material failure that invalidates an assumption, fails a completion criterion, forces rollback or redesign, creates a blocker, or is likely to recur. Skip transient typos and immediately corrected command mistakes. Consolidate repeated instances of the same failure.
 - Before retrying a material failure, create or update its report using [assets/failed-report-template.md](assets/failed-report-template.md). Store it as `docs/failed-reports/YYYY-MM-DD-<short-slug>.md`; add a stable suffix on collision and never overwrite an unrelated report.
 - Record expected versus observed behavior, reproducible conditions, direct evidence, cause confidence, failed attempts, resolution or next safe step, and reuse guidance. Mark unknowns explicitly.
+- After all final completion criteria pass, persist a success only when the approach is non-obvious, repeatable, decision-relevant, or otherwise likely to save future work. Do not report intermediate builds, isolated test passes, or trivial successful commands as success cases. Consolidate equivalent successes.
+- Create or update reusable successes using [assets/passed-report-template.md](assets/passed-report-template.md). Store them as `docs/passed-reports/YYYY-MM-DD-<short-slug>.md`; add a stable suffix on collision and never overwrite an unrelated report.
+- Record the goal or problem signature, environment and versions, commit or artifact identity, applicable and excluded scope, successful sequence and decisive choices, direct evidence, completion-criterion results, reuse guidance, and invalidation conditions. Mark stale cases `superseded`; if a formerly successful approach fails, link the passed and failed reports.
 - Include applied, created, and updated report paths in checkpoint and final summaries. If the target is read-only or has no repository root, keep the same fields in the progress log and state why durable storage was unavailable.
 
-Failure reporting supports product progress; it is not a separate verification stage and does not satisfy a product completion criterion.
+Execution reporting supports product progress; it is not a separate stage, and writing a report does not satisfy a product completion criterion.
 
 ## Select verification strength by impact
 
@@ -101,7 +104,7 @@ A plan is usable when it contains:
 - Final criteria that cannot pass without the requested result.
 - A verification budget or risk level.
 - Bounded failure and stop conditions.
-- Relevant past failure reports were reviewed and applied, or the plan states that none were found.
+- Relevant past failure and success reports were reviewed and applied, or the plan states that none were found.
 - A compact progress rule.
 
 Do not require a stage-level performance number when that stage only produces a necessary implementation artifact or decision. Do not mark a plan incomplete merely because it lacks a separate independent-verification section at low or medium impact.
@@ -138,7 +141,7 @@ Use only the sections needed by the task. Prefer this compact structure:
 - 현재 기준선:
 - 확인할 미지수:
 - 고정 비교 조건 또는 가정:
-- 관련 과거 실패 보고서와 적용 교훈: [경로 -> 교훈 | 없음]
+- 관련 과거 실행 보고서와 적용 교훈: [`failed-reports`/`passed-reports` 경로 -> 교훈 | 없음]
 
 ## 실행 단계
 | 단계 | 실제 산출물/동작 변화 | 최소 직접 검증 | 완료 조건 |
@@ -162,7 +165,7 @@ Use only the sections needed by the task. Prefer this compact structure:
 - 중단하고 질문할 조건:
 - 실패 iteration 한도:
 - 로그 형식: product delta -> direct evidence -> remaining product gap -> blocker
-- 실패 보고서: [적용/생성/갱신한 `docs/failed-reports/...` 경로 | 없음]
+- 실행 지식 보고서: [적용/생성/갱신한 `docs/failed-reports/...` 또는 `docs/passed-reports/...` 경로 | 없음]
 ```
 
 For a pure analysis/report goal, replace `제품/동작 변화` with `분석 산출물/결정` and omit irrelevant performance sections.
@@ -179,7 +182,7 @@ Check:
 4. Is each verification item the minimum direct evidence for a stated risk or criterion?
 5. Are verification-only work, new infrastructure, artifacts, and documentation bounded?
 6. Has the plan avoided adding unrequested external or long-duration gates?
-7. Does the plan require relevant `docs/failed-reports/` review before an approach is chosen or repeated, and durable reporting for new material failures?
+7. Does the plan require relevant `docs/failed-reports/` and `docs/passed-reports/` review before an approach is chosen or repeated, durable reporting for material failures, and post-completion reporting only for reusable validated successes?
 8. Are iteration limits, failure handling, and stop conditions bounded?
 9. Is final verification proportional to external impact, without allowing the verifier to expand scope?
 
@@ -190,8 +193,8 @@ Treat failures in items 1-4 as `불충분`. Do not make a plan longer merely to 
 - Use a direct `/goal` when the plan is short and can remain clear within the runtime limit.
 - Use `GOAL_PLAN.md` for multi-session goals or plans that would make the launch prompt unwieldy.
 - When a `GOAL_PLAN.md` already exists, treat its current scope and validation budget as authoritative. Repair only contradictions or execution-blocking omissions. Ask before expanding scope, completion criteria, or verification strength.
-- Include the failure-knowledge contract in every execution prompt or `GOAL_PLAN.md`; do not leave it only in the planner's explanation.
-- When authorized to write a plan into a target repository, create `docs/failed-reports/` if needed and copy [assets/failed-report-template.md](assets/failed-report-template.md) to `docs/failed-reports/TEMPLATE.md` unless a project-specific template already exists. Preserve an existing template and adapt the plan to it.
+- Include the execution-knowledge contract in every execution prompt or `GOAL_PLAN.md`; do not leave it only in the planner's explanation.
+- When authorized to write a plan into a target repository, create `docs/failed-reports/` and `docs/passed-reports/` if needed. Copy [assets/failed-report-template.md](assets/failed-report-template.md) and [assets/passed-report-template.md](assets/passed-report-template.md) to their respective `TEMPLATE.md` paths unless project-specific templates already exist. Preserve existing templates and adapt the plan to them.
 - Read [references/runtime-prompts.md](references/runtime-prompts.md), select only the matching runtime section, and adapt it without copying irrelevant variants.
 - Keep the copyable prompt close to the top or end of the response, not buried in commentary.
 

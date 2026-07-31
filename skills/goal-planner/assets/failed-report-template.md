@@ -6,6 +6,7 @@
 - Affected scope:
 - Search terms:
 - Related paths:
+- Related passed reports:
 
 ## Failure
 
