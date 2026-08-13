@@ -58,9 +58,9 @@ For analysis or report goals, keep the requested explanation or decision as the 
 
 Treat the target repository's `docs/failed-reports/` and `docs/passed-reports/` as durable execution memory:
 
-- At goal creation, review, start, and resume, scan filenames and header metadata in both report sets before choosing or repeating an approach. Rank exact module or path, environment, error, and approach matches first; prefer non-superseded reports, then newer reports. Read at most five reports in full. Expand only when a distinct mandatory criterion or material risk cannot be resolved from those five, and state the reason before reading more.
+- At goal creation, review, start, and resume, search both report sets before choosing or repeating an approach. If a current `docs/report-index/catalog.jsonl` and its repository index tool exist, query them together with raw report text; otherwise scan all filenames and header metadata plus raw text. Rank exact error or problem signature first, then exact path, module, symbol, API, or test, environment or version, approach or exclusion, lifecycle validity, and recency only as a tie-breaker. Read at most five selected reports in full per retrieval occasion. Expand only when a distinct mandatory criterion or material risk cannot be resolved from those five, and state the reason before reading more.
 - Apply relevant lessons to the baseline, risks, execution steps, verification path, and stop conditions. Cite each applied report path in the plan or progress log. Treat old reports as scoped evidence, not immutable truth; current source and direct evidence win. When current evidence invalidates a report, update its lifecycle fields rather than silently ignoring the contradiction.
-- Before persisting execution knowledge, get the current date and time from the system and sanitize all evidence. Never store credentials, tokens, secrets, sensitive internal endpoints, or customer or personal data in a report or progress log. If sanitization would destroy evidentiary value, record a sanitized conclusion and an access-controlled evidence reference instead of the raw content.
+- Before persisting execution knowledge, get the current date and time from the system and sanitize all evidence. Never store credentials, tokens, secrets, sensitive internal endpoints, or customer or personal data in a report, catalog, cache, or progress log. If sanitization would destroy evidentiary value, record a sanitized conclusion and an access-controlled evidence reference instead of the raw content. Derived indexes may contain only content extracted from sanitized reports; never add new evidence strings to them.
 - During execution, persist every material failure that invalidates an assumption, fails a completion criterion, forces rollback or redesign, creates a blocker, or is likely to recur. Skip transient typos and immediately corrected command mistakes. Consolidate repeated instances of the same failure.
 - Before retrying a material failure, create or update its report using [assets/failed-report-template.md](assets/failed-report-template.md). Store it as `docs/failed-reports/YYYY-MM-DD-<short-slug>.md`; add a stable suffix on collision and never overwrite an unrelated report.
 - Record expected versus observed behavior, reproducible conditions, direct evidence, cause confidence, failed attempts, resolution or next safe step, and reuse guidance. Mark unknowns explicitly.
@@ -68,10 +68,12 @@ Treat the target repository's `docs/failed-reports/` and `docs/passed-reports/` 
 - Create or update reusable successes using [assets/passed-report-template.md](assets/passed-report-template.md). Store them as `docs/passed-reports/YYYY-MM-DD-<short-slug>.md`; add a stable suffix on collision and never overwrite an unrelated report.
 - Record the success qualification, goal or problem signature, environment and versions, commit or artifact identity, applicable and excluded scope, successful sequence and decisive choices, direct evidence, completion-criterion results, reuse guidance, and invalidation conditions.
 - Maintain lifecycle links in both directions in the same change. When one report supersedes another, set the old report to `superseded` with `Superseded by` and a reason, and set the new report's `Supersedes`. When a passed report resolves a failure, set the failed report to `resolved` and cross-link both. When a formerly successful approach fails, mark the passed report `superseded` and link the new failed report.
-- Update an existing matching report before creating another. Keep one report per distinct material failure. Create at most one passed report per completed goal by default; add another only for a non-overlapping problem signature and state why. Remove empty optional sections instead of filling them with boilerplate.
+- Update an existing matching report before creating another. Keep one report per distinct material failure. Create at most one passed report per completed goal by default; add another only for a non-overlapping problem signature and state why. Remove empty optional sections instead of filling them with boilerplate. When a committed report catalog is active, regenerate and validate it in the same change instead of editing it manually.
 - Include applied report paths in checkpoint summaries, created or updated failure paths when they occur, and all execution-knowledge paths in the final summary. If the target is read-only or has no repository root, keep the same sanitized fields in the progress log and state why durable storage was unavailable.
 
 Execution reporting is bounded overhead, not a separate checkpoint or stage. It does not satisfy a product completion criterion and must not delay the next product delta.
+
+Use a committed derived catalog only when the target already has one, the combined report count reaches 100, header metadata exceeds 200 KiB, or repeated raw searches exceed one second. Read [references/report-index.md](references/report-index.md) before activating or repairing it. Do not add recursive summaries, semantic rollups, shards, or a local full-text cache until measured scale requires them.
 
 ## Select verification strength by impact
 
@@ -139,7 +141,7 @@ Use only the sections needed by the task. Prefer this compact structure:
 - 진척으로 인정:
 - 진척으로 인정하지 않음:
 - 검증-only 작업 상한:
-- 실행 지식 작업 상한: 관련 보고서 전문 최대 5건, 성공 보고서 기본 최대 1건, 별도 checkpoint 금지
+- 실행 지식 작업 상한: 후보 기본 15건, 관련도순 전문 최대 5건/조회, 성공 보고서 기본 최대 1건, 별도 checkpoint 금지
 
 ## 기준선과 미지수
 - 현재 기준선:
@@ -186,7 +188,7 @@ Check:
 4. Is each verification item the minimum direct evidence for a stated risk or criterion?
 5. Are verification-only work, new infrastructure, artifacts, and documentation bounded?
 6. Has the plan avoided adding unrequested external or long-duration gates?
-7. Is execution-knowledge retrieval metadata-first, relevance-ranked, capped at five full reports by default, current-evidence-led, and sanitized?
+7. Does execution-knowledge retrieval search all report metadata and raw text, use a current derived index only when applicable, rank exact relevance before recency, cap full reads at five per retrieval by default, follow current evidence, and sanitize every persisted surface?
 8. Are material failures and qualified successes consolidated, bidirectionally linked, lifecycle-managed, and bounded so reporting cannot become progress?
 9. Are iteration limits, failure handling, stop conditions, and final verification proportional to impact without allowing the verifier to expand scope?
 
@@ -198,7 +200,7 @@ Treat failures in items 1-4 as `불충분`. Do not make a plan longer merely to 
 - Use `GOAL_PLAN.md` for multi-session goals or plans that would make the launch prompt unwieldy.
 - When a `GOAL_PLAN.md` already exists, treat its current scope and validation budget as authoritative. Repair only contradictions or execution-blocking omissions. Ask before expanding scope, completion criteria, or verification strength.
 - Include a compact execution-knowledge contract in every direct prompt. Include the full bounded search, sanitization, lifecycle, failure and success qualification, and reporting-overhead contract in every `GOAL_PLAN.md`; do not leave it only in the planner's explanation.
-- When authorized to write a plan into a target repository, create `docs/failed-reports/` and `docs/passed-reports/` if needed. Copy [assets/failed-report-template.md](assets/failed-report-template.md) and [assets/passed-report-template.md](assets/passed-report-template.md) to their respective `TEMPLATE.md` paths unless project-specific templates already exist. Preserve existing templates and adapt the plan to them.
+- When authorized to write a plan into a target repository, create `docs/failed-reports/` and `docs/passed-reports/` if needed. Copy [assets/failed-report-template.md](assets/failed-report-template.md) and [assets/passed-report-template.md](assets/passed-report-template.md) to their respective `TEMPLATE.md` paths unless project-specific templates already exist. Preserve existing templates and adapt the plan to them. If the report-index activation conditions are met, also follow [references/report-index.md](references/report-index.md) and install [scripts/report_index.py](scripts/report_index.py) as `docs/report-index/report_index.py` unless a compatible project-specific indexer exists.
 - Read [references/runtime-prompts.md](references/runtime-prompts.md), select only the matching runtime section, and adapt it without copying irrelevant variants.
 - Keep the copyable prompt close to the top or end of the response, not buried in commentary.
 

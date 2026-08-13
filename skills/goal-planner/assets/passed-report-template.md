@@ -9,6 +9,8 @@
 - Search terms:
 - Affected scope:
 - Excluded scope:
+- Environment/versions:
+- Exact identifiers:
 - Related paths:
 - Related failed reports:
 
@@ -16,7 +18,6 @@
 
 - Repository/ref or artifact:
 - Commit:
-- Runtime and dependency versions:
 - External conditions or assumptions:
 
 ## Successful approach

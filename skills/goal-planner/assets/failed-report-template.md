@@ -4,8 +4,11 @@
 
 - Recorded: YYYY-MM-DD HH:MM TZ
 - Status: open | resolved | blocked | superseded
+- Problem signature:
 - Goal/checkpoint:
 - Affected scope:
+- Environment/versions:
+- Exact identifiers:
 - Search terms:
 - Related paths:
 - Related passed reports:
