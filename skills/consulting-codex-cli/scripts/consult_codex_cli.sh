@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_CODEX_MODEL="gpt-5.5"
-DEFAULT_CODEX_REASONING_EFFORT="xhigh"
+DEFAULT_CODEX_MODEL="gpt-5.6-sol"
+DEFAULT_CODEX_REASONING_EFFORT="max"
 DEFAULT_CODEX_APPROVAL_POLICY="on-request"
 DEFAULT_CODEX_SANDBOX="workspace-write"
 
@@ -13,8 +13,8 @@ Usage:
   consult_codex_cli.sh [options] < prompt.md
 
 Defaults:
-  --model   gpt-5.5
-  --effort  xhigh
+  --model   gpt-5.6-sol
+  --effort  max
   --cd      current directory
 
 This wrapper intentionally does not set token, budget, reasoning-token, or output caps.

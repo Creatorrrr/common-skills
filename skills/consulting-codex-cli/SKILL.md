@@ -14,8 +14,8 @@ Codex sessions must not use this skill to invoke `codex exec`. If the current ag
 1. The user's explicit instructions override these defaults.
 2. If the current agent is Codex, say: `Codex cannot use consulting-codex-cli because it would recursively call Codex. I will not run codex exec from inside Codex.` Then stop.
 3. Run Codex non-interactively with `codex exec` so the subprocess returns.
-4. If the user does not specify a model, use the current latest frontier default model: `gpt-5.5`.
-5. If the user does not specify reasoning effort, use `xhigh`.
+4. If the user does not specify a model, use the current latest frontier default model: `gpt-5.6-sol`.
+5. If the user does not specify reasoning effort, use `max`.
 6. Do not pass token, budget, reasoning-token, or output caps.
 7. Use Codex's automatic permission judgment path by default: `approval_policy=on-request` with `workspace-write` sandboxing.
 8. Long waits are expected. Do not impose short shell timeouts or retry just because output is slow.
@@ -38,8 +38,8 @@ Do not assume `scripts/consult_codex_cli.sh` is project-local unless the user ha
 
 | Option | Default | How it is passed |
 | --- | --- | --- |
-| Model | `gpt-5.5` | `-m gpt-5.5` |
-| Reasoning effort | `xhigh` | `-c model_reasoning_effort="xhigh"` |
+| Model | `gpt-5.6-sol` | `-m gpt-5.6-sol` |
+| Reasoning effort | `max` | `-c model_reasoning_effort="max"` |
 | Approval policy | `on-request` | `-c approval_policy="on-request"` |
 | Sandbox | `workspace-write` | `--full-auto -s workspace-write` |
 | Print mode | non-interactive | `codex exec` |
@@ -79,7 +79,7 @@ For an explicit model override:
 
 ## Waiting policy
 
-`gpt-5.5` with `xhigh` can take many minutes. Treat that as normal.
+`gpt-5.6-sol` with `max` can take many minutes. Treat that as normal.
 
 - Set a generous shell timeout. Use at least `3600000` ms when the host tool requires a timeout value.
 - If the process is still running and there is no hard error, continue waiting.
@@ -117,6 +117,6 @@ Do not claim consensus unless both agents reached the same conclusion for compat
 | Running `codex exec` from Codex | Recursive. Warn and stop instead. |
 | Omitting `codex exec` | Can start an interactive session that never returns. |
 | Adding token or budget caps | Violates the no-budget-limit requirement and can truncate the consultation. |
-| Using a short timeout | `xhigh` runs may be killed before they finish. |
+| Using a short timeout | `max` runs may be killed before they finish. |
 | Lowering the model or effort because the run is slow | Changes the requested consultation quality without user approval. |
 | Hiding Codex disagreement | The user asked for cross-agent judgment, not artificial consensus. |
