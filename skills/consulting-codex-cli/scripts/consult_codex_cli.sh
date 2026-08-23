@@ -100,7 +100,7 @@ if [[ ! -t 0 ]]; then
   stdin_prompt="$(cat)"
 fi
 
-argument_prompt="${prompt_args[*]}"
+argument_prompt="${prompt_args[*]-}"
 if [[ -z "$argument_prompt" && -z "$stdin_prompt" ]]; then
   usage >&2
   exit 64
@@ -137,8 +137,7 @@ Recommended host timeout: at least 3600000 ms.
 STATUS
 
 printf '%s\n' "$request_prompt" | codex exec \
-  --full-auto \
-  -s "$DEFAULT_CODEX_SANDBOX" \
+  --approve-for-me \
   -m "$model" \
   -c "model_reasoning_effort=\"$effort\"" \
   -c "approval_policy=\"$DEFAULT_CODEX_APPROVAL_POLICY\"" \
