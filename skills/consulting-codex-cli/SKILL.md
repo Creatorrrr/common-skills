@@ -16,11 +16,12 @@ Codex sessions must not use this skill to invoke `codex exec`. If the current ag
 3. Run Codex non-interactively with `codex exec` so the subprocess returns.
 4. If the user does not specify a model, use the current latest frontier default model: `gpt-5.6-sol`.
 5. If the user does not specify reasoning effort, use `max`.
-6. Do not pass token, budget, reasoning-token, or output caps.
-7. Use Codex's automatic permission judgment path by default: `approval_policy=on-request` with `workspace-write` sandboxing.
-8. Long waits are expected. Do not impose short shell timeouts or retry just because output is slow.
-9. Pass the user's prompt faithfully. Preserve constraints, paths, language, and requested output shape.
-10. Present Codex's response before synthesizing agreement or disagreement.
+6. Use the standard service tier by default (`service_tier="default"`). Use Fast mode only when the user explicitly requests it, and pass `--fast` to the wrapper (`service_tier="fast"`).
+7. Do not pass token, budget, reasoning-token, or output caps.
+8. Use Codex's automatic permission judgment path by default: `approval_policy=on-request` with `workspace-write` sandboxing.
+9. Long waits are expected. Do not impose short shell timeouts or retry just because output is slow.
+10. Pass the user's prompt faithfully. Preserve constraints, paths, language, and requested output shape.
+11. Present Codex's response before synthesizing agreement or disagreement.
 
 ## Resolve the bundled script
 
@@ -40,12 +41,13 @@ Do not assume `scripts/consult_codex_cli.sh` is project-local unless the user ha
 | --- | --- | --- |
 | Model | `gpt-5.6-sol` | `-m gpt-5.6-sol` |
 | Reasoning effort | `max` | `-c model_reasoning_effort="max"` |
+| Speed mode | `standard` | `-c service_tier="default"` |
 | Approval policy | `on-request` | `-c approval_policy="on-request"` |
 | Sandbox | `workspace-write` | `--full-auto -s workspace-write` |
 | Print mode | non-interactive | `codex exec` |
 | Budget/token caps | none | do not pass any cap flags |
 
-If the user explicitly names another model, effort, working directory, output mode, or permission posture, use that value and keep the remaining defaults.
+If the user explicitly names another model, effort, speed mode, working directory, output mode, or permission posture, use that value and keep the remaining defaults. Treat Fast mode as opt-in; do not infer it merely because the user wants a concise answer or because a run is taking a long time.
 
 ## Canonical invocation
 
@@ -77,9 +79,17 @@ For an explicit model override:
 /path/to/consult_codex_cli.sh --model gpt-5.4 --effort high "user prompt here"
 ```
 
+For an explicit Fast mode request:
+
+```bash
+/path/to/consult_codex_cli.sh --fast "user prompt here"
+```
+
 ## Waiting policy
 
 `gpt-5.6-sol` with `max` can take many minutes. Treat that as normal.
+
+Fast mode may reduce service latency, but it does not change this waiting policy.
 
 - Set a generous shell timeout. Use at least `3600000` ms when the host tool requires a timeout value.
 - If the process is still running and there is no hard error, continue waiting.
@@ -118,5 +128,6 @@ Do not claim consensus unless both agents reached the same conclusion for compat
 | Omitting `codex exec` | Can start an interactive session that never returns. |
 | Adding token or budget caps | Violates the no-budget-limit requirement and can truncate the consultation. |
 | Using a short timeout | `max` runs may be killed before they finish. |
+| Using Fast mode without an explicit user request | Changes the service tier without user intent; keep the standard tier by default. |
 | Lowering the model or effort because the run is slow | Changes the requested consultation quality without user approval. |
 | Hiding Codex disagreement | The user asked for cross-agent judgment, not artificial consensus. |

@@ -3,19 +3,25 @@ set -euo pipefail
 
 DEFAULT_CODEX_MODEL="gpt-5.6-sol"
 DEFAULT_CODEX_REASONING_EFFORT="max"
+DEFAULT_CODEX_SERVICE_TIER="default"
 DEFAULT_CODEX_APPROVAL_POLICY="on-request"
 DEFAULT_CODEX_SANDBOX="workspace-write"
 
 usage() {
   cat <<'USAGE'
 Usage:
-  consult_codex_cli.sh [--model MODEL] [--effort EFFORT] [--cd DIR] [request...]
+  consult_codex_cli.sh [--model MODEL] [--effort EFFORT] [--fast|--standard] [--cd DIR] [request...]
   consult_codex_cli.sh [options] < prompt.md
 
 Defaults:
   --model   gpt-5.6-sol
   --effort  max
+  speed     standard
   --cd      current directory
+
+Speed options:
+  --fast      use the Fast service tier for this consultation
+  --standard  use the standard service tier (default)
 
 This wrapper intentionally does not set token, budget, reasoning-token, or output caps.
 USAGE
@@ -23,6 +29,8 @@ USAGE
 
 model="${CODEX_MODEL:-$DEFAULT_CODEX_MODEL}"
 effort="${CODEX_REASONING_EFFORT:-$DEFAULT_CODEX_REASONING_EFFORT}"
+service_tier="$DEFAULT_CODEX_SERVICE_TIER"
+speed_mode="standard"
 workdir="${CODEX_WORKDIR:-$PWD}"
 prompt_args=()
 
@@ -54,6 +62,16 @@ while (($#)); do
       ;;
     --effort=*|--reasoning-effort=*)
       effort="${1#*=}"
+      shift
+      ;;
+    --fast)
+      service_tier="fast"
+      speed_mode="fast"
+      shift
+      ;;
+    --standard)
+      service_tier="default"
+      speed_mode="standard"
       shift
       ;;
     -C|--cd|--workdir)
@@ -130,6 +148,8 @@ cat >&2 <<STATUS
 Starting Codex consultation.
   model: ${model}
   reasoning effort: ${effort}
+  speed mode: ${speed_mode}
+  service tier: ${service_tier}
   approval policy: ${DEFAULT_CODEX_APPROVAL_POLICY}
   sandbox: ${DEFAULT_CODEX_SANDBOX}
   workdir: ${workdir}
@@ -140,6 +160,7 @@ printf '%s\n' "$request_prompt" | codex exec \
   --approve-for-me \
   -m "$model" \
   -c "model_reasoning_effort=\"$effort\"" \
+  -c "service_tier=\"$service_tier\"" \
   -c "approval_policy=\"$DEFAULT_CODEX_APPROVAL_POLICY\"" \
   -C "$workdir" \
   --skip-git-repo-check \
