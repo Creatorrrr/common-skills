@@ -49,7 +49,7 @@ It includes a small wrapper at `skills/consulting-antigravity-cli/scripts/consul
 
 ### `goal-planner`
 
-Use this when the user wants to create or review an outcome-first Codex or Claude Code `/goal` prompt for long-running work. The skill keeps the requested product or deliverable ahead of verification, bounds validation-only work, applies risk-proportional evidence, persists reusable failures under `docs/failed-reports/` and validated successes under `docs/passed-reports/`, consults relevant reports on later goals, and prevents tests, documents, or verifier infrastructure from replacing the requested result.
+Use this when the user wants to create or review an outcome-first Codex or Claude Code `/goal` prompt for long-running work. The skill keeps the requested product or deliverable ahead of verification, bounds validation-only work, applies risk-proportional evidence, persists reusable failures under `docs/failed-reports/` and validated successes under `docs/passed-reports/`, and uses `docs/researches/` as a bounded asynchronous research inbox for active or later goals. Research remains advisory, current direct evidence wins, and tests, documents, knowledge work, or verifier infrastructure cannot replace or silently expand the requested result.
 
 ## Installation
 

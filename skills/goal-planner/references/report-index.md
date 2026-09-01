@@ -5,6 +5,7 @@ Read this reference when a target repository already contains `docs/report-index
 ## Ownership and activation
 
 - Treat Markdown files under `docs/failed-reports/` and `docs/passed-reports/` as the only source of truth.
+- Keep `docs/researches/` outside this catalog. Research has a separate advisory evidence lifecycle and must not be represented as a failed or passed execution report.
 - Treat `docs/report-index/catalog.jsonl` as committed, deterministic derived data. Never edit or merge its entries by hand; regenerate it from the reports.
 - Activate the committed catalog when either report directory already uses it, when the combined report count reaches 100, when header metadata exceeds 200 KiB, or when repeated raw report searches take more than one second. Below those thresholds, keep using filename/header scans plus raw full-text search without adding index artifacts.
 - When activating it, copy [../scripts/report_index.py](../scripts/report_index.py) to `docs/report-index/report_index.py` unless the repository has a compatible project-specific tool. Keep its generator version with the copied script.
@@ -52,7 +53,7 @@ Rank matches in this order:
 5. Lifecycle validity; retain superseded matches but show their current successors.
 6. Recency only as a tie-breaker.
 
-Return at most 15 candidate projections by default. Each projection contains the score, match reasons, no more than three bounded source snippets, and successor paths. Read at most five selected source reports in full per retrieval occasion. Expand only for an unresolved mandatory criterion or material risk, and record why first.
+Return at most 15 candidate projections by default. Each projection contains the score, match reasons, no more than three bounded source snippets, and successor paths. Across selected source reports and `docs/researches/` material, read at most five items in full per retrieval occasion. Expand only for an unresolved mandatory criterion or material risk, and record why first.
 
 ## Legacy and scale behavior
 

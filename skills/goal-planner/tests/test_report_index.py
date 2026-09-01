@@ -178,6 +178,13 @@ class ReportIndexTests(unittest.TestCase):
         path.write_text(content, encoding="utf-8")
         return path
 
+    def write_research(self, name: str, content: str) -> Path:
+        directory = self.root / "docs" / "researches"
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / name
+        path.write_text(content, encoding="utf-8")
+        return path
+
     def run_cli(self, command: str, *arguments: str) -> subprocess.CompletedProcess[bytes]:
         return subprocess.run(
             [sys.executable, str(SCRIPT), command, "--root", str(self.root), *arguments],
@@ -224,6 +231,27 @@ class ReportIndexTests(unittest.TestCase):
         self.assertTrue(checked["ok"])
         self.assertEqual(checked["report_count"], 2)
         self.assertEqual(checked["sparse_count"], 0)
+
+    def test_research_notes_remain_outside_execution_report_catalog(self) -> None:
+        self.write_failed(
+            "2026-08-13-report-only.md",
+            failure_report(
+                title="Execution report only",
+                recorded="2026-08-13 10:00 KST",
+                signature="REPORT-ONLY-TOKEN",
+            ),
+        )
+        self.write_research(
+            "2026-08-13-research-only.md",
+            "# Research note\n\n- Evidence status: hypothesis\n\nRESEARCH-ONLY-TOKEN\n",
+        )
+
+        self.run_json("sync")
+        checked, _ = self.run_json("check")
+        self.assertEqual(checked["report_count"], 1)
+
+        queried, _ = self.run_json("query", "RESEARCH-ONLY-TOKEN")
+        self.assertEqual(queried["total_matches"], 0)
 
     def test_catalog_preserves_rich_failure_and_success_capsules(self) -> None:
         self.write_failed(
