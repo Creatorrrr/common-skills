@@ -19,7 +19,7 @@ from typing import Any, Iterable
 
 
 SCHEMA_VERSION = 1
-GENERATOR_VERSION = "1.0.0"
+GENERATOR_VERSION = "1.0.1"
 DEFAULT_LIMIT = 15
 DEFAULT_MAX_OUTPUT_BYTES = 24_000
 MAX_MATCH_REASONS = 8
@@ -453,8 +453,10 @@ def read_catalog(root: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         records = [json.loads(line) for line in catalog_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ReportIndexError(f"Cannot parse catalog {CATALOG_PATH}: {error}") from error
-    if not records or "_meta" not in records[0]:
-        raise ReportIndexError("Catalog must start with an _meta record")
+    # JSON scalars and arrays are valid JSON, but are not catalog records.
+    # Check the container before membership/indexing so query can fall back.
+    if not records or not isinstance(records[0], dict) or "_meta" not in records[0]:
+        raise ReportIndexError("Catalog must start with an _meta object record")
     meta = records[0]["_meta"]
     if not isinstance(meta, dict):
         raise ReportIndexError("Catalog _meta must be an object")

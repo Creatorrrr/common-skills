@@ -1,0 +1,13 @@
+test_behavioral_scenarios_are_explicitly_unexecuted (test_skill_contracts.SkillContractTests.test_behavioral_scenarios_are_explicitly_unexecuted) ... ok
+test_contract_and_templates_have_matching_insertion_markers (test_skill_contracts.SkillContractTests.test_contract_and_templates_have_matching_insertion_markers) ... ok
+test_frontmatter_identity_and_version (test_skill_contracts.SkillContractTests.test_frontmatter_identity_and_version) ... ok
+test_known_conflicting_runtime_phrases_are_not_reintroduced (test_skill_contracts.SkillContractTests.test_known_conflicting_runtime_phrases_are_not_reintroduced) ... ok
+test_markdown_relative_file_links_resolve (test_skill_contracts.SkillContractTests.test_markdown_relative_file_links_resolve) ... ok
+test_no_bytecode_or_macos_artifacts_in_package (test_skill_contracts.SkillContractTests.test_no_bytecode_or_macos_artifacts_in_package) ... ok
+test_persistence_contract_retains_closed_success_qualifications (test_skill_contracts.SkillContractTests.test_persistence_contract_retains_closed_success_qualifications) ... ok
+test_read_only_contract_can_render_without_persistence (test_skill_contracts.SkillContractTests.test_read_only_contract_can_render_without_persistence) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.004s
+
+OK

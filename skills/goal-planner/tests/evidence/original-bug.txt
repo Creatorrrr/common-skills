@@ -1,0 +1,24 @@
+Original numeric-header reproduction
+command: python3 -B scripts/report_index.py query --root <temporary fixture> AUDIT-RECOVERY
+catalog: 42\n
+exit code: 1
+stdout:
+
+stderr:
+Traceback (most recent call last):
+  File "original/goal-planner/scripts/report_index.py", line 905, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "original/goal-planner/scripts/report_index.py", line 898, in main
+    return int(args.handler(args))
+               ~~~~~~~~~~~~^^^^^^
+  File "original/goal-planner/scripts/report_index.py", line 821, in command_query
+    catalog_status, entries, catalog_warnings = validate_catalog(root, expected_entries)
+                                                ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "original/goal-planner/scripts/report_index.py", line 471, in validate_catalog
+    meta, actual_entries = read_catalog(root)
+                           ~~~~~~~~~~~~^^^^^^
+  File "original/goal-planner/scripts/report_index.py", line 456, in read_catalog
+    if not records or "_meta" not in records[0]:
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: argument of type 'int' is not iterable

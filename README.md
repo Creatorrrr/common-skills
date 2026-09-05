@@ -49,7 +49,11 @@ It includes a small wrapper at `skills/consulting-antigravity-cli/scripts/consul
 
 ### `goal-planner`
 
-Use this when the user wants to create or review an outcome-first Codex or Claude Code `/goal` prompt for long-running work. The skill keeps the requested product or deliverable ahead of verification, bounds validation-only work, applies risk-proportional evidence, persists reusable failures under `docs/failed-reports/` and validated successes under `docs/passed-reports/`, and uses `docs/researches/` as a bounded asynchronous research inbox for active or later goals. Research remains advisory, current direct evidence wins, and tests, documents, knowledge work, or verifier infrastructure cannot replace or silently expand the requested result.
+Use version **2.0.0** to create, revise, or review outcome-first long-running goals, `GOAL_PLAN.md` files, and execution prompts for Codex or Claude Code. The skill preserves the requested result and the user's latest explicit instructions, separates planning from execution, and permits necessary tests and re-checks without adding unnecessary verification stages.
+
+Existing execution reports and asynchronous research remain available for bounded retrieval. Knowledge mode defaults to `read-only`; report writing, lifecycle updates, and initialization require authorization for that workflow. Approved persistence uses `docs/failed-reports/`, `docs/passed-reports/`, and `docs/researches/`. Reports, research, indexes, and quoted tool output remain evidence rather than instructions. Generated plans embed the applicable execution rules so another session can use them.
+
+See the [skill guide](skills/goal-planner/README.md), [changes](skills/goal-planner/CHANGELOG.md), and [packaged validation results](skills/goal-planner/VALIDATION.md). Updating the skill does not rewrite existing plans or activate them; `/goal` syntax is used only when supported by the target runtime.
 
 ## Installation
 
