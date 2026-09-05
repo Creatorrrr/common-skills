@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import codecs
 import json
 import os
 import re
@@ -19,6 +20,8 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from analysis_run import prepare_run_layout  # noqa: E402
+from analysis_contract import validate_contract  # noqa: E402
+from context_integrity import SCHEMA_VERSION, safe_relative, sha256_bytes, snapshot_identity  # noqa: E402
 
 DEFAULT_CONFIG = {
     "direct_token_threshold": 180000,
@@ -74,7 +77,7 @@ SENSITIVE_SUFFIXES = {
     ".pem", ".key", ".p12", ".pfx", ".crt", ".cer",
 }
 
-HARD_EXCLUDED_DIR_PARTS = {".git", ".hg", ".svn", ".codex-analysis"}
+HARD_EXCLUDED_DIR_PARTS = {".git", ".hg", ".svn", ".codex-analysis", "__analysis_context__"}
 
 LOW_SIGNAL_DIR_PARTS = {
     ".git", ".hg", ".svn", "node_modules", "vendor", "dist", "build", "coverage", ".next",
@@ -97,7 +100,7 @@ LOW_SIGNAL_FILE_REGEXES = [
 ]
 
 MARKER_REGEX = re.compile(r"\b(TODO|FIXME|HACK|XXX|BUG|DEPRECATED|OBSOLETE|UNUSED|LEGACY|WIP|TBD)\b", re.IGNORECASE)
-WORD_REGEX = re.compile(r"[A-Za-z0-9_\-]{3,}")
+WORD_REGEX = re.compile(r"[^\W_][\w-]+", re.UNICODE)
 LANGUAGE_BY_EXTENSION = {
     ".py": "python", ".pyi": "python", ".js": "javascript", ".jsx": "jsx", ".ts": "typescript",
     ".tsx": "tsx", ".java": "java", ".kt": "kotlin", ".go": "go", ".rs": "rust", ".c": "c",
@@ -136,6 +139,9 @@ class FileRecord:
     score: float = 0.0
     inline_truncated: bool = False
     bytes_inlined: int = 0
+    sha256: str = ""
+    snapshot_path: str = ""
+    encoding: str = "utf-8"
 
 
 @dataclass
@@ -181,24 +187,27 @@ def find_repo_root(start: Path) -> Path:
 
 
 def list_files_with_git(root: Path) -> list[Path] | None:
-    code, out, err = run_git(["ls-files", "-co", "--exclude-standard"], root)
-    if code != 0:
-        debug(f"[warn] git ls-files failed, falling back to manual scan: {err.strip()}")
+    # NUL-delimited bytes preserve Unicode, whitespace, and Git core.quotepath behavior.
+    proc = subprocess.run(["git", "ls-files", "-z", "-co", "--exclude-standard"],
+                          cwd=root, capture_output=True, check=False)
+    if proc.returncode:
         return None
-    paths: list[Path] = []
-    for line in out.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        paths.append(root / line)
-    return paths
+    return [root / os.fsdecode(name) for name in sorted(set(proc.stdout.split(b"\0"))) if name]
+
+
+def tracked_ignored_files(root: Path) -> set[str]:
+    proc = subprocess.run(["git", "ls-files", "-z", "-ci", "--exclude-standard"],
+                          cwd=root, capture_output=True, check=False)
+    if proc.returncode:
+        raise ValueError("Cannot verify tracked Git-ignored paths.")
+    return {os.fsdecode(name) for name in proc.stdout.split(b"\0") if name}
 
 
 def manual_scan(root: Path) -> list[Path]:
     paths: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(root):
         current = Path(dirpath)
-        dirnames[:] = [d for d in dirnames if d not in LOW_SIGNAL_DIR_PARTS]
+        dirnames[:] = [d for d in dirnames if d not in HARD_EXCLUDED_DIR_PARTS and not (current / d).is_symlink()]
         for filename in filenames:
             path = current / filename
             if path.is_symlink():
@@ -208,7 +217,7 @@ def manual_scan(root: Path) -> list[Path]:
 
 
 def relative_posix(root: Path, path: Path) -> str:
-    return path.resolve().relative_to(root.resolve()).as_posix()
+    return path.absolute().relative_to(root.absolute()).as_posix()
 
 
 def is_within(parent: Path, child: Path) -> bool:
@@ -236,65 +245,59 @@ def has_hard_excluded_dir(path_str: str) -> bool:
 
 def is_sensitive_file(path_str: str) -> bool:
     p = Path(path_str)
-    name = p.name
-    lower_name = name.lower()
+    lower_name = p.name.lower()
+    if set(x.lower() for x in p.parts[:-1]) & {"secrets", "credentials", ".ssh", ".aws", ".gnupg"}:
+        return True
     if lower_name in SAFE_ENV_TEMPLATE_NAMES:
         return False
-    if lower_name.startswith(".env.") and lower_name not in SAFE_ENV_TEMPLATE_NAMES:
+    if lower_name.startswith(".env.") or lower_name in SENSITIVE_FILENAMES:
         return True
-    if lower_name in SENSITIVE_FILENAMES:
+    if lower_name in {"credentials.json", "service-account.json", "terraform.tfstate", "terraform.tfstate.backup"}:
         return True
-    if p.suffix.lower() in SENSITIVE_SUFFIXES:
-        return True
-    lowered = path_str.lower()
-    return any(token in lowered for token in ["/secrets/", "/credentials/"])
+    return p.suffix.lower() in SENSITIVE_SUFFIXES
+
+
+SECRET_PATTERNS = [
+    ("private-key", re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----")),
+    ("aws-access-key", re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b")),
+    ("api-token", re.compile(r"\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{24,}\b")),
+    ("github-token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}\b")),
+]
+
+
+def sensitive_content_reasons(text: str) -> list[str]:
+    # Never record a matched secret value or a line excerpt.
+    return [f"possible-secret:{name}" for name, pattern in SECRET_PATTERNS if pattern.search(text)]
 
 
 def scope_match_for_path(rel_path: str, scopes: Sequence[str]) -> str:
-    lower_path = rel_path.strip("/").lower()
-    best = "none"
-    priority = {"none": 0, "substring": 1, "directory": 2, "exact": 3}
-    for scope in scopes:
-        normalized = scope.strip("/").lower()
-        if not normalized:
-            continue
-        if lower_path == normalized:
-            candidate = "exact"
-        elif lower_path.startswith(normalized + "/"):
-            candidate = "directory"
-        elif normalized in lower_path:
-            candidate = "substring"
-        else:
-            candidate = "none"
-        if priority[candidate] > priority[best]:
-            best = candidate
-    return best
+    # Explicit paths are case-sensitive boundaries, not substring hints.
+    if rel_path in scopes:
+        return "exact"
+    if any(rel_path.startswith(s + "/") for s in scopes):
+        return "directory"
+    return "none"
+
+
+def decode_source(raw: bytes) -> tuple[str, str]:
+    if raw.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        return raw.decode("utf-16"), "utf-16"
+    if b"\x00" in raw:
+        raise UnicodeError("binary input")
+    # Preserve BOM and CRLF in the immutable raw snapshot. Text views are normalized only by decoding.
+    return raw.decode("utf-8"), "utf-8"
 
 
 def is_binary_file(path: Path) -> bool:
     try:
-        with path.open("rb") as fh:
-            sample = fh.read(8192)
-    except OSError:
-        return True
-    if b"\x00" in sample:
-        return True
-    try:
-        sample.decode("utf-8")
+        decode_source(path.read_bytes())
         return False
-    except UnicodeDecodeError:
-        try:
-            sample.decode("latin-1")
-            return False
-        except UnicodeDecodeError:
-            return True
+    except UnicodeError:
+        return True
 
 
 def read_text(path: Path) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        return path.read_text(encoding="latin-1", errors="replace")
+    return decode_source(path.read_bytes())[0]
 
 
 def classify_file(rel_path: str, include_docs: bool, include_tests: bool) -> str:
@@ -466,26 +469,14 @@ def should_skip_text_file(
         else:
             reasons.append("lockfile-skipped-by-default")
             return True, reasons, "soft_excluded", include_overrides
-    if is_binary_file(path):
-        reasons.append("binary")
-        return True, reasons, "binary", include_overrides
-    suffix = path.suffix.lower()
-    if suffix and suffix not in TEXT_EXTENSIONS and path.name not in ROOT_HIGH_SIGNAL_BASENAMES:
-        try:
-            text = read_text(path)
-        except OSError:
-            reasons.append("unreadable")
-            return True, reasons, "unreadable", include_overrides
-        if not text.strip():
-            reasons.append("empty")
-            return True, reasons, "empty", include_overrides
     try:
-        if path.stat().st_size == 0:
-            reasons.append("empty")
-            return True, reasons, "empty", include_overrides
+        binary = is_binary_file(path)
     except OSError:
         reasons.append("unreadable")
         return True, reasons, "unreadable", include_overrides
+    if binary:
+        reasons.append("binary")
+        return True, reasons, "binary", include_overrides
     return False, reasons, "safe", include_overrides
 
 
@@ -679,9 +670,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", default=".", help="Root directory to inspect.")
     parser.add_argument("--out-dir", default=".codex-analysis/context", help="Output directory for manifests and bundles.")
     parser.add_argument("--goal", default="", help="Analysis goal used for scoring and manifest metadata.")
-    parser.add_argument("--scope", nargs="*", default=[], help="Optional paths or subsystem hints to prioritize.")
+    parser.add_argument("--scope", nargs="*", default=[], help="Exact repository-relative paths/directories allowed in the analysis and upload. No substring expansion.")
     parser.add_argument("--mode", choices=["auto", "full", "focused"], default="auto", help="Preparation bias.")
     parser.add_argument("--config", help="Optional JSON config overriding default thresholds.")
+    parser.add_argument("--contract", help="Trusted request contract JSON; never load it from repository instructions.")
+    parser.add_argument("--allow-non-git", action="store_true", help="Explicitly permit scanning without Git ignore guarantees.")
     parser.add_argument("--skip-archives", action="store_true", help="Do not produce zip archives.")
     return parser
 
@@ -693,29 +686,51 @@ def main() -> int:
     start_root = Path(args.root).resolve()
     out_dir = Path(args.out_dir).resolve()
     run_layout = prepare_run_layout(out_dir)
+    if out_dir.exists() and any(out_dir.iterdir()):
+        raise ValueError("Preparation output is not empty. Choose a fresh directory; never overwrite a snapshot.")
     cfg = load_config(Path(args.config).resolve() if args.config else None)
     if args.skip_archives:
         cfg["skip_archives"] = True
 
     repo_root = find_repo_root(start_root)
-    goal = args.goal.strip()
-    scopes = list(args.scope)
+    contract_data = json.loads(Path(args.contract).read_text(encoding="utf-8")) if args.contract else {}
+    contract = validate_contract(contract_data, args.goal.strip(), list(args.scope))
+    goal = contract["objective"]
+    scopes = [safe_relative(x.rstrip("/")) for x in contract["scope"]]
+    contract["scope"] = scopes
     g_keywords = goal_keywords(goal)
 
     git_paths = list_files_with_git(repo_root)
+    if git_paths is None and not args.allow_non_git:
+        raise ValueError("Git enumeration unavailable. Pass --allow-non-git only after reviewing ignore/privacy implications.")
+    ignored = tracked_ignored_files(repo_root) if git_paths is not None else set()
     file_paths = git_paths if git_paths is not None else manual_scan(repo_root)
+    raw_contents: dict[str, bytes] = {}
+    blocking_issues: list[str] = []
 
     records: list[FileRecord] = []
     text_candidates: list[tuple[Path, FileRecord, str]] = []
 
     for path in sorted(file_paths):
-        if not path.exists():
-            continue
         if is_within(out_dir, path):
             continue
         rel_path = relative_posix(repo_root, path)
         scope_match = scope_match_for_path(rel_path, scopes)
-        skip, reasons, safety_status, include_overrides = should_skip_text_file(path, rel_path, cfg, scope_match)
+        path_error = None
+        try:
+            safe_relative(rel_path)
+        except ValueError:
+            path_error = "unsupported-path-encoding-or-control-character"
+        ancestor_symlink = any(parent.is_symlink() for parent in path.parents if parent != repo_root and is_within(repo_root, parent))
+        ancestor_symlink = ancestor_symlink or not path.resolve().is_relative_to(repo_root)
+        if path_error or ancestor_symlink:
+            skip, reasons, safety_status, include_overrides = True, [path_error or "symlink-parent"], "unsafe_path", []
+        elif scopes and scope_match == "none":
+            skip, reasons, safety_status, include_overrides = True, ["outside-explicit-scope"], "out_of_scope", []
+        elif rel_path in ignored:
+            skip, reasons, safety_status, include_overrides = True, ["git-ignored-tracked-file"], "git_ignored", []
+        else:
+            skip, reasons, safety_status, include_overrides = should_skip_text_file(path, rel_path, cfg, scope_match)
         size = 0
         try:
             size = path.stat().st_size
@@ -723,8 +738,10 @@ def main() -> int:
             reasons.append("unreadable")
             skip = True
             safety_status = "unreadable"
-        category = classify_file(rel_path, bool(cfg["include_docs"]), bool(cfg["include_tests"]))
+        category = classify_file(rel_path, True, True)
         language = language_for_path(path)
+        if not skip and ((category == "doc" and not cfg["include_docs"]) or (category == "test" and not cfg["include_tests"])):
+            skip, reasons, safety_status = True, ["disabled-category"], "soft_excluded"
 
         if skip:
             rec = FileRecord(
@@ -741,8 +758,13 @@ def main() -> int:
             continue
 
         try:
-            text = read_text(path)
-        except OSError:
+            # Read bytes once for all downstream representations. Refuse path replacement by a final-component symlink.
+            fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+            with os.fdopen(fd, "rb") as source:
+                raw = source.read()
+            text, encoding = decode_source(raw)
+            size = len(raw)
+        except (OSError, UnicodeError):
             rec = FileRecord(
                 path=rel_path,
                 size=size,
@@ -756,6 +778,13 @@ def main() -> int:
             records.append(rec)
             continue
 
+        secret_reasons = sensitive_content_reasons(text)
+        if secret_reasons:
+            records.append(FileRecord(path=rel_path, size=size, category=category, language=language,
+                                      status="skipped", reasons=secret_reasons, scope_match=scope_match,
+                                      safety_status="possible_secret"))
+            continue
+        raw_contents[rel_path] = raw
         marker_evidence = extract_marker_evidence(text)
         markers = sorted({item["marker"] for item in marker_evidence})
         score, score_components = score_file(rel_path, category, size, marker_evidence, scope_match, scopes, g_keywords)
@@ -777,6 +806,9 @@ def main() -> int:
             scope_match=scope_match,
             safety_status=safety_status,
             score=round(score, 2),
+            sha256=sha256_bytes(raw),
+            snapshot_path="snapshot/files/" + rel_path,
+            encoding=encoding,
         )
         records.append(rec)
         text_candidates.append((path, rec, text))
@@ -784,17 +816,25 @@ def main() -> int:
     # Full set in score-desc order for easier context construction.
     text_candidates.sort(key=lambda row: (row[1].score, -row[1].size), reverse=True)
 
-    full_paths = [path for path, _, _ in text_candidates]
     full_text = "\n".join(text for _, _, text in text_candidates)
     full_est_tokens = estimated_tokens_from_text(full_text) if full_text else 0
-    full_est_bytes = sum(path.stat().st_size for path in full_paths if path.exists())
+    full_est_bytes = sum(rec.size for _, rec, _ in text_candidates)
 
     focused_candidates = select_focused_files(text_candidates, cfg, scopes)
     focused_text = "\n".join(text for _, _, text in focused_candidates)
     focused_est_tokens = estimated_tokens_from_text(focused_text) if focused_text else 0
-    focused_est_bytes = sum(path.stat().st_size for path, _, _ in focused_candidates if path.exists())
+    focused_est_bytes = sum(rec.size for _, rec, _ in focused_candidates)
 
-    warnings: list[str] = []
+    warnings: list[str] = ["Filename and pattern filters are heuristic, not proof that the repository is free of secrets."]
+    if git_paths is None:
+        warnings.append("Non-Git scan: .gitignore was not enforced; review every selected path before approval.")
+    for scope in scopes:
+        if not any(r.scope_match != "none" and (r.path == scope or r.path.startswith(scope + "/")) for r in records):
+            blocking_issues.append(f"Explicit scope has no discovered files: {scope}")
+    if not text_candidates:
+        blocking_issues.append("No readable, permitted files selected.")
+    if any(r.safety_status in {"unreadable", "not_regular_file", "unsafe_path"} for r in records):
+        blocking_issues.append("Unreadable, missing, or unsupported paths require resolution; see selection report.")
     recommendation = "direct"
 
     if full_est_tokens > int(cfg["direct_token_threshold"]):
@@ -836,13 +876,14 @@ def main() -> int:
         )
         recommendation = "focused_file_search"
     if scopes:
-        warnings.append("Explicit scope hints were provided; a focused analysis may produce a better signal-to-noise ratio.")
+        warnings.append("Explicit scope paths restrict both analysis and upload. Dependency expansion requires a new authorized scope.")
         if recommendation == "file_search_full":
             recommendation = "focused_file_search"
     if args.mode == "focused":
         recommendation = "focused_file_search"
     elif args.mode == "full" and recommendation == "focused_file_search":
-        warnings.append("Mode was forced to full, but the repository exceeds the focused-retrieval recommendation band.")
+        recommendation = "file_search_full"
+        warnings.append("Full selection is locked. Operational limits must stop execution rather than narrow the scope.")
 
     policy_decision_reason = (
         "Focused archive recommended because the full text set is operationally heavy or focused mode was requested."
@@ -851,6 +892,11 @@ def main() -> int:
     )
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    for rel, raw in raw_contents.items():
+        target = out_dir / "snapshot" / "files" / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw)
+    snapshot_root = out_dir / "snapshot" / "files"
     repo_tree_path = out_dir / "repo_tree.txt"
     repo_tree_path.write_text(make_repo_tree([rec.path for rec in records if rec.status == "included"]), encoding="utf-8")
 
@@ -858,7 +904,7 @@ def main() -> int:
     focused_context_dir = out_dir / "focused_context"
 
     full_context_shards = []
-    if full_est_tokens <= int(cfg["long_context_threshold"]) or args.mode == "full":
+    if True:  # Always prepare full text views; execution budgets, never omission, choose the transport mode.
         full_context_shards = shard_context(
             text_candidates,
             full_context_dir,
@@ -876,10 +922,10 @@ def main() -> int:
     full_archive_path: str | None = None
     focused_archive_path: str | None = None
     if not bool(cfg["skip_archives"]):
-        full_archive_path = zip_selected_files(repo_root, full_paths, out_dir / "full-source.zip")
+        full_archive_path = zip_selected_files(snapshot_root, [snapshot_root / rec.path for _, rec, _ in text_candidates], out_dir / "full-source.zip")
         focused_archive_path = zip_selected_files(
-            repo_root,
-            [path for path, _, _ in focused_candidates],
+            snapshot_root,
+            [snapshot_root / rec.path for _, rec, _ in focused_candidates],
             out_dir / "focused-source.zip",
         )
 
@@ -924,10 +970,17 @@ def main() -> int:
         "selection_report": selection_report,
         "files": [asdict(rec) for rec in sorted(records, key=lambda r: (r.status != "included", r.path))],
     }
-    selection_manifest_path.write_text(json.dumps(selection_manifest_payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    selection_manifest_path.write_text(json.dumps(selection_manifest_payload, indent=2, ensure_ascii=True), encoding="utf-8")
     selection_report_path.write_text(render_selection_report(selection_report, records), encoding="utf-8")
 
     manifest = {
+        "schema_version": SCHEMA_VERSION,
+        "skill_version": "2.0.0",
+        "context_root": str(out_dir),
+        "snapshot_id": snapshot_identity([asdict(r) for r in records]),
+        "request_contract": contract,
+        "blocking_issues": blocking_issues,
+        "enumeration": "git-nul" if git_paths is not None else "manual-unverified-ignore",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "repo_root": str(repo_root),
         "goal": goal,
@@ -969,8 +1022,14 @@ def main() -> int:
         "config": cfg,
     }
 
+    # Artifact digests are context-relative, so archiving never changes their identity.
+    manifest["artifact_digests"] = {
+        path.relative_to(out_dir).as_posix(): sha256_bytes(path.read_bytes())
+        for path in out_dir.rglob("*") if path.is_file() and "snapshot" not in path.relative_to(out_dir).parts
+        and path.name != "manifest.json"
+    }
     manifest_path = out_dir / "manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=True), encoding="utf-8")
 
     summary = {
         "manifest": str(manifest_path),
@@ -978,8 +1037,8 @@ def main() -> int:
         "warnings": warnings,
         "stats": manifest["stats"],
     }
-    print(json.dumps(summary, indent=2, ensure_ascii=False))
-    return 0
+    print(json.dumps(summary, indent=2, ensure_ascii=True))
+    return 1 if blocking_issues else 0
 
 
 if __name__ == "__main__":

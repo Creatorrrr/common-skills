@@ -125,6 +125,8 @@ def _rewrite_json_paths(value: Any, ordered_pairs: list[tuple[str, str]]) -> Any
 def _rewrite_archived_paths(archive_root: Path, replacements: dict[str, str]) -> None:
     ordered_pairs = sorted(replacements.items(), key=lambda item: len(item[0]), reverse=True)
     for path in archive_root.rglob("*"):
+        if path.relative_to(archive_root).parts[0] == "context":
+            continue  # v2 rehydrates pointers; never rewrite source, shard, or manifest bytes.
         if not path.is_file() or path.suffix.lower() not in TEXT_REWRITE_SUFFIXES:
             continue
         if path.name in IMMUTABLE_TEXT_FILES:
@@ -156,6 +158,8 @@ def archive_active_run(analysis_root: Path) -> str | None:
     if not active_dirs:
         return None
 
+    if any((d / ".run.lock").exists() for d in active_dirs.values()):
+        raise ValueError("An active analysis attempt holds a run lock. Do not archive or overwrite it.")
     history_root = analysis_root / "history"
     history_root.mkdir(parents=True, exist_ok=True)
     manifest_path = analysis_root / "context" / "manifest.json"

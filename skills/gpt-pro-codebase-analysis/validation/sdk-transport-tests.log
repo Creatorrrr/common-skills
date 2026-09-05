@@ -1,0 +1,8 @@
+test_direct_count_and_generation_preserve_sdk_payload_for_each_model (test_http_transport.SDKTransportTests.test_direct_count_and_generation_preserve_sdk_payload_for_each_model) ... ok
+test_retrieval_serializes_multipart_expiry_ingestion_and_cleanup (test_http_transport.SDKTransportTests.test_retrieval_serializes_multipart_expiry_ingestion_and_cleanup) ... ok
+test_sdk_http_error_cleans_owned_resources_without_retry (test_http_transport.SDKTransportTests.test_sdk_http_error_cleans_owned_resources_without_retry) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 1.646s
+
+OK

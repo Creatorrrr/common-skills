@@ -29,7 +29,7 @@ class PromptContractTests(unittest.TestCase):
         args = parser.parse_args(["--manifest", "manifest.json"])
 
         self.assertEqual(args.model, "gpt-5.6-sol")
-        self.assertEqual(args.reasoning_mode, "pro")
+        self.assertEqual(args.reasoning_mode, "auto")  # v2 auto still resolves Sol to Pro.
         self.assertEqual(args.reasoning_effort, "high")
         self.assertEqual(
             run_gpt_pro_analysis.build_reasoning_config(args),

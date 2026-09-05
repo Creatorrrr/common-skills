@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
+"""One approved Responses API analysis, with immutable inputs and explicit lifecycle.
+No automatic transport/model fallback, no SDK retries, no repository code execution.
+"""
 from __future__ import annotations
-
 import argparse
 import json
 import os
@@ -13,161 +15,97 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from analysis_contract import render_finding_contract, render_required_output_sections  # noqa: E402
+from analysis_contract import audit_instructions, contract_for, render_request_contract, canonical_hash  # noqa: E402
 from analysis_run import resolve_tool_output_dir  # noqa: E402
+from context_integrity import (read_manifest, verify_manifest, resolve_selection, selected_paths,  # noqa: E402
+    selection_hash, execution_options, validate_approval, write_json, checked_file, NORMALIZATION_VERSION)
+from model_profiles import reasoning_config, enforce_token_budget  # noqa: E402
+from api_resources import normalized_documents, OwnedResources, upload_documents, verify_reused_store  # noqa: E402
+from run_attempt import Attempt  # noqa: E402
+
+DEFAULTS = {
+    "model": "gpt-5.6-sol", "reasoning_mode": "auto", "reasoning_effort": "high",
+    "reasoning_context": "auto", "verbosity": "medium", "background": False, "store": False,
+    "direct_input_max_bytes": 45_000_000, "direct_input_max_files": 200,
+    "file_search_max_num_results": 24, "poll_interval_seconds": 5, "env_file": "",
+}
 
 
 def require_openai() -> Any:
     try:
-        from openai import OpenAI  # type: ignore
-    except ImportError as exc:  # pragma: no cover - runtime guidance
-        raise SystemExit(
-            "The official OpenAI Python SDK is required. Install it with: pip install openai"
-        ) from exc
+        from openai import OpenAI
+    except ImportError as exc:
+        raise RuntimeError("Install the official OpenAI Python SDK in your environment: python -m pip install -U openai") from exc
     return OpenAI
 
 
-DEFAULTS = {
-    "model": "gpt-5.6-sol",
-    "reasoning_mode": "pro",
-    "reasoning_effort": "high",
-    "reasoning_context": "auto",
-    "verbosity": "high",
-    "background": True,
-    "store": True,
-    "direct_input_max_bytes": 45_000_000,
-    "direct_input_max_files": 200,
-    "file_search_max_num_results": 24,
-    "poll_interval_seconds": 5,
-    "env_file": ".env",
-}
-
-
-def load_env_file(path: Path) -> dict[str, str]:
-    loaded: dict[str, str] = {}
-    if not path.exists():
-        return loaded
-
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
+def load_env_file(path: Path) -> None:
+    # Only an explicitly selected trusted env file is read. Never execute shell syntax.
+    if not path.is_file() or path.is_symlink():
+        raise ValueError("Explicit env file is missing or is a symlink.")
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
         if line.startswith("export "):
-            line = line[len("export "):].strip()
-        if "=" not in line:
+            line = line[7:].strip()
+        if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip()
-        if not key:
+        if key.strip() != "OPENAI_API_KEY":
             continue
-        if value and len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
-        if key not in os.environ:
-            os.environ[key] = value
-        loaded[key] = value
-    return loaded
+        os.environ.setdefault("OPENAI_API_KEY", value)
 
 
-def ensure_openai_api_key(env_file: Path) -> str:
-    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    if api_key:
-        return api_key
-    raise SystemExit(
-        "OPENAI_API_KEY is not set. "
-        f"Add it to the current environment or to {env_file} and rerun."
-    )
+def ensure_openai_api_key(env_file: Path | None = None) -> None:
+    if not os.environ.get("OPENAI_API_KEY", "").strip():
+        raise ValueError("OPENAI_API_KEY is not configured. Set it securely outside the repository; never paste it into a prompt.")
 
 
-def load_json(path: Path) -> dict:
-    with path.open("r", encoding="utf-8") as fh:
-        return json.load(fh)
+def load_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
-def save_json(path: Path, data: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as fh:
-        json.dump(data, fh, indent=2, ensure_ascii=False, default=str)
+save_json = write_json
 
 
 def serialize_sdk_object(obj: Any) -> Any:
     if hasattr(obj, "model_dump"):
         return obj.model_dump()
-    if hasattr(obj, "to_dict"):
-        return obj.to_dict()
     if isinstance(obj, dict):
-        return obj
+        return {k: serialize_sdk_object(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
-        return [serialize_sdk_object(item) for item in obj]
-    return str(obj)
+        return [serialize_sdk_object(v) for v in obj]
+    if hasattr(obj, "__dict__"):
+        return serialize_sdk_object(vars(obj))
+    return obj
 
 
 def build_instructions() -> str:
-    sections = render_required_output_sections()
-    finding_fields = render_finding_contract()
-    return "\n".join(
-        [
-            "Act as a senior repository auditor. Produce an evidence-driven engineering analysis of the provided repository context.",
-            "",
-            "Evidence contract:",
-            "- Treat the provided repository files as the only source of truth.",
-            "- Do not make repository-wide claims unless the inspected coverage supports them.",
-            f"- Each finding must contain: {finding_fields}.",
-            "- Cite path:line only when stable line information exists; otherwise cite path and symbol or section. Never invent line numbers.",
-            "- A claim that logic is missing, dead, duplicate, deprecated, or unused must check definitions, callers or wiring, configuration, and relevant tests. Otherwise label it unconfirmed.",
-            "- Put unsupported questions under Unknowns and missing context instead of guessing.",
-            "",
-            "Method:",
-            "1. Map only the modules and runtime boundaries relevant to the goal.",
-            "2. Trace one to three concrete end-to-end workflows that matter to the goal.",
-            "3. Rank the most consequential findings and check each against callers, tests, and configuration.",
-            "4. State which relevant areas were not inspected.",
-            "",
-            "Required output sections unless the user requests another format:",
-            sections,
-        ]
-    )
+    return audit_instructions()
 
 
-def build_user_prompt(
-    goal: str,
-    recommendation: str,
-    warnings: list[str],
-    mode: str,
-    manifest: dict[str, Any] | None = None,
-) -> str:
+def build_user_prompt(goal: str, recommendation: str, warnings: list[str], mode: str,
+                      manifest: dict[str, Any] | None = None) -> str:
     manifest = manifest or {}
-    warning_block = "\n".join(f"- {item}" for item in warnings) if warnings else "- none"
-    if mode == "direct":
-        has_shards = bool(manifest.get("artifacts", {}).get("full_context_shards"))
-        direct_sources = "lossless selected-source context shards" if has_shards else "the complete selected raw-file set"
-        context_block = f"A repository map, selection audit, and {direct_sources} are attached as input_file items."
-    elif mode in {"file_search_full", "focused_file_search"}:
-        context_block = "A repository map is included for orientation and selected raw files are available through file_search. Retrieve entrypoints, wiring, tests, and configuration before making important claims."
-    else:
-        context_block = "Repository context is provided through attachments or retrieval."
+    return "\n".join([
+        render_request_contract(manifest, goal),
+        "Prepared context:",
+        f"- snapshot_id: {manifest.get('snapshot_id', 'not supplied')}",
+        f"- execution mode: {mode}; preparation recommendation: {recommendation}",
+        "- direct mode provides the complete selected normalized source as text.",
+        "- retrieval mode provides every selected source as UTF-8 text fragments; use file_search to inspect concrete evidence.",
+        "- selected/available is not equivalent to inspected/verified.",
+        "- cite original_path and original line numbers from fragment headers, not the generated .txt filename.",
+        "Local warnings:", *["- " + x for x in warnings],
+        "Start with the verdict unless the user's requested format says otherwise.",
+    ])
 
-    stats = manifest.get("stats", {})
-    scope = ", ".join(manifest.get("scope", [])) or "(none provided)"
-    return "\n".join(
-        [
-            "Goal:",
-            goal or "(none provided)",
-            "",
-            "Prepared context:",
-            f"- execution mode: {mode}",
-            f"- local recommendation: {recommendation}",
-            f"- explicit scope: {scope}",
-            f"- selected full files: {stats.get('included_file_count', 'unknown')}",
-            f"- selected focused files: {stats.get('focused_file_count', 'unknown')}",
-            f"- context contract: {context_block}",
-            "",
-            "Local warnings:",
-            warning_block,
-            "",
-            "Start with the verdict. Keep the report concise enough to prioritize action, while preserving evidence and material caveats.",
-        ]
-    )
+
+def build_reasoning_config(args: argparse.Namespace) -> dict[str, str]:
+    return reasoning_config(getattr(args, "model", DEFAULTS["model"]), args.reasoning_mode,
+                            args.reasoning_effort, args.reasoning_context)
 
 
 def compute_pro_poll_interval_seconds(elapsed_seconds: int) -> int:
@@ -180,33 +118,16 @@ def compute_pro_poll_interval_seconds(elapsed_seconds: int) -> int:
     return 15
 
 
-def build_reasoning_config(args: argparse.Namespace) -> dict[str, str]:
-    if args.reasoning_mode == "pro" and args.reasoning_effort in {"none", "low"}:
-        raise ValueError("GPT-5.6 Pro mode requires reasoning effort medium or higher.")
-    config = {
-        "mode": args.reasoning_mode,
-        "effort": args.reasoning_effort,
-    }
-    if args.reasoning_context != "auto":
-        config["context"] = args.reasoning_context
-    return config
-
-
-def poll_response(client: Any, response: Any, interval_seconds: int, reasoning_mode: str) -> Any:
-    poll_started_at = monotonic()
-    use_pro_schedule = reasoning_mode == "pro"
-
+def poll_response(client: Any, response: Any, interval_seconds: int, reasoning_mode: str,
+                  timeout_seconds: float = 7200) -> Any:
+    started = monotonic()
     while getattr(response, "status", None) in {"queued", "in_progress"}:
-        print(f"[info] Response status: {response.status}", file=sys.stderr)
-        if use_pro_schedule:
-            elapsed_seconds = int(max(0, monotonic() - poll_started_at))
-            next_interval = compute_pro_poll_interval_seconds(elapsed_seconds)
-        else:
-            next_interval = interval_seconds
-        sleep(next_interval)
+        elapsed = max(0, monotonic() - started)
+        if elapsed >= timeout_seconds:
+            raise TimeoutError("Response polling timed out. The owned response will be cancelled where possible; no retry.")
+        interval = compute_pro_poll_interval_seconds(int(elapsed)) if reasoning_mode == "pro" else interval_seconds
+        sleep(min(interval, timeout_seconds - elapsed))
         response = client.responses.retrieve(response.id)
-    if getattr(response, "status", None) != "completed":
-        print(f"[warn] Response ended with status={getattr(response, 'status', None)}. Not retrying.", file=sys.stderr)
     return response
 
 
@@ -214,109 +135,10 @@ def completed_output_text(response: Any) -> tuple[str | None, str | None]:
     status = getattr(response, "status", None)
     if status != "completed":
         return None, f"response_status={status or 'unknown'}"
-    output_text = getattr(response, "output_text", None)
-    if not isinstance(output_text, str) or not output_text.strip():
+    text = getattr(response, "output_text", None)
+    if not isinstance(text, str) or not text.strip():
         return None, "completed_response_missing_output_text"
-    return output_text, None
-
-
-def build_run_meta(
-    *,
-    manifest: dict,
-    args: argparse.Namespace,
-    out_dir: Path,
-    mode: str,
-    response: Any,
-    vector_store: Any,
-    exact_input_tokens: int | None,
-    report_path: Path | None,
-    terminal_failure: bool,
-    failure_reason: str | None = None,
-) -> dict[str, Any]:
-    run_meta = {
-        "transport": "responses_api",
-        "run_id": manifest.get("run_id"),
-        "model": args.model,
-        "reasoning_mode": args.reasoning_mode,
-        "reasoning_effort": args.reasoning_effort,
-        "reasoning_context": args.reasoning_context,
-        "mode": mode,
-        "response_id": getattr(response, "id", None),
-        "status": getattr(response, "status", None),
-        "previous_response_id": args.previous_response_id or None,
-        "vector_store_id": getattr(vector_store, "id", None) if vector_store else None,
-        "exact_input_tokens": exact_input_tokens,
-        "direct_input_manifest": str(out_dir / "direct_input_files.json") if mode == "direct" else None,
-        "report_path": str(report_path) if report_path else None,
-        "response_json_path": str(out_dir / "response.json"),
-        "terminal_failure": terminal_failure,
-        "failure_reason": failure_reason,
-    }
-    if terminal_failure:
-        run_meta["no_retry_performed"] = True
-    return run_meta
-
-
-def write_terminal_failure_artifacts(
-    *,
-    out_dir: Path,
-    manifest: dict,
-    args: argparse.Namespace,
-    mode: str,
-    response: Any,
-    response_dict: Any,
-    vector_store: Any = None,
-    exact_input_tokens: int | None = None,
-    failure_reason: str | None = None,
-) -> dict[str, Any]:
-    save_json(out_dir / "response.json", response_dict)
-    report_path = out_dir / "analysis_report.md"
-    if report_path.exists():
-        report_path.unlink()
-    run_meta = build_run_meta(
-        manifest=manifest,
-        args=args,
-        out_dir=out_dir,
-        mode=mode,
-        response=response,
-        vector_store=vector_store,
-        exact_input_tokens=exact_input_tokens,
-        report_path=None,
-        terminal_failure=True,
-        failure_reason=failure_reason,
-    )
-    save_json(out_dir / "run_meta.json", run_meta)
-    return run_meta
-
-
-def write_success_artifacts(
-    *,
-    out_dir: Path,
-    manifest: dict,
-    args: argparse.Namespace,
-    mode: str,
-    response: Any,
-    response_dict: Any,
-    output_text: str,
-    vector_store: Any,
-    exact_input_tokens: int | None,
-) -> dict[str, Any]:
-    save_json(out_dir / "response.json", response_dict)
-    report_path = out_dir / "analysis_report.md"
-    report_path.write_text(output_text, encoding="utf-8")
-    run_meta = build_run_meta(
-        manifest=manifest,
-        args=args,
-        out_dir=out_dir,
-        mode=mode,
-        response=response,
-        vector_store=vector_store,
-        exact_input_tokens=exact_input_tokens,
-        report_path=report_path,
-        terminal_failure=False,
-    )
-    save_json(out_dir / "run_meta.json", run_meta)
-    return run_meta
+    return text, None
 
 
 def select_direct_input_files(
@@ -402,328 +224,252 @@ def select_direct_input_files(
     return selected
 
 
-def upload_user_data_files(client: Any, input_files: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    uploaded = []
-    for item in input_files:
-        path = Path(item["path"])
-        print(f"[info] Uploading direct input file: {item['logical_path']}", file=sys.stderr)
-        with path.open("rb") as fh:
-            file_obj = client.files.create(file=fh, purpose="user_data")
-        uploaded.append({
-            **item,
-            "file_id": file_obj.id,
-        })
-    return uploaded
 
-
-def upload_vector_store_files(client: Any, vector_store_name: str, root: Path, rel_paths: list[str]) -> tuple[Any, list[dict]]:
-    vector_store = client.vector_stores.create(name=vector_store_name)
-    uploaded_meta: list[dict] = []
-
-    for rel_path in rel_paths:
-        abs_path = root / rel_path
-        if not abs_path.exists():
-            print(f"[warn] Skipping missing file during vector-store upload: {rel_path}", file=sys.stderr)
-            continue
-        print(f"[info] Uploading file-search source: {rel_path}", file=sys.stderr)
-        with abs_path.open("rb") as fh:
-            file_obj = client.files.create(file=fh, purpose="assistants")
-        client.vector_stores.files.create(vector_store_id=vector_store.id, file_id=file_obj.id)
-        uploaded_meta.append({"path": rel_path, "file_id": file_obj.id})
-
-    if not uploaded_meta:
-        raise RuntimeError("No files were uploaded to the vector store.")
-
-    # Poll every uploaded file explicitly so pagination cannot hide a failed or
-    # still-ingesting item. Retrieval runs must never proceed with a partial store.
-    while True:
-        statuses: dict[str, str | None] = {}
-        for item in uploaded_meta:
-            vector_file = client.vector_stores.files.retrieve(
-                vector_store_id=vector_store.id,
-                file_id=item["file_id"],
-            )
-            statuses[item["path"]] = getattr(vector_file, "status", None)
-        if not any(status in {"in_progress", "queued"} for status in statuses.values()):
-            break
-        print(f"[info] Waiting for vector-store ingestion: {statuses}", file=sys.stderr)
-        sleep(3)
-
-    failed = {path: status for path, status in statuses.items() if status != "completed"}
-    if failed:
-        sample = ", ".join(f"{path}={status}" for path, status in list(failed.items())[:20])
-        raise RuntimeError(f"Vector-store ingestion was incomplete; refusing a partial analysis: {sample}")
-
-    return vector_store, uploaded_meta
-
-
-def estimate_exact_tokens(client: Any, model: str, instructions: str, input_files: list[dict[str, Any]], user_prompt: str) -> int | None:
-    if not input_files:
-        return None
-    content_parts = []
-    for item in input_files:
-        path = Path(item["path"])
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError as exc:  # pragma: no cover - runtime variability
-            print(f"[warn] Skipping token count for unreadable file {item['logical_path']}: {exc}", file=sys.stderr)
-            continue
-        content_parts.append({
-            "type": "input_text",
-            "text": "\n".join(
-                [
-                    f"===== BEGIN FILE: {item['logical_path']} =====",
-                    text,
-                    f"===== END FILE: {item['logical_path']} =====",
-                ]
-            ),
-        })
-    content_parts.append({"type": "input_text", "text": user_prompt})
+def upload_vector_store_files(client: Any, vector_store_name: str, root: Path,
+                              rel_paths: list[str]) -> tuple[Any, list[dict[str, Any]]]:
+    """Compatibility helper. Production main always supplies preverified snapshot bytes.
+    Prevalidate ALL paths before creating even one external resource.
+    """
+    contents = {p: checked_file(root, p).read_bytes() for p in rel_paths}
+    documents = normalized_documents(contents, rel_paths)
+    owned = OwnedResources(client)
     try:
-        result = client.responses.input_tokens.count(
-            model=model,
-            instructions=instructions,
-            input=[{"role": "user", "content": content_parts}],
-        )
-        return int(result.input_tokens)
-    except Exception as exc:  # pragma: no cover - SDK/network variability
-        print(f"[warn] Exact token counting failed, continuing without it: {exc}", file=sys.stderr)
-        return None
+        return upload_documents(client, vector_store_name, documents, owned=owned,
+                                snapshot_id=canonical_hash({p: d.hex() for p, d in contents.items()}),
+                                selection_hash=canonical_hash(sorted(rel_paths)))
+    except BaseException:
+        owned.cleanup()
+        raise
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run repository analysis through the Responses API. This script does not drive ChatGPT Web and does not auto-fallback to another transport.")
-    parser.add_argument("--manifest", required=True, help="Path to manifest.json produced by prepare_analysis_context.py")
-    parser.add_argument("--goal", default="", help="Analysis goal.")
-    parser.add_argument("--env-file", default=DEFAULTS["env_file"], help="Environment file to load before constructing the OpenAI client.")
-    parser.add_argument(
-        "--mode",
-        choices=["auto", "direct", "file_search_full", "focused_file_search"],
-        default="auto",
-        help="Execution mode. 'auto' follows the manifest recommendation.",
-    )
-    parser.add_argument("--model", default=DEFAULTS["model"], help="OpenAI model id.")
-    parser.add_argument("--reasoning-mode", choices=["standard", "pro"], default=DEFAULTS["reasoning_mode"])
-    parser.add_argument(
-        "--reasoning-effort",
-        choices=["none", "low", "medium", "high", "xhigh", "max"],
-        default=DEFAULTS["reasoning_effort"],
-    )
-    parser.add_argument(
-        "--reasoning-context",
-        choices=["auto", "current_turn", "all_turns"],
-        default=DEFAULTS["reasoning_context"],
-        help="Persisted reasoning policy. Use all_turns only when the prior response keeps the same goal and assumptions.",
-    )
-    parser.add_argument("--verbosity", choices=["low", "medium", "high"], default=DEFAULTS["verbosity"])
-    parser.add_argument("--background", dest="background", action="store_true", default=DEFAULTS["background"])
-    parser.add_argument("--no-background", dest="background", action="store_false")
-    parser.add_argument("--store", dest="store", action="store_true", default=DEFAULTS["store"])
-    parser.add_argument("--no-store", dest="store", action="store_false")
-    parser.add_argument("--poll-interval-seconds", type=int, default=DEFAULTS["poll_interval_seconds"])
-    parser.add_argument("--file-search-max-num-results", type=int, default=DEFAULTS["file_search_max_num_results"])
-    parser.add_argument("--previous-response-id", default="", help="Optional previous response id for follow-up design work.")
-    parser.add_argument("--vector-store-id", default="", help="Reuse an existing vector store instead of uploading again.")
-    parser.add_argument("--out-dir", default=".codex-analysis/gpt-pro", help="Directory where reports and metadata are stored.")
-    return parser
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--manifest", required=True)
+    p.add_argument("--goal", default="", help="Must equal the prepared contract; reprepare when the request changes.")
+    p.add_argument("--mode", choices=["auto", "direct", "file_search_full", "focused_file_search"], default="auto")
+    p.add_argument("--model", default=DEFAULTS["model"])
+    p.add_argument("--reasoning-mode", choices=["auto", "standard", "pro"], default=DEFAULTS["reasoning_mode"])
+    p.add_argument("--reasoning-effort", choices=["none", "low", "medium", "high", "xhigh", "max"], default="high")
+    p.add_argument("--reasoning-context", choices=["auto", "current_turn", "all_turns"], default="auto")
+    p.add_argument("--verbosity", choices=["low", "medium", "high"], default="medium")
+    p.add_argument("--background", action=argparse.BooleanOptionalAction, default=False)
+    p.add_argument("--store", action=argparse.BooleanOptionalAction, default=False)
+    p.add_argument("--resource-retention", choices=["delete", "retain"], default="delete")
+    p.add_argument("--expires-days", type=int, default=1, help="1..30; applies to newly created file/store fallback expiration.")
+    p.add_argument("--max-output-tokens", type=int, default=32000)
+    p.add_argument("--max-tool-calls", type=int, default=12)
+    p.add_argument("--file-search-max-num-results", type=int, default=24)
+    p.add_argument("--poll-interval-seconds", type=int, default=5)
+    p.add_argument("--timeout-seconds", type=float, default=7200)
+    p.add_argument("--ingestion-timeout-seconds", type=float, default=1800)
+    p.add_argument("--env-file", default="", help="Optional explicitly trusted env file; never loaded automatically.")
+    p.add_argument("--approval", help="Snapshot-bound approval JSON recorded after the user authorizes transmission.")
+    p.add_argument("--dry-run", action="store_true", help="Local validation only; no SDK, credentials, uploads, or token-count API calls.")
+    p.add_argument("--previous-response-id", default="")
+    p.add_argument("--previous-run-meta", default="")
+    p.add_argument("--vector-store-id", default="")
+    p.add_argument("--reuse-receipt", default="")
+    p.add_argument("--out-dir", default=".codex-analysis/gpt-pro")
+    return p
+
+
+def resolve_run(args: argparse.Namespace, manifest: dict[str, Any]) -> tuple[str, str]:
+    contract_for(manifest, args.goal)
+    args.resolved_reasoning = build_reasoning_config(args)
+    mode = args.mode
+    if mode == "auto":
+        mode = manifest.get("mode_recommendation", "direct")
+    if mode == "direct_warn":
+        mode = "direct"
+    key = resolve_selection(manifest, mode)
+    args.resolved_mode = mode
+    if not 1 <= args.expires_days <= 30:
+        raise ValueError("expires-days must be between 1 and 30.")
+    if args.timeout_seconds <= 0 or args.ingestion_timeout_seconds <= 0 or args.poll_interval_seconds <= 0:
+        raise ValueError("Timeout and polling values must be positive.")
+    if not 1 <= args.file_search_max_num_results <= 50 or args.max_tool_calls < 1:
+        raise ValueError("Invalid file-search result or tool-call budget.")
+    enforce_token_budget(args.model, 0, args.max_output_tokens)
+    if args.previous_response_id:
+        if not args.previous_run_meta:
+            raise ValueError("previous-response-id requires --previous-run-meta for identity/retention checks.")
+        prior = load_json(Path(args.previous_run_meta))
+        if (prior.get("response_id") != args.previous_response_id or prior.get("snapshot_id") != manifest["snapshot_id"]
+            or prior.get("model") != args.model or prior.get("response_status") != "completed"
+            or prior.get("contract_hash") != canonical_hash(contract_for(manifest))
+            or prior.get("selection_hash") != selection_hash(manifest, key)
+            or prior.get("execution_options", {}).get("store") is not True):
+            raise ValueError("Previous response is not a stored, completed response for the same snapshot, selection, contract and model.")
+    if args.vector_store_id and (mode == "direct" or not args.reuse_receipt):
+        raise ValueError("Vector-store reuse requires retrieval mode and a matching --reuse-receipt.")
+    return mode, key
+
+
+def request_token_count(client: Any, request: dict[str, Any]) -> int:
+    fields = ("model", "instructions", "input", "tools", "previous_response_id", "reasoning")
+    result = client.responses.input_tokens.count(**{k: request[k] for k in fields if k in request})
+    count = getattr(result, "input_tokens", None)
+    if isinstance(count, bool) or not isinstance(count, int):
+        raise ValueError("Token count API returned no usable count. Submission refused.")
+    return count
+
+
+def coverage_ledger(manifest: dict[str, Any], key: str, mode: str, response: Any,
+                    uploads: list[dict[str, Any]]) -> dict[str, Any]:
+    data = serialize_sdk_object(response)
+    returned_ids: set[str] = set()
+    for item in data.get("output", []):
+        if item.get("type") == "file_search_call":
+            for result in item.get("results") or []:
+                if result.get("file_id"):
+                    returned_ids.add(result["file_id"])
+    returned_paths = sorted({u["path"] for u in uploads if u["file_id"] in returned_ids})
+    return {"snapshot_id": manifest["snapshot_id"], "available_files": selected_paths(manifest, key),
+            "selection": key, "input_mode": mode, "search_returned_files": returned_paths,
+            "returned_is_not_inspected": True, "analysis_validation": "pending",
+            "local_verification": "pending", "verification_notes": []}
+
+
+def execute(args: argparse.Namespace, client_factory: Any = None) -> int:
+    manifest_path = Path(args.manifest).resolve()
+    try:
+        manifest = read_manifest(manifest_path)
+    except Exception:
+        # Even an unreadable manifest must not leave a stale active success in the requested output.
+        with Attempt(Path(args.out_dir).resolve(), {"transport": "responses_api", "manifest": str(manifest_path)}):
+            raise
+    out_dir = resolve_tool_output_dir(manifest_path=manifest_path, manifest=manifest, tool_name="gpt-pro",
+        requested_out_dir=Path(args.out_dir), default_out_dir=Path(".codex-analysis/gpt-pro"))
+    base = {"transport": "responses_api", "run_id": manifest.get("run_id"),
+            "snapshot_id": manifest.get("snapshot_id"), "model": args.model}
+    with Attempt(out_dir, base) as attempt:
+        contents = verify_manifest(manifest)
+        mode, key = resolve_run(args, manifest)
+        options = execution_options(args)
+        attempt.meta.update(mode=mode, selection=key, input_validation="passed", execution_options=options,
+                            contract_hash=canonical_hash(contract_for(manifest)), selection_hash=selection_hash(manifest, key))
+        attempt.save()
+        paths = selected_paths(manifest, key)
+        documents = normalized_documents(contents, paths)
+        summary = {"binding": {"snapshot_id": manifest["snapshot_id"], "selection_hash": selection_hash(manifest, key)},
+                   "execution_options": options, "selected_file_count": len(paths),
+                   "normalized_document_count": len(documents), "warnings": manifest.get("warnings", []),
+                   "network_calls_performed": False,
+                   "retention_notice": "store=false is not Zero Data Retention; files, vector stores, background polling, and provider safety retention are distinct."}
+        write_json(out_dir / "request_summary.json", summary)
+        if args.dry_run:
+            attempt.meta.update(status="dry_run_completed", analysis_validation="not_run", local_verification="not_run")
+            attempt.save()
+            print(json.dumps(attempt.meta, indent=2))
+            return 0
+        if not args.approval:
+            raise ValueError("--approval is required before any network or token-count request. Record actual user authorization first.")
+        approval = load_json(Path(args.approval))
+        validate_approval(approval, manifest, key, "responses_api", options)
+        write_json(out_dir / "approval_used.json", approval)
+        if args.env_file:
+            load_env_file(Path(args.env_file).expanduser().resolve())
+        ensure_openai_api_key()
+        factory = client_factory or require_openai()
+        client = factory(base_url="https://api.openai.com/v1", max_retries=0, timeout=args.timeout_seconds)
+        summary["network_calls_performed"] = True
+        save_json(out_dir / "request_summary.json", summary)
+        owned = OwnedResources(client, out_dir / "owned_resources.json")
+        response = None
+        uploads: list[dict[str, Any]] = []
+        normal_success = False
+        try:
+            instructions = build_instructions()
+            prompt = build_user_prompt(args.goal or manifest["goal"], manifest["mode_recommendation"], manifest.get("warnings", []), mode, manifest)
+            request: dict[str, Any] = {
+                "model": args.model, "instructions": instructions,
+                "reasoning": args.resolved_reasoning, "text": {"verbosity": args.verbosity},
+                "store": args.store, "background": args.background,
+                "max_output_tokens": args.max_output_tokens, "truncation": "disabled",
+            }
+            if args.previous_response_id:
+                request["previous_response_id"] = args.previous_response_id
+            if mode == "direct":
+                payload = "\n".join(d["data"].decode("utf-8") for d in documents)
+                if len(payload.encode("utf-8")) > DEFAULTS["direct_input_max_bytes"]:
+                    raise ValueError("Complete direct text exceeds the local byte budget; choose full retrieval explicitly.")
+                request["input"] = [{"role": "user", "content": [
+                    {"type": "input_text", "text": payload}, {"type": "input_text", "text": prompt}]}]
+            else:
+                digest = selection_hash(manifest, key)
+                if args.vector_store_id:
+                    receipt = load_json(Path(args.reuse_receipt))
+                    vs = verify_reused_store(client, args.vector_store_id, receipt, documents, manifest["snapshot_id"], digest)
+                    uploads = receipt["files"]
+                else:
+                    vs, uploads = upload_documents(client, f"codebase-{manifest['run_id']}-{key}", documents,
+                        owned=owned, snapshot_id=manifest["snapshot_id"], selection_hash=digest,
+                        expires_days=args.expires_days, timeout_seconds=args.ingestion_timeout_seconds)
+                receipt = {"vector_store_id": vs.id, "binding": {"snapshot_id": manifest["snapshot_id"],
+                           "selection_hash": digest, "normalization": NORMALIZATION_VERSION}, "files": uploads}
+                write_json(out_dir / "vector_store_uploads.json", receipt)
+                attempt.meta["vector_store_id"] = vs.id
+                request["input"] = [{"role": "user", "content": [
+                    {"type": "input_text", "text": "Selected repository map (orientation only):\n" + json.dumps(paths, ensure_ascii=True)},
+                    {"type": "input_text", "text": prompt}]}]
+                request["tools"] = [{"type": "file_search", "vector_store_ids": [vs.id],
+                                     "max_num_results": args.file_search_max_num_results}]
+                request["include"] = ["file_search_call.results"]
+                request["max_tool_calls"] = args.max_tool_calls
+            count = request_token_count(client, request)
+            # Retrieval adds dynamic context after this initial request. Reserve a conservative
+            # operational margin, not an assertion about all future server-side token usage.
+            retrieval_reserve = 0 if mode == "direct" else args.max_tool_calls * args.file_search_max_num_results * 1312
+            report = enforce_token_budget(args.model, count, args.max_output_tokens, 8192 + retrieval_reserve)
+            report["dynamic_retrieval_reserve"] = retrieval_reserve
+            report["count_scope"] = "initial request including attached input text and prior response when used"
+            write_json(out_dir / "token_report.json", report)
+            attempt.meta.update(status="request_in_flight", exact_input_tokens=count)
+            attempt.save()
+            response = client.responses.create(**request)
+            owned.response_id = response.id
+            owned.flush()
+            attempt.meta.update(response_id=response.id, response_status=response.status)
+            attempt.save()
+            if response.status in {"queued", "in_progress"}:
+                response = poll_response(client, response, args.poll_interval_seconds,
+                                         args.resolved_reasoning.get("mode", "native"), args.timeout_seconds)
+            write_json(out_dir / "response.json", serialize_sdk_object(response))
+            attempt.meta["response_status"] = getattr(response, "status", None)
+            output, reason = completed_output_text(response)
+            if reason:
+                raise ValueError(reason)
+            (out_dir / "analysis_report.md").write_text(output, encoding="utf-8")
+            write_json(out_dir / "coverage_ledger.json", coverage_ledger(manifest, key, mode, response, uploads))
+            attempt.meta.update(status="response_completed", report_path=str(out_dir / "analysis_report.md"),
+                                analysis_validation="pending", local_verification="pending")
+            normal_success = True
+        finally:
+            if response is not None and getattr(response, "status", None) in {"queued", "in_progress"}:
+                try:
+                    cancelled = client.responses.cancel(response.id)
+                    attempt.meta["cancellation_status"] = getattr(cancelled, "status", "unknown")
+                except Exception as exc:
+                    attempt.meta["cancellation_status"] = "unconfirmed"
+                    attempt.meta["cancellation_error_type"] = type(exc).__name__
+            cleanup = owned.cleanup(retain=normal_success and args.resource_retention == "retain")
+            write_json(out_dir / "cleanup_report.json", cleanup)
+            attempt.meta["cleanup_status"] = cleanup["status"]
+            if cleanup["status"] == "incomplete":
+                attempt.meta["status"] = "response_completed_cleanup_incomplete" if normal_success else "failed_cleanup_incomplete"
+            attempt.save()
+        print(json.dumps(attempt.meta, indent=2))
+        return 2 if attempt.meta["cleanup_status"] == "incomplete" else 0
 
 
 def main() -> int:
-    parser = build_parser()
-    args = parser.parse_args()
-
-    env_file = Path(args.env_file).resolve()
-    load_env_file(env_file)
-    ensure_openai_api_key(env_file)
-
-    manifest_path = Path(args.manifest).resolve()
-    manifest = load_json(manifest_path)
-    repo_root = Path(manifest["repo_root"]).resolve()
-    requested_out_dir = Path(args.out_dir).resolve()
-    out_dir = resolve_tool_output_dir(
-        manifest_path=manifest_path,
-        manifest=manifest,
-        tool_name="gpt-pro",
-        requested_out_dir=requested_out_dir,
-        default_out_dir=Path(".codex-analysis/gpt-pro"),
-    )
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    goal = args.goal.strip() or manifest.get("goal", "")
-    recommendation = manifest.get("mode_recommendation", "direct")
-    warnings = list(manifest.get("warnings", []))
-
-    mode = args.mode
-    if mode == "auto":
-        if recommendation == "direct_warn":
-            mode = "direct"
-        else:
-            mode = recommendation
-
-    OpenAI = require_openai()
-    client = OpenAI()
-
-    instructions = build_instructions()
-    user_prompt = build_user_prompt(goal, recommendation, warnings, mode, manifest)
+    args = build_parser().parse_args()
     try:
-        reasoning = build_reasoning_config(args)
-    except ValueError as exc:
-        raise SystemExit(str(exc)) from exc
-
-    exact_input_tokens = None
-    response = None
-    vector_store = None
-    uploaded_meta: list[dict] = []
-
-    if mode == "direct":
-        try:
-            direct_input_files = select_direct_input_files(
-                manifest,
-                repo_root,
-                preferred_key="full",
-                max_total_bytes=DEFAULTS["direct_input_max_bytes"],
-                max_files=DEFAULTS["direct_input_max_files"],
-            )
-        except ValueError as exc:
-            raise SystemExit(str(exc)) from exc
-        if not direct_input_files:
-            raise SystemExit("No direct input files were found in the manifest.")
-
-        exact_input_tokens = estimate_exact_tokens(
-            client,
-            args.model,
-            instructions,
-            direct_input_files,
-            user_prompt,
-        )
-        if exact_input_tokens is not None:
-            token_report = {
-                "exact_input_tokens": exact_input_tokens,
-                "preferred_direct_threshold": manifest.get("config", {}).get("direct_token_threshold"),
-                "long_context_threshold": manifest.get("config", {}).get("long_context_threshold"),
-            }
-            save_json(out_dir / "token_report.json", token_report)
-            print(json.dumps(token_report, indent=2, ensure_ascii=False), file=sys.stderr)
-
-        uploaded = upload_user_data_files(client, direct_input_files)
-        save_json(
-            out_dir / "direct_input_files.json",
-            {
-                "files": [
-                    {
-                        "logical_path": item["logical_path"],
-                        "path": item["path"],
-                        "size": item["size"],
-                        "file_id": item["file_id"],
-                    }
-                    for item in uploaded
-                ]
-            },
-        )
-        content = [{"type": "input_file", "file_id": item["file_id"]} for item in uploaded]
-        content.append({"type": "input_text", "text": user_prompt})
-
-        request = {
-            "model": args.model,
-            "instructions": instructions,
-            "input": [{"role": "user", "content": content}],
-            "reasoning": reasoning,
-            "text": {"verbosity": args.verbosity},
-            "background": args.background,
-            "store": args.store,
-        }
-        if args.previous_response_id:
-            request["previous_response_id"] = args.previous_response_id
-        response = client.responses.create(**request)
-
-    elif mode in {"file_search_full", "focused_file_search"}:
-        if args.vector_store_id:
-            class ReusedVS:
-                def __init__(self, vs_id: str) -> None:
-                    self.id = vs_id
-            vector_store = ReusedVS(args.vector_store_id)
-        else:
-            rel_paths = manifest["selections"]["full_files" if mode == "file_search_full" else "focused_files"]
-            vector_store_name = f"gpt-pro-analysis-{repo_root.name}-{mode}"
-            vector_store, uploaded_meta = upload_vector_store_files(client, vector_store_name, repo_root, rel_paths)
-            save_json(out_dir / "vector_store_uploads.json", {"vector_store_id": vector_store.id, "files": uploaded_meta})
-
-        repo_tree_path = Path(manifest["artifacts"]["repo_tree"])
-        repo_tree = repo_tree_path.read_text(encoding="utf-8") if repo_tree_path.exists() else ""
-        seed_summary = "\n".join(
-            [
-                "Repository map:",
-                repo_tree[:20000],
-                "",
-                "Use file_search to retrieve the concrete files needed for the analysis.",
-                "Prefer the repo map for orientation, not as your only evidence.",
-            ]
-        )
-
-        request = {
-            "model": args.model,
-            "instructions": instructions,
-            "input": [{
-                "role": "user",
-                "content": [
-                    {"type": "input_text", "text": seed_summary},
-                    {"type": "input_text", "text": user_prompt},
-                ],
-            }],
-            "tools": [{
-                "type": "file_search",
-                "vector_store_ids": [vector_store.id],
-                "max_num_results": args.file_search_max_num_results,
-            }],
-            "include": ["file_search_call.results"],
-            "reasoning": reasoning,
-            "text": {"verbosity": args.verbosity},
-            "background": args.background,
-            "store": args.store,
-        }
-        if args.previous_response_id:
-            request["previous_response_id"] = args.previous_response_id
-        response = client.responses.create(**request)
-
-    else:
-        raise SystemExit(f"Unsupported mode: {mode}")
-
-    if args.background:
-        response = poll_response(client, response, args.poll_interval_seconds, args.reasoning_mode)
-
-    response_dict = serialize_sdk_object(response)
-    output_text, failure_reason = completed_output_text(response)
-    if failure_reason:
-        print(f"[warn] Response did not produce a completed report ({failure_reason}). Saving failure artifacts and exiting non-zero.", file=sys.stderr)
-        run_meta = write_terminal_failure_artifacts(
-            out_dir=out_dir,
-            manifest=manifest,
-            args=args,
-            mode=mode,
-            response=response,
-            response_dict=response_dict,
-            vector_store=vector_store,
-            exact_input_tokens=exact_input_tokens,
-            failure_reason=failure_reason,
-        )
-        print(json.dumps(run_meta, indent=2, ensure_ascii=False))
-        return 1
-
-    assert output_text is not None
-    run_meta = write_success_artifacts(
-        out_dir=out_dir,
-        manifest=manifest,
-        args=args,
-        mode=mode,
-        response=response,
-        response_dict=response_dict,
-        output_text=output_text,
-        vector_store=vector_store,
-        exact_input_tokens=exact_input_tokens,
-    )
-
-    print(json.dumps(run_meta, indent=2, ensure_ascii=False))
-    return 0
+        return execute(args)
+    except (Exception, KeyboardInterrupt) as exc:
+        safe = str(exc) if isinstance(exc, (ValueError, TimeoutError)) else type(exc).__name__
+        print(f"[error] {safe}", file=sys.stderr)
+        return 130 if isinstance(exc, KeyboardInterrupt) else 1
 
 
 if __name__ == "__main__":

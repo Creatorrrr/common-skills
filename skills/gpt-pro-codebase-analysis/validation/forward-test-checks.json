@@ -1,0 +1,80 @@
+{
+  "scope": "One independent offline forward-test with one synthetic Git repository; no model execution or bundled test suite.",
+  "artifact_root": "/private/var/folders/4x/l_6vrtjj4rsbvgmq7t6tfgsh0000gn/T/gpt-pro-offline-forward-mg2x6_f4",
+  "run_id": "20260905T062454Z-0aa0a3",
+  "snapshot_id": "bf38a4ea02d3b67e9d69a2e22641835d4dba8108927285278331073d8239b1ac",
+  "selected_files": [
+    ".gitignore",
+    "README.md",
+    "pyproject.toml",
+    "tests/test_payments.py",
+    "결제.py"
+  ],
+  "archive": {
+    "path": "/private/var/folders/4x/l_6vrtjj4rsbvgmq7t6tfgsh0000gn/T/gpt-pro-offline-forward-mg2x6_f4/chatgpt-web/handoff/upload-source.zip",
+    "bytes": 3647,
+    "sha256": "aee62b9f493623cd67869f9e503808ce198e4151211019fde3cae7985f526095",
+    "members": [
+      "결제.py",
+      "pyproject.toml",
+      "README.md",
+      ".gitignore",
+      "tests/test_payments.py",
+      "__analysis_context__/selection-manifest.json",
+      "__analysis_context__/selection-report.md",
+      "__analysis_context__/repo_tree.txt"
+    ]
+  },
+  "checks": {
+    "selected_set_exact": true,
+    "source_byte_matches": {
+      ".gitignore": true,
+      "pyproject.toml": true,
+      "결제.py": true,
+      "tests/test_payments.py": true,
+      "README.md": true
+    },
+    "snapshot_hash_matches": {
+      ".gitignore": true,
+      "pyproject.toml": true,
+      "결제.py": true,
+      "tests/test_payments.py": true,
+      "README.md": true
+    },
+    "zip_no_duplicate_entries": true,
+    "zip_source_plus_three_public_metadata": true,
+    "korean_path_preserved": true,
+    "ignored_dummy_not_packaged": true,
+    "ignored_dummy_not_read_by_helpers": true,
+    "repo_root_absent_from_public_metadata": true,
+    "korean_three_item_output_contract_preserved": true,
+    "api_exit_zero": true,
+    "api_dry_run_completed": true,
+    "api_analysis_not_run": true,
+    "api_network_false": true,
+    "web_exit_zero": true,
+    "web_prepared_without_upload": true,
+    "web_no_browser_or_accessible_copy": true,
+    "web_no_approval_record_validated": true,
+    "api_web_snapshot_selection_contract_match": true,
+    "archive_sha_matches_metadata": true,
+    "fixture_bytes_unchanged": true,
+    "no_forbidden_actions_attempted_under_python_audit_guard": true,
+    "no_analysis_report_created": true
+  },
+  "runtime_blockers": [],
+  "preparation_warnings": [
+    "Filename and pattern filters are heuristic, not proof that the repository is free of secrets."
+  ],
+  "observations": [
+    "The Git ignored fixture is outside enumeration, so selection-report skipped_file_count is zero even though .local/settings.json exists.",
+    "The common request contract preserves current-phase local-only constraints and preparation acceptance criteria verbatim in the future Web prompt. This invocation made no claim that a later model would interpret them as an exception-handling audit. The authoring choice is not isolated from skill guidance in this observation.",
+    "SKILL.md description excludes cases where external transmission is prohibited, while the body and helpers support this explicitly requested offline preparation. Explicit invocation was used; automatic discovery behavior was not tested."
+  ],
+  "limits": [
+    "No model report was generated or evaluated.",
+    "Repository tests were prepared as audit input but not executed.",
+    "The audit hook covers helper Python network/SDK/credential attempts; Git subprocesses were restricted to read-only enumeration.",
+    "No skill or current repository files were intentionally modified; all fixture, reports and outputs reside in the isolated temporary root."
+  ]
+}

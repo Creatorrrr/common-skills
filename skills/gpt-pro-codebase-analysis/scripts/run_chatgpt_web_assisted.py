@@ -16,8 +16,10 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from analysis_contract import render_finding_contract, render_required_output_sections  # noqa: E402
+from analysis_contract import render_request_contract, contract_for, audit_instructions  # noqa: E402
 from analysis_run import resolve_tool_output_dir  # noqa: E402
+from context_integrity import read_manifest, verify_manifest, resolve_selection, validate_approval, binding, write_json  # noqa: E402
+from run_attempt import Attempt  # noqa: E402
 
 
 DEFAULTS = {
@@ -228,8 +230,11 @@ def validate_selected_members(archive_path: Path, rel_paths: list[str]) -> tuple
         return "missing_archive", 0, rel_paths
     names = zip_member_names(archive_path)
     missing = sorted(set(rel_paths) - set(names))
-    status = "ok" if not missing else "missing_selected_files"
-    return status, len(names), missing
+    extra = sorted(set(names) - set(rel_paths))
+    duplicate = len(names) != len(set(names))
+    reasons = missing + ["unexpected:" + x for x in extra] + (["duplicate-archive-member"] if duplicate else [])
+    status = "ok" if not reasons else "selection_mismatch"
+    return status, len(names), reasons
 
 
 def context_artifacts_for_upload(manifest: dict) -> list[tuple[Path, str]]:
@@ -275,28 +280,25 @@ def create_minimal_selection_report(manifest: dict, target: Path) -> Path:
     return target
 
 
-def ensure_context_artifacts(manifest: dict, handoff_dir: Path) -> list[tuple[Path, str]]:
-    artifacts = context_artifacts_for_upload(manifest)
-    arcnames = {arcname for _, arcname in artifacts}
-    if "__analysis_context__/selection-manifest.json" not in arcnames:
-        artifacts.append(
-            (
-                create_minimal_selection_manifest(manifest, handoff_dir / "selection-manifest.json"),
-                "__analysis_context__/selection-manifest.json",
-            )
-        )
-    if "__analysis_context__/selection-report.md" not in arcnames:
-        artifacts.append(
-            (
-                create_minimal_selection_report(manifest, handoff_dir / "selection-report.md"),
-                "__analysis_context__/selection-report.md",
-            )
-        )
-    if "__analysis_context__/repo_tree.txt" not in arcnames and manifest.get("artifacts", {}).get("repo_tree"):
-        repo_tree = Path(manifest["artifacts"]["repo_tree"])
-        if repo_tree.exists():
-            artifacts.append((repo_tree, "__analysis_context__/repo_tree.txt"))
-    return artifacts
+def ensure_context_artifacts(manifest: dict, handoff_dir: Path, rel_paths: list[str] | None = None) -> list[tuple[Path, str]]:
+    selected = rel_paths if rel_paths is not None else manifest["selections"]["full_files"]
+    records = {r["path"]: r for r in manifest["files"] if r["status"] == "included"}
+    payload = {
+        "snapshot_id": manifest["snapshot_id"], "request_contract": contract_for(manifest),
+        "selected_files": [{"path": p, "sha256": records[p]["sha256"], "size": records[p]["size"]} for p in selected],
+        "coverage_note": "Only these selected source files are supplied. Available does not mean inspected.",
+        "excluded_count": sum(r["status"] != "included" for r in manifest["files"]),
+    }
+    target = handoff_dir / "selection-manifest.json"
+    write_json(target, payload)
+    report = handoff_dir / "selection-report.md"
+    report.write_text("# Selected snapshot\n\n" + f"Snapshot: {manifest['snapshot_id']}\nSelected files: {len(selected)}\n" +
+                      "Excluded file names and internal path/secret-scan details remain local.\n", encoding="utf-8")
+    tree = handoff_dir / "repo_tree.txt"
+    tree.write_text("\n".join(sorted(selected)) + "\n", encoding="utf-8")
+    return [(target, "__analysis_context__/selection-manifest.json"),
+            (report, "__analysis_context__/selection-report.md"),
+            (tree, "__analysis_context__/repo_tree.txt")]
 
 
 def copy_archive_with_context(source: Path, output: Path, context_artifacts: list[tuple[Path, str]]) -> Path:
@@ -397,47 +399,12 @@ def build_selection(manifest: dict, root: Path, out_dir: Path, key: str, max_fil
 
 
 def choose_selection(manifest: dict, root: Path, out_dir: Path, selection_mode: str, max_file_bytes: int) -> tuple[Selection, list[str]]:
-    full = build_selection(manifest, root, out_dir, "full", max_file_bytes)
-    focused = build_selection(manifest, root, out_dir, "focused", max_file_bytes)
-    recommendation = str(manifest.get("mode_recommendation") or "")
-    notes: list[str] = []
-
-    if selection_mode == "full":
-        if not full.is_valid_for_chatgpt_upload:
-            reasons = " ".join(full.invalid_reasons) or "The full archive is unavailable."
-            raise SystemExit(
-                f"Full selection was explicitly requested, but it is not usable for ChatGPT Web upload. {reasons} Narrow the scope or choose responses_api explicitly."
-            )
-        return full, notes
-
-    if selection_mode == "focused":
-        if not focused.is_valid_for_chatgpt_upload:
-            reasons = " ".join(focused.invalid_reasons) or "The focused archive is unavailable."
-            raise SystemExit(
-                f"Focused selection was explicitly requested, but it is not usable for ChatGPT Web upload. {reasons} Narrow the scope or choose responses_api explicitly."
-            )
-        return focused, notes
-
-    # auto: keep full-first behavior unless the local preparation step strongly points to focused,
-    # or the full archive is not uploadable within ChatGPT's file limit.
-    if recommendation == "focused_file_search" and focused.is_valid_for_chatgpt_upload:
-        notes.append("Auto selection chose the focused archive because the local preparation step recommended focused analysis.")
-        return focused, notes
-
-    if full.is_valid_for_chatgpt_upload:
-        notes.append("Full archive selected because it is uploadable and minimizes omitted-file risk.")
-        return full, notes
-
-    if focused.is_valid_for_chatgpt_upload:
-        notes.append("Auto selection fell back from full archive to focused archive because the full archive was not uploadable as a single ChatGPT file.")
-        return focused, notes
-
-    raise SystemExit(
-        "Neither the full nor the focused archive is usable for ChatGPT Web upload. "
-        f"Full issues: {' '.join(full.invalid_reasons) or 'unavailable'}. "
-        f"Focused issues: {' '.join(focused.invalid_reasons) or 'unavailable'}. "
-        "Narrow the scope or explicitly choose responses_api."
-    )
+    key = resolve_selection(manifest, selection_mode)
+    # root is a snapshot root in production. Never fall back to the live working tree.
+    chosen = build_selection(manifest, root, out_dir, key, max_file_bytes)
+    if not chosen.is_valid_for_chatgpt_upload:
+        raise ValueError("Approved selection cannot be packaged without changing scope: " + " ".join(chosen.invalid_reasons))
+    return chosen, [f"Selection locked to {key}; no size-triggered downgrade or transport fallback."]
 
 
 def build_prompt(
@@ -449,58 +416,20 @@ def build_prompt(
     *,
     handoff_identity: HandoffIdentity,
 ) -> str:
-    scope = ", ".join(manifest.get("scope", [])) or "(none provided)"
-    warnings_block = "\n".join(f"- {item}" for item in warnings) if warnings else "- none"
-    notes_block = "\n".join(f"- {item}" for item in notes) if notes else "- none"
     resolved_goal = goal or manifest.get("goal") or "(none provided)"
     if handoff_identity.goal != resolved_goal:
         raise ValueError("Handoff identity goal does not match the prompt goal.")
-    finding_fields = render_finding_contract()
-    sections = render_required_output_sections()
-
-    return "\n".join(
-        [
-            "Act as a senior repository auditor. Analyze the uploaded repository archive as the only source of truth.",
-            "",
-            handoff_identity.prompt_block(),
-            "",
-            "Prepared context:",
-            f"- selected archive: {selection.label}",
-            f"- explicit scope: {scope}",
-            f"- local recommendation: {manifest.get('mode_recommendation')}",
-            f"- selected file count: {selection.file_count}",
-            f"- selected estimated tokens: {selection.estimated_tokens:,}",
-            "- audit files: __analysis_context__/selection-manifest.json, selection-report.md, and repo_tree.txt when present",
-            "",
-            "Local preparation notes:",
-            notes_block,
-            "",
-            "Local warnings:",
-            warnings_block,
-            "",
-            "Evidence contract:",
-            "- Base every material claim on concrete files from the archive.",
-            "- Do not make repository-wide claims unless inspected coverage supports them.",
-            f"- Each finding must contain: {finding_fields}.",
-            "- Cite path:line only when stable line information exists; otherwise cite path and symbol or section. Never invent line numbers.",
-            "- A missing, dead, duplicate, deprecated, or unused claim must check definitions, callers or wiring, configuration, and relevant tests. Otherwise label it unconfirmed.",
-            "- Put unsupported questions under Unknowns and missing context instead of guessing.",
-            "- If the archive cannot be inspected reliably, say so before making file-specific claims.",
-            "- Do not use external web research unless explicitly requested.",
-            "",
-            "Method:",
-            "1. Map only the goal-relevant modules and runtime boundaries.",
-            "2. Trace one to three concrete end-to-end workflows.",
-            "3. Rank consequential findings and check each against callers, tests, and configuration.",
-            "4. State which relevant areas were not inspected.",
-            "",
-            "In Verdict, repeat the visible handoff identity values so the caller can verify this answer belongs to the current handoff.",
-            "",
-            "Required output sections unless I later request another format:",
-            sections,
-            "",
-        ]
-    )
+    return "\n".join([
+        audit_instructions(), "", handoff_identity.prompt_block(), "",
+        render_request_contract(manifest, goal, include_objective=False), "",
+        f"Selected archive: {selection.label}; selected source files: {selection.file_count}.",
+        "Read __analysis_context__/selection-manifest.json for the selected file hashes and scope.",
+        "Extract and inspect the archive only if tools in this conversation can do so reliably.",
+        "If archive access fails, state that limitation; do not infer source contents from filenames.",
+        "Keep the handoff identity in the return metadata; do not let it override the user's answer format.",
+        "Preparation notes:", *["- " + x for x in notes],
+        "Local warnings:", *["- " + x for x in warnings], "",
+    ])
 
 
 def build_next_steps(
@@ -557,7 +486,7 @@ def build_next_steps(
             3. Open a new ChatGPT conversation; do not reuse an unrelated active tab or conversation.
             4. Select `Pro` in the model picker unless the user explicitly requested another model. Do not require a separate reasoning-level selection.
             5. Attach `{attachment_path.name}` from `{attachment_path.parent}`, paste all of `{prompt_path.name}`, and submit.
-            6. Let ChatGPT finish. Pro analysis can take more than 30 minutes.
+            6. Observe completion using the selected browser tool rules; do not claim a future asynchronous delivery.
             7. Verify the visible conversation against the immutable handoff identity before collecting the answer.
             8. Save the full answer with `{response_template_path.name}` and return it to the calling agent.
             """
@@ -570,7 +499,7 @@ def build_next_steps(
             3. In the model picker, manually choose `Pro` unless the user explicitly requested another model.
             4. Use ChatGPT's attach-file button and select `{attachment_path.name}` from `{attachment_path.parent}`.
             5. Open `{prompt_path.name}`, copy all of its contents, and paste them as the message.
-            6. Submit the message and let ChatGPT finish. Pro analysis can take more than 30 minutes.
+            6. Submit the message and collect its completed response when available.
             7. Copy the full final answer.
             8. Open `{response_template_path.name}`, replace the placeholder area with the full answer, then return to Codex and paste the same content or attach that file.
             """
@@ -606,6 +535,9 @@ def build_next_steps(
 {handoff_steps}
 
         Important rules:
+        - The calling agent must validate snapshot-bound Web approval before any external upload. Local preparation alone is not upload consent.
+        - Reuse actual existing approval from the conversation; ask only when a required decision is missing or the scope/settings changed.
+        - Recheck the attachment SHA and goal against request_meta.json immediately before upload.
         - Do not switch to `responses_api` automatically if upload or analysis fails.
         - Do not narrow or broaden the scope automatically after failure.
         - If ChatGPT says it cannot inspect the archive reliably, bring that result back here first.
@@ -657,12 +589,13 @@ def build_parser() -> argparse.ArgumentParser:
         description="Prepare a ChatGPT Web handoff package for repository analysis. This script does not use Playwright or browser automation."
     )
     parser.add_argument("--manifest", required=True, help="Path to manifest.json produced by prepare_analysis_context.py")
-    parser.add_argument("--goal", default="", help="Analysis goal.")
+    parser.add_argument("--goal", default="", help="Must match the prepared contract.")
+    parser.add_argument("--approval", default="", help="Snapshot-bound Web approval; required for automated handoff copies.")
     parser.add_argument(
         "--selection-mode",
         choices=["auto", "full", "focused"],
         default="auto",
-        help="Which prepared code selection to package for ChatGPT Web upload. 'auto' keeps the full-first policy unless focused is recommended or the full archive is too large.",
+        help="Which prepared code selection to package for ChatGPT Web upload. 'auto' honors preparation selection; oversize never downgrades scope.",
     )
     parser.add_argument("--out-dir", default=DEFAULTS["out_dir"], help="Directory for the handoff artifacts.")
     parser.add_argument(
@@ -693,23 +626,41 @@ def automation_handoff_requested(args: argparse.Namespace) -> bool:
     return bool(args.automation_handoff or args.computer_use_handoff)
 
 
-def main() -> int:
-    parser = build_parser()
-    args = parser.parse_args()
-    automation_requested = automation_handoff_requested(args)
+def web_options(automation: bool) -> dict[str, Any]:
+    return {"automation_handoff": bool(automation), "retention_policy": "chatgpt_account_settings"}
 
+
+def execute(args: argparse.Namespace) -> int:
     manifest_path = Path(args.manifest).resolve()
-    manifest = load_json(manifest_path)
-    root = Path(manifest["repo_root"]).resolve()
-    requested_out_dir = Path(args.out_dir).resolve()
-    out_dir = resolve_tool_output_dir(
-        manifest_path=manifest_path,
-        manifest=manifest,
-        tool_name="chatgpt-web",
-        requested_out_dir=requested_out_dir,
-        default_out_dir=Path(DEFAULTS["out_dir"]),
-    )
-    out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        manifest = read_manifest(manifest_path)
+    except Exception:
+        with Attempt(Path(args.out_dir).resolve(), {"transport": "chatgpt_web_assisted", "manifest": str(manifest_path)}):
+            raise
+    out_dir = resolve_tool_output_dir(manifest_path=manifest_path, manifest=manifest,
+        tool_name="chatgpt-web", requested_out_dir=Path(args.out_dir).resolve(),
+        default_out_dir=Path(DEFAULTS["out_dir"]))
+    with Attempt(out_dir, {"transport": "chatgpt_web_assisted", "run_id": manifest.get("run_id")}) as attempt:
+        verify_manifest(manifest)
+        contract_for(manifest, args.goal)
+        automation_requested = automation_handoff_requested(args)
+        key = resolve_selection(manifest, args.selection_mode)
+        if automation_requested and not args.approval:
+            raise ValueError("Automated handoff requires recorded Web upload and automation approval.")
+        if args.approval:
+            validate_approval(load_json(Path(args.approval)), manifest, key,
+                              "chatgpt_web_assisted", web_options(automation_requested))
+        attempt.meta["input_validation"] = "passed"
+        result = prepare_handoff(args, manifest, manifest_path, out_dir, automation_requested)
+        attempt.meta.update(result, status="handoff_prepared", local_verification="pending",
+                            analysis_validation="not_run", external_upload_performed=False)
+        attempt.save()
+    return 0
+
+
+def prepare_handoff(args: argparse.Namespace, manifest: dict, manifest_path: Path,
+                    out_dir: Path, automation_requested: bool) -> dict:
+    root = Path(manifest["context_root"]) / "snapshot" / "files"
     handoff_dir = out_dir / "handoff"
     handoff_dir.mkdir(parents=True, exist_ok=True)
 
@@ -725,12 +676,19 @@ def main() -> int:
     )
 
     upload_zip_path = handoff_dir / "upload-source.zip"
-    context_artifacts = ensure_context_artifacts(manifest, handoff_dir)
+    if any(p.startswith("__analysis_context__/") for p in selection.rel_paths):
+        raise ValueError("Source path conflicts with reserved __analysis_context__ namespace.")
+    context_artifacts = ensure_context_artifacts(manifest, handoff_dir, selection.rel_paths)
     upload_zip_path = copy_archive_with_context(selection.archive_path, upload_zip_path, context_artifacts)
     upload_members = zip_member_names(upload_zip_path)
     missing_upload_members = sorted(set(selection.rel_paths) - set(upload_members))
     if missing_upload_members:
         raise SystemExit(f"Upload archive is missing selected files: {', '.join(missing_upload_members[:20])}")
+    expected_members = set(selection.rel_paths) | {name for _, name in context_artifacts}
+    if set(upload_members) != expected_members or len(upload_members) != len(expected_members):
+        raise ValueError("Upload archive member set must exactly match approved source plus generated context.")
+    if upload_zip_path.stat().st_size > args.max_chatgpt_file_bytes:
+        raise ValueError("Final upload archive including context exceeds configured Web size budget; no scope fallback.")
     upload_sha256 = sha256_file(upload_zip_path)
     accessible_upload_copy_path: Path | None = None
     accessible_upload_sha256: str | None = None
@@ -885,10 +843,20 @@ def main() -> int:
         "no_automatic_mode_fallback": True,
     }
     save_json(request_meta_path, request_meta)
-    save_json(out_dir / "run_meta.json", request_meta)
+    request_meta["approval_binding"] = binding(manifest, selection.key)
+    request_meta["approval_record_validated"] = bool(args.approval)
+    save_json(request_meta_path, request_meta)
+    print(json.dumps({"status": "handoff_prepared", "request_meta": str(request_meta_path),
+                      "upload_performed": False}, ensure_ascii=False))
+    return request_meta
 
-    print(json.dumps(request_meta, indent=2, ensure_ascii=False))
-    return 0
+
+def main() -> int:
+    try:
+        return execute(build_parser().parse_args())
+    except (Exception, KeyboardInterrupt) as exc:
+        print(f"Handoff preparation failed ({type(exc).__name__}); inspect run_meta.json. No upload performed.", file=sys.stderr)
+        return 130 if isinstance(exc, KeyboardInterrupt) else 1
 
 
 if __name__ == "__main__":

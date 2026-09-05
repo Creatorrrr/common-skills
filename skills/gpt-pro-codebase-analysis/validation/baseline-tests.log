@@ -1,0 +1,23 @@
+test_direct_mode_fails_instead_of_truncating_required_inputs (test_analysis_helpers.DirectContextTests.test_direct_mode_fails_instead_of_truncating_required_inputs) ... ok
+test_direct_mode_prefers_lossless_context_shards (test_analysis_helpers.DirectContextTests.test_direct_mode_prefers_lossless_context_shards) ... ok
+test_direct_mode_rejects_shards_from_an_older_lossy_manifest (test_analysis_helpers.DirectContextTests.test_direct_mode_rejects_shards_from_an_older_lossy_manifest) ... ok
+test_prepare_run_writes_lossless_full_context_shards (test_analysis_helpers.DirectContextTests.test_prepare_run_writes_lossless_full_context_shards) ... ok
+test_prepared_file_blocks_are_lossless (test_analysis_helpers.DirectContextTests.test_prepared_file_blocks_are_lossless) ... ok
+test_automated_next_steps_prefer_chrome_then_computer_use (test_analysis_helpers.PromptContractTests.test_automated_next_steps_prefer_chrome_then_computer_use) ... ok
+test_chatgpt_handoff_automation_is_explicit_and_chrome_first (test_analysis_helpers.PromptContractTests.test_chatgpt_handoff_automation_is_explicit_and_chrome_first) ... ok
+test_chatgpt_handoff_prompt_uses_the_same_compact_contract (test_analysis_helpers.PromptContractTests.test_chatgpt_handoff_prompt_uses_the_same_compact_contract) ... ok
+test_explicit_reasoning_context_is_sent (test_analysis_helpers.PromptContractTests.test_explicit_reasoning_context_is_sent) ... ok
+test_goal_appears_once_and_prompt_has_no_template_indentation (test_analysis_helpers.PromptContractTests.test_goal_appears_once_and_prompt_has_no_template_indentation) ... ok
+test_gpt_56_sol_pro_defaults (test_analysis_helpers.PromptContractTests.test_gpt_56_sol_pro_defaults) ... ok
+test_pro_rejects_effort_below_medium (test_analysis_helpers.PromptContractTests.test_pro_rejects_effort_below_medium) ... ok
+test_report_contract_is_compact (test_analysis_helpers.PromptContractTests.test_report_contract_is_compact) ... ok
+test_only_completed_nonempty_output_is_success (test_analysis_helpers.RuntimeSafetyTests.test_only_completed_nonempty_output_is_success) ... ok
+test_pro_polling_uses_mode_not_model_slug (test_analysis_helpers.RuntimeSafetyTests.test_pro_polling_uses_mode_not_model_slug) ... [info] Response status: in_progress
+ok
+test_vector_store_ingestion_failure_is_not_accepted (test_analysis_helpers.RuntimeSafetyTests.test_vector_store_ingestion_failure_is_not_accepted) ... [info] Uploading file-search source: source.py
+ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.027s
+
+OK

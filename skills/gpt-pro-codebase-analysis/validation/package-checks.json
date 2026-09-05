@@ -1,0 +1,24 @@
+{
+  "python_syntax_files": 12,
+  "local_markdown_links": "passed",
+  "cli_smoke": "passed",
+  "original_tests": {
+    "run": 16,
+    "passed": 16
+  },
+  "improved_tests": {
+    "run": 80,
+    "passed": 80,
+    "retained": 16,
+    "new": 64
+  },
+  "live_api_tested": false,
+  "sdk_http_integration_tested": false,
+  "browser_automation_tested": false,
+  "model_quality_benchmarked": false,
+  "python": "3.13.5",
+  "git": "git version 2.47.3",
+  "clean_copy_test_execution": "passed",
+  "packaged_tests": 80,
+  "packaged_bytecode": false
+}

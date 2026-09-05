@@ -6,12 +6,16 @@
 
 ### `gpt-pro-codebase-analysis`
 
-Use this when you want a second-opinion repository analysis through a GPT Pro workflow. The Responses API path defaults to `gpt-5.6-sol` with `reasoning.mode: pro`; the skill prepares repository context, then supports two explicit execution modes:
+Use version **2.0.0** for a second-opinion repository analysis through a GPT Pro workflow. The Responses API path defaults to `gpt-5.6-sol` with effective Pro/high reasoning; the skill prepares repository context, then supports two explicit execution modes:
 
 - `responses_api`: direct analysis through the OpenAI Responses API
 - `chatgpt_web_assisted`: prepare an upload archive and prompt for manual use by default, or explicitly automate ChatGPT Web with Chrome control first and Computer Use as fallback
 
-This skill is useful for architecture review, refactoring strategy, test-gap analysis, performance review, and finding missing or deprecated logic. When you use it through an agent, choose one mode explicitly before execution starts.
+This skill is useful for architecture review, refactoring strategy, test-gap analysis, performance review, and finding missing or deprecated logic. Local preparation and dry-runs need no external approval. Actual transmission uses the chosen transport and a record of the user's existing authorization bound to the snapshot, selected files, request contract, and execution settings.
+
+Version 2 preserves full selections and original file bytes, checks token limits before generation, and separates response completion from substantive verification and resource cleanup. API responses default to foreground and `store=false`; newly created files and vector stores are cleaned up with expiry as a fallback. Prepare a new v2 manifest instead of reusing v1 artifacts. `--scope` now denotes exact allowed files/directories.
+
+See the [Korean usage guide](skills/gpt-pro-codebase-analysis/README.ko.md), [changes](skills/gpt-pro-codebase-analysis/CHANGELOG.ko.md), and [validation results](skills/gpt-pro-codebase-analysis/validation/VALIDATION.md).
 
 ### `claude-code-agent-team-analysis`
 
