@@ -20,7 +20,9 @@ PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s tests -v
 
 ## 모델 행동 평가: 별도 실행 필요
 
-[behavioral-scenarios.json](behavioral-scenarios.json)의 18개 사례는 이번 배포에 **미실행** 상태로 제공됩니다. unittest는 파일 구조만 확인합니다. 사용 모델이나 Codex/Claude Code를 자동으로 호출하지 않으며, 미리 성공으로 채운 결과는 없습니다.
+[behavioral-scenarios.json](behavioral-scenarios.json)의 26개 사례는 평가 정의로 제공되며 상태는 `not_run`입니다. unittest는 파일 구조만 확인합니다. 사용 모델이나 Codex/Claude Code를 자동으로 호출하지 않으며, 미리 성공으로 채운 결과는 없습니다. 실제 실행 결과는 정의 파일과 분리하고 [검증 기록](../VALIDATION.md)에 그 범위를 명시합니다.
+
+B19–B26은 포괄적 목표 선택, 작은 작업 유지, 첫 후보 실패 후 계속 수행, 빠른 완료, 예산 소진 시 미달 보고, 가설 판정 전용 목표, 불완전한 프로젝트 맥락, 진행 중인 목표의 연속성을 다룹니다. 계획의 분량이나 실행 시간이 길어졌다는 이유로 개선을 인정하지 않습니다. 선택한 병목에 실제로 기여하는 결과 기준인지, 단계와 목표의 완료를 구분하는지 확인합니다.
 
 실제 평가에서는 사례별 독립 임시 저장소와 새 세션을 준비하고, 설정된 모델·reasoning·도구·권한·예산을 기록합니다. `execution-handoff` 사례는 별도 실행을 승인한 뒤 생성된 계획/프롬프트를 실행 모델에 전달하는 평가이며, 계획 스킬 단독 호출로 프로젝트가 실행되어야 한다는 뜻이 아닙니다.
 

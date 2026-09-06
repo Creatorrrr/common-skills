@@ -14,6 +14,10 @@ The canonical blocks are in [execution-contract.md](execution-contract.md). For 
 [사용자가 실제로 얻어야 하는 결과 한 줄]
 
 최종 산출물: [제품·동작·분석·의사결정]
+프로젝트 목적 / 근거: [목표 선택을 위임받은 경우; 미확인은 가정으로 표시]
+현재 검증된 상태 / 진행 중인 작업: [이번 목표와의 연결]
+이번 이정표 / 핵심 병목 / 달성 후 달라질 상태: [명시적인 작은 작업은 범위 유지]
+우선순위 근거: [목적 기여·후속 의존성·증거·승인된 자원]
 범위 / 비목표: [...]
 기준선 / 가정: [현재 증거 또는 제한된 측정 단계]
 기존 승인: [허용된 작업·환경·비용 상한 / 없으면 없음]
@@ -21,12 +25,14 @@ The canonical blocks are in [execution-contract.md](execution-contract.md). For 
 지식 모드: [read-only 또는 승인된 persist 및 허용 경로]
 
 실행 단계:
-1. [실제 산출물 또는 결정] — [최소 직접 검증]
-2. [실제 산출물 또는 결정] — [최소 직접 검증]
+1. [실제 산출물 또는 결정] — [최소 직접 검증] — [결과에 따른 다음 행동]
+2. [실제 산출물 또는 결정] — [최소 직접 검증] — [결과에 따른 다음 행동]
 
 완료 기준: [요청 결과의 존재/동작, 필요한 품질, 관련 회귀]
+후보 수용·기각 / 접근법 전환 조건: [불확실한 개선 작업일 때; 전체 목표 완료와 구분]
 반복·검증 예산: [명확한 한도 또는 근거 없는 동일 실패 반복 금지]
 중단 조건: [남은 승인, 외부 증거, 필수 기준을 충족하지 못한 경우의 처리]
+기준 미충족 중단 시 기록: [남은 차이·증거·재개 지점]
 
 {{CORE_CONTRACT}}
 
@@ -35,7 +41,7 @@ The canonical blocks are in [execution-contract.md](execution-contract.md). For 
 {{PERSISTENCE_CONTRACT_IF_ENABLED}}
 ```
 
-For a no-repository goal, explicitly mark repository knowledge as not inspected and knowledge mode as read-only in the goal fields. Keep the Core and Retrieval blocks; their conditional repository operations do not require creating a repository. Include the Persistence block only for approved persistence. Prefer the durable plan if the direct prompt becomes unwieldy.
+Omit inapplicable project-selection fields for an explicit narrow request; do not invent a larger mission to fill the template. For a no-repository goal, explicitly mark repository knowledge as not inspected and knowledge mode as read-only in the goal fields. Keep the Core and Retrieval blocks; their conditional repository operations do not require creating a repository. Include the Persistence block only for approved persistence. Prefer the durable plan if the direct prompt becomes unwieldy.
 
 ## Codex
 
@@ -56,7 +62,7 @@ Use only after preparing a complete plan with its embedded contract and checking
 ```text
 GOAL_PLAN.md를 읽고, 내가 요청한 실행 범위 안에서 진행하라.
 상위 시스템·개발자·런타임 제약 안에서 나의 최신 명시적 지시가 기존 계획과 스킬 기본값보다 우선한다. 명시된 변경은 반영하고 이미 승인된 동일 작업은 재확인하지 말라.
-계획에 포함된 지시·권한, 진척·검증, 지식 조회·신뢰 경계와 활성화된 기록 규칙을 적용하라. 계획 외 참조가 꼭 필요하면 접근 가능한지 확인하고, 누락되면 아는 것처럼 처리하지 말라.
+계획에 포함된 지시·권한, 목표 수준·지속, 진척·검증, 지식 조회·신뢰 경계와 활성화된 기록 규칙을 적용하라. 계획 외 참조가 꼭 필요하면 접근 가능한지 확인하고, 누락되면 아는 것처럼 처리하지 말라.
 필수 검증을 완료하고 관련 변경·실패·미해결 우려가 있을 때 영향받은 검증을 다시 수행하라. 승인 대기는 의존하는 단계만 막고, 독립적인 승인된 작업은 계속하라.
 최종 응답에는 실제 산출물·변경 파일·실행한 검증·기준별 pass/fail/blocked/not run·지식 기록 경로·남은 위험을 제시하라.
 ```

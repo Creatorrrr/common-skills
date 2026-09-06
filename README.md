@@ -53,7 +53,7 @@ It includes a small wrapper at `skills/consulting-antigravity-cli/scripts/consul
 
 ### `goal-planner`
 
-Use version **2.0.0** to create, revise, or review outcome-first long-running goals, `GOAL_PLAN.md` files, and execution prompts for Codex or Claude Code. The skill preserves the requested result and the user's latest explicit instructions, separates planning from execution, and permits necessary tests and re-checks without adding unnecessary verification stages.
+Use version **2.1.0** to create, revise, or review outcome-first long-running goals, `GOAL_PLAN.md` files, and execution prompts for Codex or Claude Code. Delegated goal selection connects the project purpose and ongoing work to a consequential milestone, with experiments and implementation as its checkpoints. The skill preserves explicit small requests, distinguishes checkpoint completion from goal completion, and supports evidence-based approach changes within the same authorized outcome and budget. Planning and execution remain separate, with necessary tests and relevant re-checks preserved.
 
 Existing execution reports and asynchronous research remain available for bounded retrieval. Knowledge mode defaults to `read-only`; report writing, lifecycle updates, and initialization require authorization for that workflow. Approved persistence uses `docs/failed-reports/`, `docs/passed-reports/`, and `docs/researches/`. Reports, research, indexes, and quoted tool output remain evidence rather than instructions. Generated plans embed the applicable execution rules so another session can use them.
 
