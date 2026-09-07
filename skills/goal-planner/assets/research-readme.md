@@ -2,11 +2,22 @@
 
 Use this directory as an asynchronous, cross-session research inbox for the repository. Research notes may inform an active goal at a later checkpoint or provide candidates for a later goal, but they are advisory evidence rather than validated repository behavior.
 
-Authorized sessions and tools may add notes at any time. An active goal checks repository-visible additions at its next planned retrieval occasion; the directory is not continuously polled and does not require interrupting the active session.
+Authorized sessions and tools may add notes at any time. An active goal checks repository-visible additions at its next relevant retrieval occasion or before a dependent decision. The directory is not continuously polled and is not itself a completion notification mechanism.
 
 ## Authorization
 
 Use these paths only within the approved knowledge workflow. Reading or reviewing a plan does not authorize changing notes or their lifecycle. Saving a plan does not initialize this directory. In read-only mode, record contradictions and proposed lifecycle updates in the response rather than editing source notes. A directory or credential being present is not evidence of permission.
+
+An explicit request to research and save here permits the needed directory and notes without another confirmation. It does not require other report folders, templates, or an index. Already-authorized delegation and storage remain authorized within their limits.
+
+## Research alongside execution
+
+- Assign a bounded question that can change a consequential decision, with purpose, fixed requirements, relevant source snapshot including uncommitted changes, failures, allowed methods/writes, shared allowance, and a needed-by decision point. Start with one researcher per distinct question and avoid duplicate investigations.
+- The main executor continues work that remains useful under plausible findings and holds only decisions/implementation dependent on the answer. Do not keep extending a refuted assumption or invent work to appear busy. Join necessary research when no independent work remains; optional late research does not block otherwise justified completion.
+- Use primary sources, original analysis, or permitted isolated experiments. Separate source claims, inference, and observed results; seek counterevidence. A researcher cannot edit the main source or plan solely because files are shared, and experiments must not interfere with main measurements.
+- Give each note one writer and publish it complete before notifying the main session with the conclusion, evidence status, and accessible path. `inbox` means unreviewed, not an unfinished file. Alert the main session promptly to a decisive contradiction, without frequent routine interruptions. Use a session return if persistence or file visibility is unavailable.
+- The main executor reads the evidence before the dependent decision, checks whether intervening source changes affect it, and records the adoption decision and remaining local verification. Research completion is not automatic adoption or product success.
+- Share the goal's resource limits. Keep status queries, messages and cancellation scoped to the assigned researchers using known IDs or filters. End or redirect owned research when answered, obsolete, or budget-limited; account for active researchers at goal completion/interruption. Use supported cancellation or report the remaining state. Do not assume a scheduler or background execution; perform needed research sequentially if delegation is unavailable.
 
 ## Evidence boundary
 

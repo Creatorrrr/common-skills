@@ -24,7 +24,7 @@ class SkillContractTests(unittest.TestCase):
         metadata = text.split("---", 2)[1]
         self.assertRegex(metadata, r"(?m)^name: goal-planner$")
         self.assertRegex(metadata, r"(?m)^description: .+")
-        self.assertEqual((ROOT / "VERSION").read_text().strip(), "2.1.0")
+        self.assertEqual((ROOT / "VERSION").read_text().strip(), "2.3.0")
 
     def test_markdown_relative_file_links_resolve(self) -> None:
         # Ignore URLs and anchors; links in authored Markdown must reference bundled files.
@@ -83,7 +83,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertEqual(data["evaluation_status"], "not_run")
         ids = [case["id"] for case in data["cases"]]
         self.assertEqual(len(ids), len(set(ids)))
-        self.assertEqual(len(ids), 26)
+        self.assertEqual(len(ids), 40)
         for case in data["cases"]:
             for field in ("id", "mode", "setup", "user_prompt", "must", "must_not"):
                 self.assertTrue(case[field], (case["id"], field))
