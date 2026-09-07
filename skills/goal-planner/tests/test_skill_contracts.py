@@ -11,14 +11,21 @@ CONTRACT = ROOT / "references" / "execution-contract.md"
 
 
 def contract_blocks() -> dict[str, str]:
+    """Parse by heading identity, not fragile positional fence ordering."""
     text = CONTRACT.read_text(encoding="utf-8")
-    blocks = re.findall(r"```text\n(.*?)\n```", text, re.DOTALL)
-    markers = ("CORE_CONTRACT", "DIRECTION_CONTRACT_IF_NEEDED",
-               "RESEARCH_CONTRACT_IF_NEEDED", "RETRIEVAL_CONTRACT_IF_NEEDED",
-               "PERSISTENCE_CONTRACT_IF_ENABLED")
-    if len(blocks) != len(markers):
-        raise ValueError("Expected core and four selectable contract blocks")
-    return dict(zip(markers, blocks))
+    heading_ids = {
+        "Core": "CORE_CONTRACT",
+        "Program": "PROGRAM_CONTRACT_IF_ENABLED",
+        "Experiment": "EXPERIMENT_CONTRACT_IF_NEEDED",
+        "Direction": "DIRECTION_CONTRACT_IF_NEEDED",
+        "Research": "RESEARCH_CONTRACT_IF_NEEDED",
+        "Retrieval": "RETRIEVAL_CONTRACT_IF_NEEDED",
+        "Persistence": "PERSISTENCE_CONTRACT_IF_ENABLED",
+    }
+    found = re.findall(r"^## ([A-Za-z]+)[^\n]*\n+```text\n(.*?)\n```", text, re.MULTILINE | re.DOTALL)
+    if len(found) != len(heading_ids) or {name for name, _ in found} != set(heading_ids):
+        raise ValueError("Expected seven uniquely named portable contract blocks")
+    return {heading_ids[name]: value for name, value in found}
 
 
 class SkillContractTests(unittest.TestCase):
@@ -27,7 +34,7 @@ class SkillContractTests(unittest.TestCase):
         metadata = text.split("---", 2)[1]
         self.assertRegex(metadata, r"(?m)^name: goal-planner$")
         self.assertRegex(metadata, r"(?m)^description: .+")
-        self.assertEqual((ROOT / "VERSION").read_text().strip(), "2.4.0")
+        self.assertEqual((ROOT / "VERSION").read_text().strip(), "3.0.0")
 
     def test_markdown_relative_file_links_resolve(self) -> None:
         # Ignore URLs and anchors; links in authored Markdown must reference bundled files.
@@ -53,8 +60,11 @@ class SkillContractTests(unittest.TestCase):
         profiles = {
             "self_contained": {"CORE_CONTRACT"},
             "research_without_repository": {"CORE_CONTRACT", "RESEARCH_CONTRACT_IF_NEEDED"},
-            "read_only_improvement": set(blocks) - {"PERSISTENCE_CONTRACT_IF_ENABLED"},
-            "authorized_persistence": set(blocks),
+            "read_only_improvement": set(blocks) - {"PERSISTENCE_CONTRACT_IF_ENABLED", "PROGRAM_CONTRACT_IF_ENABLED"},
+            "finite_persistence": set(blocks) - {"PROGRAM_CONTRACT_IF_ENABLED"},
+            "program_read_only": set(blocks) - {"PERSISTENCE_CONTRACT_IF_ENABLED"},
+            "program_persistence": set(blocks),
+            "finite_experiment": {"CORE_CONTRACT", "EXPERIMENT_CONTRACT_IF_NEEDED"},
         }
         for name in ("assets/goal-plan-template.md", "references/runtime-prompts.md"):
             original = (ROOT / name).read_text(encoding="utf-8")
@@ -95,7 +105,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertEqual(data["evaluation_status"], "not_run")
         ids = [case["id"] for case in data["cases"]]
         self.assertEqual(len(ids), len(set(ids)))
-        self.assertEqual(len(ids), 44)
+        self.assertEqual(len(ids), 64)
         for case in data["cases"]:
             for field in ("id", "mode", "setup", "user_prompt", "must", "must_not"):
                 self.assertTrue(case[field], (case["id"], field))

@@ -4,9 +4,9 @@ Read only when preparing a copyable handoff. Choose the runtime named by the use
 
 ## Compose from one contract
 
-Use the selection table and canonical blocks in [execution-contract.md](execution-contract.md). Embed **Core** once, add **Direction**, **Research** and **Retrieval** only when applicable, and add **Persistence** only for authorized `persist` mode and paths. For `GOAL_PLAN.md`, put the selected blocks in the plan once; the launch prompt points to the actual file. Do not independently shorten selected blocks into different approval, retry, or success rules.
+Use the selection table and canonical blocks in [execution-contract.md](execution-contract.md). Embed **Core** once, add **Program** only for delegated research-program, **Experiment** for consequential tests, and **Direction**, **Research** and **Retrieval** only when applicable, and add **Persistence** only for authorized `persist` mode and paths. For `GOAL_PLAN.md`, put the selected blocks in the plan once; the launch prompt points to the actual file. Do not independently shorten selected blocks into different approval, retry, or success rules.
 
-The five contract markers below are authoring markers, not output. Replace selected markers with their complete fenced text blocks, translate if necessary, and remove unselected markers. Resolve all task fields. Never deliver unresolved markers as a finished prompt. Record the selected blocks briefly so the handoff's coverage is reviewable without repeating the selection table.
+The seven contract markers below are authoring markers, not output. Replace selected markers with their complete fenced text blocks, translate if necessary, and remove unselected markers. Resolve all task fields. Never deliver unresolved markers as a finished prompt. Record the selected blocks briefly so the handoff's coverage is reviewable without repeating the selection table.
 
 ## Shared direct-goal template
 
@@ -14,6 +14,11 @@ The five contract markers below are authoring markers, not output. Replace selec
 [사용자가 실제로 얻어야 하는 결과 한 줄]
 
 최종 산출물: [제품·동작·분석·의사결정]
+Goal model: [finite-goal / research-program; 사용자 위임 근거]
+프로그램 계약: [해당할 때 목적·불변 제약·다음 목표 선택 권한·공유 자원·중단/종료 조건]
+이전 이정표의 기준/판정·다음 선택 / 검증된 최선·현재 후보·재개 상태: [프로그램일 때]
+중요 실험: [해당할 때 ID·가설/대립 설명·비교·사전 예측·유효성/판정·자원·증거]
+평가 계약: [해당할 때 기준선·평가기/데이터 버전·탐색/확증·누적 노출]
 프로젝트 목적 / 근거: [목표 선택을 위임받은 경우; 미확인은 가정으로 표시]
 현재 검증된 상태 / 진행 중인 작업: [이번 목표와의 연결]
 이번 이정표 / 핵심 병목 / 달성 후 달라질 상태: [명시적인 작은 작업은 범위 유지]
@@ -40,6 +45,10 @@ The five contract markers below are authoring markers, not output. Replace selec
 
 {{CORE_CONTRACT}}
 
+{{PROGRAM_CONTRACT_IF_ENABLED}}
+
+{{EXPERIMENT_CONTRACT_IF_NEEDED}}
+
 {{DIRECTION_CONTRACT_IF_NEEDED}}
 
 {{RESEARCH_CONTRACT_IF_NEEDED}}
@@ -49,7 +58,7 @@ The five contract markers below are authoring markers, not output. Replace selec
 {{PERSISTENCE_CONTRACT_IF_ENABLED}}
 ```
 
-Omit inapplicable project-selection fields for an explicit narrow request, direction-review fields when no evidence warrants that review, and research fields when no decision needs investigation. Do not invent a larger mission, forced pivot, or research question to fill the template. Apply the default research delegation conditions when a material gap and useful independent work exist within actual capabilities, authority and resources. For a no-repository goal, mark repository knowledge as not inspected, omit repository Retrieval, and use read-only knowledge mode unless a different output location is authorized. A self-contained correction can omit all optional blocks. Core still governs unexpected failures or newly necessary investigation. Prefer the durable plan if the direct prompt becomes unwieldy.
+Omit Program fields for finite-goal and Experiment fields when no consequential test is needed. Keep valid experiment outcomes distinct from milestone success; preserve program accounting and best artifacts across succession. Omit inapplicable project-selection fields for an explicit narrow request, direction-review fields when no evidence warrants that review, and research fields when no decision needs investigation. Do not invent a larger mission, forced pivot, or research question to fill the template. Apply the default research delegation conditions when a material gap and useful independent work exist within actual capabilities, authority and resources. For a no-repository goal, mark repository knowledge as not inspected, omit repository Retrieval, and use read-only knowledge mode unless a different output location is authorized. A self-contained correction can omit all optional blocks. Core still governs unexpected failures or newly necessary investigation. Prefer the durable plan if the direct prompt becomes unwieldy.
 
 ## Codex
 
@@ -70,7 +79,7 @@ Use only after preparing a complete plan with its embedded contract and checking
 ```text
 GOAL_PLAN.md를 읽고, 내가 요청한 실행 범위 안에서 진행하라.
 상위 시스템·개발자·런타임 제약 안에서 나의 최신 명시적 지시가 기존 계획과 스킬 기본값보다 우선한다. 명시된 변경은 반영하고 이미 승인된 동일 작업은 재확인하지 말라.
-계획에 포함된 지시·권한, 목표 수준·지속, 방향 재검토, 필요한 병렬 리서치, 진척·검증, 지식 조회·신뢰 경계와 활성화된 기록 규칙을 적용하라. 계획 외 참조가 꼭 필요하면 접근 가능한지 확인하고, 누락되면 아는 것처럼 처리하지 말라.
+계획에 포함된 지시·권한, finite-goal/research-program의 목표 승계, 가설·실험·최선 산출물·복구, 방향 재검토, 필요한 병렬 리서치, 진척·검증, 지식 조회·신뢰 경계와 활성화된 기록 규칙을 적용하라. 계획 외 참조가 꼭 필요하면 접근 가능한지 확인하고, 누락되면 아는 것처럼 처리하지 말라.
 필수 검증을 완료하고 관련 변경·실패·미해결 우려가 있을 때 영향받은 검증을 다시 수행하라. 승인 대기는 의존하는 단계만 막고, 독립적인 승인된 작업은 계속하라.
 최종 응답에는 실제 산출물·변경 파일·실행한 검증·기준별 pass/fail/blocked/not run·지식 기록 경로·남은 위험을 제시하라.
 ```

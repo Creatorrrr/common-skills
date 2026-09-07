@@ -12,14 +12,14 @@ import re
 import sys
 import tempfile
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path, PurePosixPath
-from typing import Any, Iterable
-
+from typing import Any
 
 SCHEMA_VERSION = 1
-GENERATOR_VERSION = "1.0.1"
+GENERATOR_VERSION = "1.1.0"
 DEFAULT_LIMIT = 15
 DEFAULT_MAX_OUTPUT_BYTES = 24_000
 MAX_MATCH_REASONS = 8
@@ -40,6 +40,28 @@ REPORT_PATH_RE = re.compile(
     r"(?<![\w.-])((?:(?:\.\.?/)+|docs/)?(?:failed-reports|passed-reports)/[^\s)\],;`<>]+\.md)"
 )
 URI_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
+
+# Exact compatibility aliases, not semantic translation. Raw text remains authoritative.
+LABEL_ALIASES = {
+    "상태": "status",
+    "기록 시각": "recorded", "기록일시": "recorded", "기록일": "recorded",
+    "문제 서명": "problem signature", "목표/문제 서명": "goal/problem signature",
+    "목표/체크포인트": "goal/checkpoint", "영향 범위": "affected scope",
+    "제외 범위": "excluded scope", "환경/버전": "environment/versions",
+    "정확한 식별자": "exact identifiers", "검색어": "search terms",
+    "관련 경로": "related paths", "관련 실패 보고서": "related failed reports",
+    "관련 성공 보고서": "related passed reports",
+    "대체한 보고서": "supersedes", "후속 보고서": "superseded by",
+    "예상": "expected", "관측": "observed", "검증": "verification",
+    "시도": "attempts", "증거 및 완료 기준": "evidence and completion criteria",
+    "자격": "qualification",
+}
+STATUS_ALIASES = {
+    "미해결": "open", "열림": "open", "해결됨": "resolved", "해결": "resolved",
+    "차단됨": "blocked", "차단": "blocked", "대체됨": "superseded",
+    "활성": "active", "미상": "unknown",
+}
+KNOWN_STATUSES = {"open", "resolved", "blocked", "superseded", "active", "unknown"}
 
 
 class ReportIndexError(RuntimeError):
@@ -71,7 +93,8 @@ def sha256_bytes(data: bytes) -> str:
 
 def normalize_label(value: str) -> str:
     value = value.replace("`", "").replace("*", "")
-    return " ".join(value.casefold().split())
+    label = " ".join(value.casefold().split())
+    return LABEL_ALIASES.get(label, label)
 
 
 def normalize_search_text(value: str) -> str:
@@ -284,7 +307,28 @@ def extract_report_paths(values: Iterable[str], source_path: str) -> list[str]:
 def build_entry(document: ReportDocument) -> dict[str, Any]:
     parsed = parse_report(document.text)
     problem_signature = first_field(parsed, "Problem signature", "Goal/problem signature")
-    status = first_field(parsed, "Status") or "unknown"
+    # Do not silently prefer the English field when a localized alias contradicts it.
+    extraction_warnings: list[str] = []
+    field_conflicts: list[str] = []
+    signatures = field_values(parsed, "Problem signature", "Goal/problem signature")
+    if len(signatures) > 1:
+        problem_signature = ""
+        field_conflicts.append("Conflicting problem-signature fields")
+    status_values = [value.strip().casefold() for value in field_values(parsed, "Status")]
+    statuses = {STATUS_ALIASES.get(value, value) for value in status_values}
+    if len(statuses) > 1:
+        status = "unknown"
+        field_conflicts.append("Conflicting Status fields")
+    elif statuses:
+        candidate_status = next(iter(statuses))
+        status = candidate_status if candidate_status in KNOWN_STATUSES else "unknown"
+        if candidate_status not in KNOWN_STATUSES:
+            extraction_warnings.append("Unrecognized Status value; inspect the original report")
+    else:
+        status = "unknown"
+        extraction_warnings.append("Missing recognized Status field")
+    if not signatures:
+        extraction_warnings.append("Missing recognized Problem signature field")
     recorded = first_field(parsed, "Recorded")
     environment = combine_fields(
         parsed,
@@ -393,6 +437,8 @@ def build_entry(document: ReportDocument) -> dict[str, Any]:
             "source_path": document.source_path,
             "source_hash": document.source_hash,
             "sparse": not bool(problem_signature and status != "unknown"),
+            "extraction_warnings": extraction_warnings,
+            "field_conflicts": field_conflicts,
             "routing": routing,
             "capsule": capsule,
             "links": links,
@@ -525,6 +571,8 @@ def validate_lifecycle(entries: list[dict[str, Any]]) -> tuple[list[str], list[s
 
     for entry in entries:
         source = entry["source_path"]
+        warnings.extend(f"{message}: {source}" for message in entry.get("extraction_warnings", []))
+        errors.extend(f"{message}: {source}" for message in entry.get("field_conflicts", []))
         status = str(entry.get("status", "unknown")).casefold()
         superseded_by = link_values(entry, "superseded_by")
         if status == "superseded" and not superseded_by:

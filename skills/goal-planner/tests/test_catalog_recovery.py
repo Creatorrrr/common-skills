@@ -129,20 +129,22 @@ class CatalogRecoveryTests(unittest.TestCase):
         self.assertTrue(json.loads(checked.stdout)["ok"])
         self.assertEqual(self.report.read_bytes(), original_report)
         meta, entries = index.read_catalog(self.root)
-        self.assertEqual(meta["generator_version"], "1.0.1")
+        self.assertEqual(meta["generator_version"], "1.1.0")
         self.assertEqual(meta["schema_version"], 1)
         self.assertEqual(entries, self.entries)
 
     def test_legacy_generator_metadata_falls_back_until_rebuilt(self) -> None:
-        header = json.loads(json.dumps(self.header))
-        header["_meta"]["generator_version"] = "1.0.0"
-        self.write_records(header, *self.entries)
-        status, entries, warnings = index.validate_catalog(self.root, self.entries)
-        self.assertEqual(status, "stale-fallback")
-        self.assertEqual(entries, self.entries)
-        self.assertTrue(warnings)
-        index.write_catalog(self.root, self.entries)
-        self.assertEqual(index.validate_catalog(self.root, self.entries)[0], "current")
+        for version in ("1.0.0", "1.0.1"):
+            with self.subTest(generator_version=version):
+                header = json.loads(json.dumps(self.header))
+                header["_meta"]["generator_version"] = version
+                self.write_records(header, *self.entries)
+                status, entries, warnings = index.validate_catalog(self.root, self.entries)
+                self.assertEqual(status, "stale-fallback")
+                self.assertEqual(entries, self.entries)
+                self.assertTrue(warnings)
+                index.write_catalog(self.root, self.entries)
+                self.assertEqual(index.validate_catalog(self.root, self.entries)[0], "current")
 
     def test_invalid_source_paths_do_not_crash_catalog_validation(self) -> None:
         for source_path in (None, 42, [], {}, ""):

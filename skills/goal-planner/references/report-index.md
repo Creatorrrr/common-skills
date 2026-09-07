@@ -68,4 +68,28 @@ Return at most 15 candidate projections by default. Each projection contains the
 
 ## Generator upgrade
 
-This package ships generator `1.0.1` with catalog schema `1`. Existing Markdown reports and field names are unchanged. Catalogs produced by `1.0.0` will be considered stale because generator metadata is checked. With write authorization, replace the repository copy of the script and run `sync` followed by `check`; without it, continue with raw-report fallback.
+This package ships generator `1.1.0` with catalog schema `1`. Existing Markdown reports need no bulk migration. Catalogs produced by earlier generators (including `1.0.0` and `1.0.1`) are considered stale because generator metadata is checked. With write authorization, replace the repository copy of the script and run `sync` followed by `check`; without it, continue with raw-report fallback.
+
+## Machine keys and Korean compatibility
+
+Use the supplied canonical English labels and enum values for new records; free-text content may be in the user's language. The exact alias map below supports existing Korean labels, not arbitrary semantic translations. `Qualification` identifiers remain `resolved-material-failure`, `non-obvious-after-default-failed`, or `required-reproduction-procedure`; do not translate them. Experiment/resume records and research notes are not execution-report catalog entries.
+
+| Korean label | Canonical label |
+|---|---|
+| 상태 | Status |
+| 기록 시각 / 기록일시 / 기록일 | Recorded |
+| 문제 서명 / 목표/문제 서명 | Problem signature / Goal/problem signature, respectively |
+| 목표/체크포인트 | Goal/checkpoint |
+| 영향 범위 / 제외 범위 | Affected scope / Excluded scope, respectively |
+| 환경/버전 / 정확한 식별자 / 검색어 | Environment/versions / Exact identifiers / Search terms, respectively |
+| 관련 경로 | Related paths |
+| 관련 실패 보고서 / 관련 성공 보고서 | Related failed reports / Related passed reports, respectively |
+| 대체한 보고서 / 후속 보고서 | Supersedes / Superseded by, respectively |
+| 예상 / 관측 / 검증 / 시도 | Expected / Observed / Verification / Attempts, respectively |
+| 증거 및 완료 기준 / 자격 | Evidence and completion criteria / Qualification, respectively |
+
+Recognized localized lifecycle values are `미해결`, `열림` → `open`; `해결됨`, `해결` → `resolved`; `차단됨`, `차단` → `blocked`; `대체됨` → `superseded`; `활성` → `active`; `미상` → `unknown`. Other translations are not guessed.
+
+Absent recognized routing fields or an unknown status produce `extraction_warnings` in derived entries. Equivalent duplicated labels are merged. Conflicting statuses produce `status: unknown`; conflicting problem signatures are not silently resolved to one. `field_conflicts` make lifecycle validation fail, and `query` uses the existing invalid-lifecycle raw fallback. The sanitized report text remains searchable. Inspect warnings before relying on structured routing; raw retrieval is not proof that a translated field was parsed.
+
+Warnings do not force a bulk rewrite or block unrelated product work. Correct fields in an authorized substantive update. Missing optional data is not by itself a lifecycle error; actual contradictory fields are errors. The new optional diagnostics retain schema version `1` and are deterministic derivatives of source content.
