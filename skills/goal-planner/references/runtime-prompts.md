@@ -4,9 +4,9 @@ Read only when preparing a copyable handoff. Choose the runtime named by the use
 
 ## Compose from one contract
 
-The canonical blocks are in [execution-contract.md](execution-contract.md). For a direct prompt insert **Core** and **Retrieval**, plus **Persistence** only for approved `persist` mode. For `GOAL_PLAN.md`, put those blocks in the plan once; the launch prompt points to the actual file. Do not independently shorten a runtime variant into different approval, retry, or success rules.
+Use the selection table and canonical blocks in [execution-contract.md](execution-contract.md). Embed **Core** once, add **Direction**, **Research** and **Retrieval** only when applicable, and add **Persistence** only for authorized `persist` mode and paths. For `GOAL_PLAN.md`, put the selected blocks in the plan once; the launch prompt points to the actual file. Do not independently shorten selected blocks into different approval, retry, or success rules.
 
-`{{CORE_CONTRACT}}`, `{{RETRIEVAL_CONTRACT}}`, and `{{PERSISTENCE_CONTRACT_IF_ENABLED}}` are authoring markers, not output. Replace them with the matching fenced text blocks, translate if necessary, and remove the optional persistence marker in `read-only` mode. Resolve all task fields. Never deliver unresolved markers as a finished prompt.
+The five contract markers below are authoring markers, not output. Replace selected markers with their complete fenced text blocks, translate if necessary, and remove unselected markers. Resolve all task fields. Never deliver unresolved markers as a finished prompt. Record the selected blocks briefly so the handoff's coverage is reviewable without repeating the selection table.
 
 ## Shared direct-goal template
 
@@ -40,12 +40,16 @@ The canonical blocks are in [execution-contract.md](execution-contract.md). For 
 
 {{CORE_CONTRACT}}
 
-{{RETRIEVAL_CONTRACT}}
+{{DIRECTION_CONTRACT_IF_NEEDED}}
+
+{{RESEARCH_CONTRACT_IF_NEEDED}}
+
+{{RETRIEVAL_CONTRACT_IF_NEEDED}}
 
 {{PERSISTENCE_CONTRACT_IF_ENABLED}}
 ```
 
-Omit inapplicable project-selection fields for an explicit narrow request, direction-review fields when no evidence warrants that review, and research fields when no decision needs investigation. Do not invent a larger mission, forced pivot, or delegation to fill the template. Verify actual delegation, notification, persistence, and artifact visibility capabilities rather than naming unsupported tools. For a no-repository goal, explicitly mark repository knowledge as not inspected and knowledge mode as read-only in the goal fields. Keep the Core and Retrieval blocks; their conditional repository operations do not require creating a repository. Include the Persistence block only for approved persistence. Prefer the durable plan if the direct prompt becomes unwieldy.
+Omit inapplicable project-selection fields for an explicit narrow request, direction-review fields when no evidence warrants that review, and research fields when no decision needs investigation. Do not invent a larger mission, forced pivot, or research question to fill the template. Apply the default research delegation conditions when a material gap and useful independent work exist within actual capabilities, authority and resources. For a no-repository goal, mark repository knowledge as not inspected, omit repository Retrieval, and use read-only knowledge mode unless a different output location is authorized. A self-contained correction can omit all optional blocks. Core still governs unexpected failures or newly necessary investigation. Prefer the durable plan if the direct prompt becomes unwieldy.
 
 ## Codex
 

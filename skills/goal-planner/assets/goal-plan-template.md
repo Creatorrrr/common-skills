@@ -85,8 +85,14 @@
 - 지식 보고서 정리: [persist일 때 다음 의미 있는 체크포인트 또는 종료 / read-only에서는 제안만]
 
 ## 실행 계약
+<!-- Core는 항상 포함한다. execution-contract.md의 선택 표에 따라 나머지는 필요한 블록만 전문을 삽입하고 표식을 제거한다. 블록 선택은 별도 승인 단계가 아니다. -->
+- 포함한 블록과 필요한 이유: [간략히; 비적용 블록의 설명은 생략]
 {{CORE_CONTRACT}}
 
-{{RETRIEVAL_CONTRACT}}
+{{DIRECTION_CONTRACT_IF_NEEDED}}
+
+{{RESEARCH_CONTRACT_IF_NEEDED}}
+
+{{RETRIEVAL_CONTRACT_IF_NEEDED}}
 
 {{PERSISTENCE_CONTRACT_IF_ENABLED}}

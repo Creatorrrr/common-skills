@@ -13,9 +13,12 @@ CONTRACT = ROOT / "references" / "execution-contract.md"
 def contract_blocks() -> dict[str, str]:
     text = CONTRACT.read_text(encoding="utf-8")
     blocks = re.findall(r"```text\n(.*?)\n```", text, re.DOTALL)
-    if len(blocks) != 3:
-        raise ValueError("Expected core, retrieval, and persistence blocks")
-    return dict(zip(("CORE_CONTRACT", "RETRIEVAL_CONTRACT", "PERSISTENCE_CONTRACT_IF_ENABLED"), blocks))
+    markers = ("CORE_CONTRACT", "DIRECTION_CONTRACT_IF_NEEDED",
+               "RESEARCH_CONTRACT_IF_NEEDED", "RETRIEVAL_CONTRACT_IF_NEEDED",
+               "PERSISTENCE_CONTRACT_IF_ENABLED")
+    if len(blocks) != len(markers):
+        raise ValueError("Expected core and four selectable contract blocks")
+    return dict(zip(markers, blocks))
 
 
 class SkillContractTests(unittest.TestCase):
@@ -24,7 +27,7 @@ class SkillContractTests(unittest.TestCase):
         metadata = text.split("---", 2)[1]
         self.assertRegex(metadata, r"(?m)^name: goal-planner$")
         self.assertRegex(metadata, r"(?m)^description: .+")
-        self.assertEqual((ROOT / "VERSION").read_text().strip(), "2.3.0")
+        self.assertEqual((ROOT / "VERSION").read_text().strip(), "2.4.0")
 
     def test_markdown_relative_file_links_resolve(self) -> None:
         # Ignore URLs and anchors; links in authored Markdown must reference bundled files.
@@ -45,16 +48,25 @@ class SkillContractTests(unittest.TestCase):
             text = (ROOT / name).read_text(encoding="utf-8")
             self.assertEqual(set(re.findall(r"\{\{([A-Z_]+)\}\}", text)), set(blocks))
 
-    def test_read_only_contract_can_render_without_persistence(self) -> None:
+    def test_selected_contracts_render_without_unselected_rules(self) -> None:
         blocks = contract_blocks()
-        template = (ROOT / "assets/goal-plan-template.md").read_text(encoding="utf-8")
-        for marker, value in blocks.items():
-            template = template.replace("{{" + marker + "}}",
-                "" if marker == "PERSISTENCE_CONTRACT_IF_ENABLED" else value)
-        self.assertNotRegex(template, r"\{\{[A-Z_]+\}\}")
-        self.assertIn("read-only이면", template)
-        self.assertNotIn("승인된 지식 기록:", template)
-        self.assertIn("관련 변경·실패·미해결 우려", template)
+        profiles = {
+            "self_contained": {"CORE_CONTRACT"},
+            "research_without_repository": {"CORE_CONTRACT", "RESEARCH_CONTRACT_IF_NEEDED"},
+            "read_only_improvement": set(blocks) - {"PERSISTENCE_CONTRACT_IF_ENABLED"},
+            "authorized_persistence": set(blocks),
+        }
+        for name in ("assets/goal-plan-template.md", "references/runtime-prompts.md"):
+            original = (ROOT / name).read_text(encoding="utf-8")
+            for profile, selected in profiles.items():
+                with self.subTest(template=name, profile=profile):
+                    rendered = original
+                    for marker, value in blocks.items():
+                        rendered = rendered.replace("{{" + marker + "}}",
+                                                    value if marker in selected else "")
+                    self.assertNotRegex(rendered, r"\{\{[A-Z_]+\}\}")
+                    for marker, value in blocks.items():
+                        self.assertEqual(rendered.count(value), 1 if marker in selected else 0)
 
     def test_persistence_contract_retains_closed_success_qualifications(self) -> None:
         block = contract_blocks()["PERSISTENCE_CONTRACT_IF_ENABLED"]
@@ -83,7 +95,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertEqual(data["evaluation_status"], "not_run")
         ids = [case["id"] for case in data["cases"]]
         self.assertEqual(len(ids), len(set(ids)))
-        self.assertEqual(len(ids), 40)
+        self.assertEqual(len(ids), 44)
         for case in data["cases"]:
             for field in ("id", "mode", "setup", "user_prompt", "must", "must_not"):
                 self.assertTrue(case[field], (case["id"], field))
