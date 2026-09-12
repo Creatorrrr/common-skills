@@ -24,7 +24,7 @@ from api_resources import normalized_documents, OwnedResources, upload_documents
 from run_attempt import Attempt  # noqa: E402
 
 DEFAULTS = {
-    "model": "gpt-5.6-sol", "reasoning_mode": "auto", "reasoning_effort": "high",
+    "model": "gpt-6-astra", "reasoning_mode": "auto", "reasoning_effort": "max",
     "reasoning_context": "auto", "verbosity": "medium", "background": False, "store": False,
     "direct_input_max_bytes": 45_000_000, "direct_input_max_files": 200,
     "file_search_max_num_results": 24, "poll_interval_seconds": 5, "env_file": "",
@@ -249,7 +249,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--mode", choices=["auto", "direct", "file_search_full", "focused_file_search"], default="auto")
     p.add_argument("--model", default=DEFAULTS["model"])
     p.add_argument("--reasoning-mode", choices=["auto", "standard", "pro"], default=DEFAULTS["reasoning_mode"])
-    p.add_argument("--reasoning-effort", choices=["none", "low", "medium", "high", "xhigh", "max"], default="high")
+    p.add_argument("--reasoning-effort", choices=["none", "low", "medium", "high", "xhigh", "max"], default=DEFAULTS["reasoning_effort"])
     p.add_argument("--reasoning-context", choices=["auto", "current_turn", "all_turns"], default="auto")
     p.add_argument("--verbosity", choices=["low", "medium", "high"], default="medium")
     p.add_argument("--background", action=argparse.BooleanOptionalAction, default=False)

@@ -661,7 +661,7 @@ class FollowupAndLifecycleTests(Fixture):
 
     def test_token_count_receives_reasoning_context_configuration(self):
         _, manifest, path = self.prepare()
-        args = self.arguments(path, '--reasoning-context', 'current_turn')
+        args = self.arguments(path, '--model', 'gpt-5.6-sol', '--reasoning-context', 'current_turn')
         self.approve(args, manifest)
         fake = FakeClient()
         self.execute(args, fake)

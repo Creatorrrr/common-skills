@@ -11,7 +11,7 @@ uv run --isolated --with-requirements "$SKILL_DIR/tests/sdk/requirements.txt" \
   python -m unittest discover -s "$SKILL_DIR/tests/sdk" -v
 ```
 
-Default request: model `gpt-5.6-sol`, reasoning-mode `auto` (resolves to Sol Pro), effort `high`, text verbosity `medium`, foreground, `store=false`, max output/reasoning 32,000 tokens. No SDK automatic retries. Use `--background` or `--store` only with corresponding authorization. Do not confuse verbosity with reasoning depth. See [model-profiles.md](model-profiles.md).
+Default request: model `gpt-6-astra`, reasoning-mode `auto` (omits the mode field for Astra), effort `max`, text verbosity `medium`, foreground, `store=false`, max output/reasoning 32,000 tokens. No SDK automatic retries. Use `--background` or `--store` only with corresponding authorization. Do not confuse verbosity with reasoning depth. See [model-profiles.md](model-profiles.md).
 
 Set `OPENAI_API_KEY` using the host's secure environment/credential flow. Never paste or print a key. An optional explicitly chosen `--env-file` reads only `OPENAI_API_KEY`; no automatic repository `.env` loading or shell evaluation. The official API base URL is fixed; `OPENAI_BASE_URL` does not redirect the upload. This runner is not an Azure/proxy adapter.
 

@@ -51,7 +51,7 @@ class WireFixture:
             output = [{'id': 'msg-test', 'type': 'message', 'status': 'completed', 'role': 'assistant',
                        'content': [{'type': 'output_text', 'text': '검토 결과', 'annotations': []}]}]
             return httpx.Response(200, json={'id': 'resp-test', 'object': 'response', 'status': 'completed',
-                                            'created_at': 0, 'model': 'gpt-5.6-sol', 'output': output})
+                                            'created_at': 0, 'model': self.json_bodies[route]['model'], 'output': output})
         if path == '/v1/vector_stores':
             return httpx.Response(200, json={'id': 'vs-test', 'object': 'vector_store', 'status': 'completed'})
         if path == '/v1/files':
@@ -106,17 +106,19 @@ class SDKTransportTests(unittest.TestCase):
             return api.execute(args, client_factory=client_factory)
 
     def test_direct_count_and_generation_preserve_sdk_payload_for_each_model(self):
-        for model, expected in [('gpt-5.6-sol', {'effort': 'high', 'mode': 'pro', 'context': 'all_turns'}),
-                                ('gpt-6-astra', {'effort': 'high'})]:
+        for model, expected in [('gpt-5.6-sol', {'effort': 'max', 'mode': 'pro', 'context': 'all_turns'}),
+                                ('gpt-6-astra', {'effort': 'max'})]:
             with self.subTest(model=model):
                 wire = WireFixture()
                 extra = ['--reasoning-context', 'all_turns'] if model == 'gpt-5.6-sol' else []
-                self.assertEqual(self.run_fixture('direct', wire, '--model', model, *extra), 0)
+                model_args = ['--model', model] if model == 'gpt-5.6-sol' else []
+                self.assertEqual(self.run_fixture('direct', wire, *model_args, *extra), 0)
                 self.assertEqual(wire.calls, [('POST', '/v1/responses/input_tokens'), ('POST', '/v1/responses')])
                 counted = wire.json_bodies[wire.calls[0]]
                 generated = wire.json_bodies[wire.calls[1]]
                 for field in ('model', 'input', 'instructions', 'reasoning'):
                     self.assertEqual(counted[field], generated[field])
+                self.assertEqual(generated['model'], model)
                 self.assertEqual(generated['reasoning'], expected)
                 self.assertFalse(generated['store'])
                 self.assertFalse(generated['background'])

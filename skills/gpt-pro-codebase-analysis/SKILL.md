@@ -58,7 +58,7 @@ Approval binds run/snapshot, selected file set, request contract, exclusion list
 
 ### 4. Run only the chosen path
 
-Responses API: preserve the existing Sol/Pro/high baseline unless the user selects another supported model. `--reasoning-mode auto` resolves by model; Astra does not inherit Sol's Pro parameter. See [model-profiles.md](references/model-profiles.md). Use a dry-run to catch local blockers, then execute once with the matching approval. Preserve all selected files even when operationally expensive; fail at a limit rather than shrink.
+Responses API: default to `gpt-6-astra` with reasoning effort `max` (the highest documented API effort) unless the user selects another supported configuration. `--reasoning-mode auto` resolves by model; Astra does not inherit Sol's Pro parameter. See [model-profiles.md](references/model-profiles.md). Use a dry-run to catch local blockers, then execute once with the matching approval. Preserve all selected files even when operationally expensive; fail at a limit rather than shrink.
 
 ChatGPT Web: prepare `upload-source.zip`, prompt and return template locally. The helper never opens a browser or submits a message. Before an agent uploads, verify the recorded Web approval, current attachment SHA, and request identity. For authorized automation, load the actual browser-control skill, honor the user's chosen surface, otherwise prefer Chrome control when available and then Computer Use. Do not improvise browser tools or bypass login/confirmation rules. Manual fallback requires the user's instruction when automation was requested.
 

@@ -24,20 +24,21 @@ import run_gpt_pro_analysis  # noqa: E402
 
 
 class PromptContractTests(unittest.TestCase):
-    def test_gpt_56_sol_pro_defaults(self) -> None:
+    def test_gpt_6_astra_max_defaults(self) -> None:
         parser = run_gpt_pro_analysis.build_parser()
         args = parser.parse_args(["--manifest", "manifest.json"])
 
-        self.assertEqual(args.model, "gpt-5.6-sol")
-        self.assertEqual(args.reasoning_mode, "auto")  # v2 auto still resolves Sol to Pro.
-        self.assertEqual(args.reasoning_effort, "high")
+        self.assertEqual(args.model, "gpt-6-astra")
+        self.assertEqual(args.reasoning_mode, "auto")
+        self.assertEqual(args.reasoning_effort, "max")
         self.assertEqual(
             run_gpt_pro_analysis.build_reasoning_config(args),
-            {"mode": "pro", "effort": "high"},
+            {"effort": "max"},
         )
 
     def test_pro_rejects_effort_below_medium(self) -> None:
         args = argparse.Namespace(
+            model="gpt-5.6-sol",
             reasoning_mode="pro",
             reasoning_effort="low",
             reasoning_context="auto",
@@ -48,6 +49,7 @@ class PromptContractTests(unittest.TestCase):
 
     def test_explicit_reasoning_context_is_sent(self) -> None:
         args = argparse.Namespace(
+            model="gpt-5.6-sol",
             reasoning_mode="pro",
             reasoning_effort="medium",
             reasoning_context="all_turns",

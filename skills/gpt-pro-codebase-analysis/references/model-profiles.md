@@ -1,15 +1,15 @@
 # Model profiles and official reference notes
 
-Documentation review date: **2026-09-05**. These are checked configuration assumptions, not live model benchmarks. Registry: `scripts/model_profiles.py`. Review it again when changing a model or SDK; unknown models fail locally instead of inheriting guessed capabilities.
+Documentation review date: **2026-09-05**. Astra model and effort defaults rechecked **2026-09-12**. These are checked configuration assumptions, not live model benchmarks. Registry: `scripts/model_profiles.py`. Review it again when changing a model or SDK; unknown models fail locally instead of inheriting guessed capabilities.
 
 | Profile | Effective default reasoning | Effort | Context / output maximum |
 |---|---|---|---|
-| `gpt-5.6-sol` (alias `gpt-5.6`) | `mode=pro`, `effort=high` | standard: none/low/medium/high/xhigh/max; Pro: medium or higher | 1,050,000 / 128,000 |
-| `gpt-6-astra` | `effort=high`; no `mode` field emitted | low/medium/high/xhigh/max | 1,050,000 / 128,000 |
+| `gpt-5.6-sol` (alias `gpt-5.6`) | `mode=pro`, `effort=max` | standard: none/low/medium/high/xhigh/max; Pro: medium or higher | 1,050,000 / 128,000 |
+| `gpt-6-astra` | `effort=max`; no `mode` field emitted | low/medium/high/xhigh/max | 1,050,000 / 128,000 |
 
-The official Astra page does not establish support for GPT-5.6's Pro mode parameter. This package conservatively rejects explicit Astra `--reasoning-mode pro` and unsupported `none`, rather than asserting the provider can never add Pro. Astra `--reasoning-mode standard` is accepted as a neutral caller choice but omitted from the API payload; prefer `auto` for clarity. Astra non-auto reasoning.context is also unverified and rejected. Sol supports auto/current_turn/all_turns in this registry.
+The Astra model page documents effort through `max`. This runner keeps its existing effort-only Astra payload and rejects explicit Astra `--reasoning-mode pro`; that is a package limitation, not a claim about provider Pro support. Unsupported Astra effort `none` is also rejected. Astra `--reasoning-mode standard` is accepted as a neutral caller choice but omitted from the API payload; prefer `auto` for clarity. Astra non-auto reasoning.context is also unverified and rejected. Sol supports auto/current_turn/all_turns in this registry.
 
-Default Sol/high is retained to separate implementation changes from model migration. This is not a claim that Sol is superior or cheaper for this workload. Compare the same frozen input and request contract across models, then evaluate effort/depth independently. Measure actual evidence correctness, missing important findings, unsupported claims, scope compliance, cost, latency and approval friction. No quantitative gain is claimed by v2.
+The default is `gpt-6-astra` with `max` effort, following the requested latest-model and highest-effort configuration. Sol remains available by explicit selection. This configuration change is not evidence of better analysis quality. Compare the same frozen input and request contract across models, then evaluate effort/depth independently. Measure actual evidence correctness, missing important findings, unsupported claims, scope compliance, cost, latency and approval friction. No quantitative gain is claimed by v2.
 
 ## Official sources
 
