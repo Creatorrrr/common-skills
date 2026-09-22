@@ -1,0 +1,89 @@
+{
+  "source_zip_sha256": "bfee16b07d36b77deb2cd0e7aee0541c63d0b9c6c232d50f345cb439468c4523",
+  "upstream_manifest_files": 60,
+  "upstream_unittest": 96,
+  "local_unittest": 99,
+  "python312_preflight": 35,
+  "ruff": "0.16.4",
+  "quick_validate": "passed",
+  "same_as_3_0": {
+    "scripts/report_index.py": true,
+    "tests/behavioral-scenarios.json": true
+  },
+  "v3_0_validation_preserved": true,
+  "unresolved_local_links": [],
+  "factory_demo": [
+    {
+      "fault": false,
+      "exit_code": 0,
+      "result": {
+        "contrasts": [
+          {
+            "actual_differences": [
+              "cache_active"
+            ],
+            "claim_kind": "isolated-change",
+            "id": "cache-on-versus-off"
+          }
+        ],
+        "evidence_files_hashed": 1,
+        "experiment_id": "cache-probe-example",
+        "issues": [],
+        "notice": "Consistency of supplied facts and hashes only; not execution authorization or causal proof.",
+        "run_id": "probe-0d0dceacb6a346e78e0a30c8f9275a1d",
+        "schema_version": 1,
+        "scientific_validity": "not_established",
+        "source_coverage_and_exporter_truth": "not_established",
+        "status": "consistent"
+      }
+    },
+    {
+      "fault": true,
+      "exit_code": 1,
+      "result": {
+        "contrasts": [
+          {
+            "actual_differences": [],
+            "claim_kind": "isolated-change",
+            "id": "cache-on-versus-off"
+          }
+        ],
+        "evidence_files_hashed": 1,
+        "experiment_id": "cache-probe-example",
+        "issues": [
+          {
+            "code": "DECLARATION_MISMATCH",
+            "location": "arms.baseline.cache_active",
+            "message": "Declared and observed values differ."
+          },
+          {
+            "code": "CONTRAST_MISMATCH",
+            "location": "contrasts.cache-on-versus-off",
+            "message": "Actual changes differ from the predeclared contrast, including no-op or extra changes."
+          }
+        ],
+        "notice": "Consistency of supplied facts and hashes only; not execution authorization or causal proof.",
+        "run_id": "probe-f4e02783b7b448688fe22b164f533fb0",
+        "schema_version": 1,
+        "scientific_validity": "not_established",
+        "source_coverage_and_exporter_truth": "not_established",
+        "status": "mismatch"
+      }
+    }
+  ],
+  "installation": {
+    "installed": "/Users/chasoik/Projects/common-skills/skills/goal-planner",
+    "version": "3.1.0",
+    "files": 68,
+    "manifest_files": 67,
+    "linked_paths": [
+      "/Users/chasoik/.agents/skills/common-skills/goal-planner",
+      "/Users/chasoik/.claude/skills/goal-planner"
+    ]
+  },
+  "installed_contracts": {
+    "count": 28,
+    "result": "passed",
+    "raw_output": "test_core_scopes_succession_exception (test_research_contracts.ResearchContractTests.test_core_scopes_succession_exception) ... ok\ntest_delegation_constraints_and_successor_transfer (test_research_contracts.ResearchContractTests.test_delegation_constraints_and_successor_transfer) ... ok\ntest_exact_named_blocks_have_no_duplicate_fences (test_research_contracts.ResearchContractTests.test_exact_named_blocks_have_no_duplicate_fences) ... ok\ntest_experiment_judgments_and_feasibility_exception_are_embedded (test_research_contracts.ResearchContractTests.test_experiment_judgments_and_feasibility_exception_are_embedded) ... ok\ntest_new_behavior_definitions_are_not_reported_as_executions (test_research_contracts.ResearchContractTests.test_new_behavior_definitions_are_not_reported_as_executions) ... ok\ntest_no_numeric_budget_is_invented_as_prerequisite (test_research_contracts.ResearchContractTests.test_no_numeric_budget_is_invented_as_prerequisite) ... ok\ntest_no_unconditional_successor_stop_in_active_references (test_research_contracts.ResearchContractTests.test_no_unconditional_successor_stop_in_active_references) ... ok\ntest_program_preserves_budget_and_current_state (test_research_contracts.ResearchContractTests.test_program_preserves_budget_and_current_state) ... ok\ntest_research_and_experiment_records_stay_outside_report_catalog (test_research_contracts.ResearchContractTests.test_research_and_experiment_records_stay_outside_report_catalog) ... ok\ntest_resume_template_distinguishes_accounting_and_ownership (test_research_contracts.ResearchContractTests.test_resume_template_distinguishes_accounting_and_ownership) ... ok\ntest_success_is_scoped_to_milestone_not_program (test_research_contracts.ResearchContractTests.test_success_is_scoped_to_milestone_not_program) ... ok\ntest_templates_capture_pre_and_post_run_fields (test_research_contracts.ResearchContractTests.test_templates_capture_pre_and_post_run_fields) ... ok\ntest_behavioral_scenarios_are_explicitly_unexecuted (test_skill_contracts.SkillContractTests.test_behavioral_scenarios_are_explicitly_unexecuted) ... ok\ntest_contract_and_templates_have_matching_insertion_markers (test_skill_contracts.SkillContractTests.test_contract_and_templates_have_matching_insertion_markers) ... ok\ntest_frontmatter_identity_and_version (test_skill_contracts.SkillContractTests.test_frontmatter_identity_and_version) ... ok\ntest_known_conflicting_runtime_phrases_are_not_reintroduced (test_skill_contracts.SkillContractTests.test_known_conflicting_runtime_phrases_are_not_reintroduced) ... ok\ntest_markdown_relative_file_links_resolve (test_skill_contracts.SkillContractTests.test_markdown_relative_file_links_resolve) ... ok\ntest_no_bytecode_or_macos_artifacts_in_package (test_skill_contracts.SkillContractTests.test_no_bytecode_or_macos_artifacts_in_package) ... ok\ntest_persistence_contract_retains_closed_success_qualifications (test_skill_contracts.SkillContractTests.test_persistence_contract_retains_closed_success_qualifications) ... ok\ntest_selected_contracts_render_without_unselected_rules (test_skill_contracts.SkillContractTests.test_selected_contracts_render_without_unselected_rules) ... ok\ntest_comparison_semantics_are_in_portable_contract_not_only_reference (test_verification_contracts.VerificationContractTests.test_comparison_semantics_are_in_portable_contract_not_only_reference) ... ok\ntest_existing_templates_capture_new_fields_without_mandatory_new_database (test_verification_contracts.VerificationContractTests.test_existing_templates_capture_new_fields_without_mandatory_new_database) ... ok\ntest_failed_gate_diagnosis_is_not_promotion_or_new_authority (test_verification_contracts.VerificationContractTests.test_failed_gate_diagnosis_is_not_promotion_or_new_authority) ... ok\ntest_light_core_does_not_require_empirical_infrastructure (test_verification_contracts.VerificationContractTests.test_light_core_does_not_require_empirical_infrastructure) ... ok\ntest_new_behavior_fixture_definitions_are_complete_and_unexecuted (test_verification_contracts.VerificationContractTests.test_new_behavior_fixture_definitions_are_complete_and_unexecuted) ... ok\ntest_program_carries_unresolved_claims_and_separate_cost_units (test_verification_contracts.VerificationContractTests.test_program_carries_unresolved_claims_and_separate_cost_units) ... ok\ntest_review_template_keeps_assessment_before_reconciliation (test_verification_contracts.VerificationContractTests.test_review_template_keeps_assessment_before_reconciliation) ... ok\ntest_verifier_and_metric_limits_are_in_portable_handoff (test_verification_contracts.VerificationContractTests.test_verifier_and_metric_limits_are_in_portable_handoff) ... ok\n\n----------------------------------------------------------------------\nRan 28 tests in 0.020s\n\nOK\n"
+  }
+}

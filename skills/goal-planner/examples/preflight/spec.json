@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "experiment_id": "cache-probe-example",
+  "claim": "Check the intended on/off contrast exists; this is not a speed claim.",
+  "arms": {
+    "candidate": {
+      "cache_active": true,
+      "reset_postcondition": "test_entry_absent",
+      "initial_state": "empty",
+      "workload_id": "probe-only-v1",
+      "evaluator_id": "probe-only-v1"
+    },
+    "baseline": {
+      "cache_active": false,
+      "reset_postcondition": "test_entry_absent",
+      "initial_state": "empty",
+      "workload_id": "probe-only-v1",
+      "evaluator_id": "probe-only-v1"
+    }
+  },
+  "contrasts": [
+    {
+      "id": "cache-on-versus-off",
+      "candidate": "candidate",
+      "comparator": "baseline",
+      "claim_kind": "isolated-change",
+      "expected_differences": [
+        "cache_active"
+      ]
+    }
+  ]
+}

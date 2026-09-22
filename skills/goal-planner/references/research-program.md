@@ -18,6 +18,14 @@ Use the current goal template's Program section rather than requiring a new fami
 
 A single milestone passing does not complete the program. A successful experiment does not automatically pass the milestone. A failed experiment need not close it. Candidate rejection within an improvement milestone normally leads to a justified next attempt. When its premise is invalidated or its allocated opportunity is exhausted, close it honestly and choose a better milestone if program authority/resources remain. Do not create trivial milestones or retroactively recast failed improvement as successful inquiry.
 
+## Preserve the mission without accumulating infrastructure
+
+Keep a short list of unresolved mission claims with their scope, evidence status, counterevidence and revisit trigger in the existing goal/state record. When a milestone narrows to a supporting subsystem, retain the higher-level capability gap rather than silently completing it. Track new supported/refuted claims and decisions changed, not version counts, document counts or code volume. A diagnostic simplification is not final-path evidence.
+
+Preserve a verified baseline by source/environment/artifact/evaluator identity, not by indefinitely cloning active runners. When duplication becomes an observed reliability cost, factor only the active shared path with fixed-fixture equivalence and recovery checks inside existing authority. Do not make a wholesale rewrite or new platform a prerequisite.
+
+Use ordinary scripts for routine aggregation and monitoring where appropriate. Reserve agent judgment for hypothesis choice, ambiguous implementation and evidence interpretation. Roles can be sequential; neither more parallel agents nor an extra model is a goal in itself. Conventional search can handle well-defined numeric tuning when already available and relevant; no new dependency is required.
+
 ## Decision loop
 
 At a meaningful boundary: reconcile observations; adjudicate the current experiment/milestone; update applicable beliefs with conditions and contrary evidence; preserve or promote verified artifacts; then continue the milestone, revise its method, or select a successor.
@@ -25,6 +33,10 @@ At a meaningful boundary: reconcile observations; adjudicate the current experim
 For successor selection, compare plausible work by mission contribution, key uncertainty reduced, dependencies unlocked, expected cost, delay and recoverability. Do not invent confidence percentages or require a scoring spreadsheet. Choose one current milestone; retain only useful alternatives and their revisit triggers. Information-only goals are appropriate when answering the question genuinely changes a consequential decision. Review whether learning is changing decisions or whether the program is merely accumulating notes.
 
 Include stable continuation and structural alternatives where credible. Both repeated failure and new opportunity evidence can justify bounded exploration. A pivot is not mandatory after an arbitrary number of failures. A radical architecture experiment can be reversible and internal; deletion, production mutation, publication and new spending remain separate authorization questions. If no useful next test or credible direction is available, record the specific information/resource gap and pause; do not fill the gap with random variants or ceremonial research.
+
+## Actual cost versus inherited lineage
+
+Keep existing authorized accounting and limits. Separately identify new observations/work units, actual updates, elapsed/CPU/GPU time, storage, measured agent usage, reservations, estimates and unknowns when relevant. Inherited data/training/artifact lineage is not newly measured execution cost or a count of independent experiments. Missing metering is unknown, not free or unlimited. Prefer existing logs and a few columns over a new metering service.
 
 ## Shared resource accounting
 

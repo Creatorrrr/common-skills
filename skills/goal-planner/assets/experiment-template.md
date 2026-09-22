@@ -12,7 +12,14 @@
 ## Before execution — preserve when results arrive
 - Hypothesis and scope:
 - Competing explanation:
+- Execution purpose: exploration | diagnosis | promotion-confirmation
+- Decision fork: [result -> changed next decision; required for post-failure diagnosis]
+- Prior gate status / prospective amendment / remaining authority: [when applicable]
 - Intervention / comparator:
+- Actual variant construction / behavior probe / evidence: [material comparisons only]
+- Candidate-minus-comparator changes / controlled conditions:
+- Claim kind: isolated-change | joint-change | system-comparison [plain-language scope; optional tool uses these enums]
+- State sharing / reset effects / initialization / temporal order: [applicable fields only]
 - Predictions:
 - Support / refutation / inconclusive rule:
 - Validity conditions:
@@ -32,9 +39,13 @@
 - Verdict rationale / limits / counterevidence:
 - Adoption: adopt | reject | defer | not_applicable
 - Adoption rationale / related regressions:
+- Changed mechanism / directly tested capability / final-path limitations:
+- Evidence-first verifier / actual independence / disagreement resolution: [if warranted]
+- Unresolved mission claims carried forward:
 - Milestone outcome: pending | pass | fail | blocked | not_run
 - Milestone adjudication reference:
 - Actual resource use / remaining / unknown:
+- New work versus inherited lineage: [separate units; preserve existing caps]
 - Best verified artifact: [retain or promote with evidence]
 - Next decision and evidence needed:
 

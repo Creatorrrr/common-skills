@@ -1,8 +1,14 @@
-# Goal Planner 3.0.0
+# Goal Planner 3.1.0
 
 연구·개발 에이전트가 수행할 목표와 실행 계약을 작성·검토하는 스킬입니다. **연구 프로그램 → 유한한 이정표 → 가설·실험**을 구분하여, 성과와 실패를 정직하게 확정하면서 승인된 범위 안에서 다음 연구 목표를 선택하도록 설계했습니다.
 
-스킬 이름은 계속 `goal-planner`입니다. 3.0.0은 패키지 버전이며 특정 모델 버전이 아닙니다. 이 패키지는 실행기·스케줄러·자동 재시작 서비스가 아닙니다. 계획 작성과 프로젝트 실행의 승인은 별개이며, 실제 반복 실행·위임·세션 재개는 사용하는 호스트의 기능과 권한에 따릅니다.
+스킬 이름은 계속 `goal-planner`입니다. 3.1.0은 패키지 버전이며 특정 모델 버전이 아닙니다. 이 패키지는 실행기·스케줄러·자동 재시작 서비스가 아닙니다. 계획 작성과 프로젝트 실행의 승인은 별개이며, 실제 반복 실행·위임·세션 재개는 사용하는 호스트의 기능과 권한에 따릅니다.
+
+## 3.1.0의 핵심 변경
+
+중요 비교에서 선언된 비교군과 실제 구성·동작을 대조하고, 단일 요인·결합 효과·시스템 비교의 결론을 구분합니다. 실패 뒤 최소 진단과 후보 승격 확증을 분리하며, 중요한 판단에는 원시 증거를 먼저 보는 검토를 적용합니다. 보조 구성의 개선과 최종 목적의 능력을 연결하고, 미해결 주장과 실제 비용/상속 계보를 보존합니다. 본문뿐 아니라 실행자에게 복사되는 계약·템플릿에도 적용했습니다.
+
+작은 수정에는 기존 Core 경로를 유지합니다. 새 도구·별도 모델·데이터베이스는 필수가 아니며, 특정 프로젝트·아키텍처·모델에 의존하지 않습니다. 복사해서 쓸 마이그레이션·연구·검증 프롬프트는 [USAGE.md](USAGE.md)에 있습니다.
 
 ## 설치와 이전 버전 교체
 
@@ -15,7 +21,7 @@
 
 기존 폴더는 스킬 검색 경로 **밖에** 백업한 뒤 교체합니다. 프로젝트의 실패·성공·연구 기록과 현재 계획은 삭제하지 않습니다. 동일 이름의 구·신 버전이 여러 경로에 남지 않도록 확인합니다. 기존 사용자 정의와 이미 생성한 `GOAL_PLAN.md`는 [MIGRATION.md](MIGRATION.md)에 따라 필요한 부분만 병합합니다.
 
-경로·호출은 2026-09-07 확인한 [OpenAI 스킬 문서](https://developers.openai.com/codex/skills/)와 [Claude Code 스킬 문서](https://code.claude.com/docs/en/skills)를 기준으로 작성했습니다. 이 배포본을 사용자의 실제 호스트에 설치해 실행한 검증은 수행하지 않았습니다. `/goal` 제공 여부는 별도 런타임 기능으로 확인해야 합니다.
+경로·호출은 2026-09-22 확인한 [OpenAI 스킬 문서](https://developers.openai.com/codex/skills/)와 [Claude Code 스킬 문서](https://code.claude.com/docs/en/skills)를 기준으로 작성했습니다. 이 배포본을 사용자의 실제 호스트에 설치해 실행한 검증은 수행하지 않았습니다. `/goal` 제공 여부는 별도 런타임 기능으로 확인해야 합니다.
 
 ## 두 가지 목표 모델
 
@@ -81,6 +87,11 @@ $goal-planner
 | [SKILL.md](SKILL.md) | 적용 범위, 목표 선택, 권한, 필요한 문서만 읽는 진입점 |
 | [references/research-program.md](references/research-program.md) | 지속 연구, 다음 이정표, 공유 예산, 최선 산출물, 복구 |
 | [references/experiment-protocol.md](references/experiment-protocol.md) | 가설·사전 예측·실험 판정·평가 신뢰성 |
+| [references/empirical-verification.md](references/empirical-verification.md) | 실제 비교 의미·실패 뒤 진단·증거 우선 검토 |
+| [assets/verification-template.md](assets/verification-template.md) | 중요한 결론의 선택적 검토 양식 |
+| [scripts/experiment_preflight.py](scripts/experiment_preflight.py) | 선택적 읽기 전용 JSON·대조·해시 점검 |
+| [examples/preflight/README.md](examples/preflight/README.md) | 실제 factory를 검사하는 범용 캐시 예제 |
+| [USAGE.md](USAGE.md) | 설치·계획 갱신·지속 연구·검증 사용 예 |
 | [references/execution-contract.md](references/execution-contract.md) | 7개 선택적 실행 계약 블록 |
 | [references/execution-knowledge.md](references/execution-knowledge.md) | 조회·연구·보고서·기록 권한 |
 | [references/runtime-prompts.md](references/runtime-prompts.md) | 계획 파일 또는 직접 실행 프롬프트 조합 |
@@ -89,7 +100,7 @@ $goal-planner
 | [assets/research-state-template.md](assets/research-state-template.md) | 세션 재개용 최소 상태 |
 | [references/report-index.md](references/report-index.md) | 선택적 인덱스와 정확한 한글 호환 범위 |
 | [CHANGELOG.md](CHANGELOG.md), [MIGRATION.md](MIGRATION.md) | 변경 내역, 이전 버전 적용 방법 |
-| [MODEL_GUIDE_REVIEW.md](MODEL_GUIDE_REVIEW.md) | OpenAI 가이드 대조와 대조 후 실제 수정 |
+| [MODEL_GUIDE_REVIEW.md](MODEL_GUIDE_REVIEW.md) | 이전 3.0.0의 가이드 검토 기록; 3.1.0의 새 검토 결과는 아님 |
 | [VALIDATION.md](VALIDATION.md), [tests/README.md](tests/README.md) | 검증 결과·재현 명령·한계 |
 
 변경 이력·가이드 검토·검증 문서는 배포 검토용입니다. 에이전트가 매번 모든 문서를 읽어야 하는 실행 요구사항은 아닙니다.
@@ -116,4 +127,4 @@ PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s tests -v
 
 선택적 도구와 테스트는 Python 3.10 이상 문법을 사용하고 외부 패키지·API 키가 필요하지 않습니다. 실제 확인 환경은 [VALIDATION.md](VALIDATION.md)에 기록합니다. 계획 작성만 하는 데 Python은 필요하지 않습니다.
 
-자동 검사는 총 56개 테스트 메서드로 코드 회귀·한글 필드·계약 조합·패키지 구조를 다룹니다. 별도의 행동 평가 정의 64개는 모두 `not_run`이며 자동 검사가 실제 모델을 호출하지 않습니다. 장기 연구 성과, 호스트 연동, 모델별 성능 향상은 이 검사로 입증되지 않습니다.
+로컬 통합본의 자동 검사는 기존 56개에 구성 점검 35개와 새 계약/평가 정의 검사 8개를 추가한 총 99개 테스트 메서드입니다. 첨부 원본의 96개에 CLI 경계 입력 회귀 3개를 추가했습니다. 기존 행동 정의 64개와 새 실증 검증 fixture 16개는 정의 파일에서 `not_run`을 유지하며, 별도 세션 평가 결과는 정의와 분리해 기록합니다. 작동 예제와 자동 검사는 장기 연구 성과, 호스트 연동, 모델별 성능 향상을 입증하지 않습니다. 실제 실행 결과와 한계는 [VALIDATION.md](VALIDATION.md)에 있습니다.

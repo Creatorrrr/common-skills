@@ -65,6 +65,10 @@ Record observable predictions and concise decision rationale, not private chain-
 
 Use existing evaluations. For performance claims, keep baseline and candidate comparable, account for relevant stochastic variation, and distinguish exploratory selection from final confirmation. Track evaluation exposure across the program and version evaluator changes; recompare baseline and candidate under the same contract. Independent confirmation is proportionate to the importance of adoption, not mandatory for every edit.
 
+For consequential comparisons, read [references/empirical-verification.md](references/empirical-verification.md). Verify declared variants against instantiated configuration and relevant behavior before costly runs; document the actual difference, including state/reset and initialization when applicable. A name or a passing manifest is not causal evidence. Pause only the affected comparison when its meaning is unresolved. Distinguish promotion confirmation from bounded diagnosis after a failed gate, with a prospective decision fork and existing authority.
+
+For important claims, give a verifier the question, original criteria, source snapshot and raw evidence before the author's interpretation where feasible; require an evidence-first assessment, then reconcile disagreements. Use separate sessions only when available and authorized; otherwise label a sequential self-review honestly. Track which mechanism actually changed and carry unresolved mission claims across narrower milestones. A smaller subsystem success is not proof of the entire mission.
+
 ## Research and ownership
 
 Reuse evidence first. During authorized execution, default to a bounded research delegation when an important decision gap remains, useful independent main work exists, and supported tools, current permissions, and shared resources allow it. Simple lookups stay local; otherwise investigate sequentially. Do not invent parallel work, another model, or a personal skill dependency.

@@ -10,6 +10,12 @@ Preserve the pre-run entry before results exist. Amend prospectively with a vers
 
 Record testable claims, observable predictions and concise decision rationale, not a private chain of thought or an exhaustive reasoning transcript. Only fill relevant fields. A deterministic bug reproduction does not need confidence intervals or a statistical power calculation. For a stochastic comparison, choose repetitions and uncertainty treatment that can resolve a practically meaningful effect within resources. Do not invent a universal minimum number of seeds or a threshold after seeing results. If precision is insufficient, report that rather than claim equivalence.
 
+## Verify comparison meaning before costly runs
+
+Apply [empirical-verification.md](empirical-verification.md) when a comparison informs adoption, a structural pivot, or an important empirical claim. Use runtime configuration plus small behavioral probes to reconcile the written variants with actual implementations, their state/reset boundaries, versions, initialization and observation/update order where applicable. Keep a small claim-to-contrast table, not a universal infrastructure requirement.
+
+Separate `exploration`, `diagnosis`, and `promotion-confirmation`. After a failed development gate, diagnosis must identify a remaining question, result-dependent next decisions, a minimal discriminating comparison and the shared allowance. It cannot bypass a required gate, justify deployment, relabel a failed milestone, or introduce unauthorized cost. Preserve the failure and amend prospectively; no blanket reapproval is needed for diagnosis already inside the delegated scope.
+
 ## Independent judgments
 
 | Field | Values | Meaning |
@@ -39,6 +45,12 @@ Specify the metric direction, baseline, target population/workload, practical ac
 Do not automatically demand new datasets. Reuse available protected splits or existing replication paths; when no independent confirmation is available, label results exploratory or limit the generalization claim. Add a stronger check only when it can change a material decision. Confirm important promotions independently or in a clean environment when warranted by their impact and uncertainty, not every local edit.
 
 An evaluator fix is a separate versioned change with rationale and test evidence. Preserve prior results under their original version. Re-evaluate both baseline and candidate under the revised contract before attributing a score change to product improvement. Do not hide easier tests, removed failures, data leakage, warm-cache differences, shared-GPU contention or changed hardware behind the same metric name.
+
+## Evidence-first review and scope of contribution
+
+For an important promotion or causal claim, provide original criteria and raw evidence to a verifier before author conclusions where practical. Record the review's actual independence, source limits, contrary evidence and required smallest check. Use [../assets/verification-template.md](../assets/verification-template.md) only when useful. Do not require a second model or fresh session for every edit or claim independence when only self-review occurred.
+
+Identify the changed mechanism and the directly tested capability. Distinguish a learned component from preprocessing, caching, rules, calibration, runtime optimization or external assistance as relevant to the project. Diagnostic privileged inputs or simplified workloads do not prove the deployed input path. Choose metrics that test the promised capability, with a meaningful simple baseline; a proxy passing alone does not establish user benefit. For probability outputs, good calibration alone does not establish discrimination or usefulness; compare appropriate predictive scores to a base-rate predictor when that is the claim.
 
 ## Research memory versus passed reports
 

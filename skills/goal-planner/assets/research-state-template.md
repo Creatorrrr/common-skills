@@ -11,6 +11,9 @@
 - Closed milestone outcomes and preserved criteria: [links or concise entries]
 - Current experiment / hypothesis / protocol version:
 - Current beliefs / supporting and contrary evidence: [brief, scoped]
+- Unresolved mission claims / counterevidence / revisit triggers:
+- Actual contrast / changed mechanism / claim scope: [current material experiment]
+- Failed gate / diagnostic decision fork / promotion eligibility: [when applicable]
 - Best verified artifact / claim scope / evidence:
 - Active candidate / last verified state:
 - Workspace / code / relevant dirty-state / config / data / evaluator IDs:
@@ -20,7 +23,7 @@
 | Resource and unit | Authorized cap/basis | Actual used | In-flight reserved | Remaining/unknown | Evidence |
 |---|---|---|---|---|---|
 | | | | | | |
-<!-- Do not double-count reservations as final charges. Unknown is not zero; keep old spending on cap changes. -->
+<!-- Separate newly measured work/cost from inherited data/training/artifact lineage; retain every authorized cap and mark unknowns. Do not double-count reservations as final charges. Unknown is not zero; keep old spending on cap changes. -->
 
 ## Owned work
 | Task ID / owner | Scope / write path | Last observed actual state | Reserved resource | Next reconciliation |

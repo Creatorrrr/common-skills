@@ -1,0 +1,172 @@
+{
+  "release": "3.1.0",
+  "checked_on": "2026-09-22",
+  "python": "3.13.5",
+  "platform": "Linux",
+  "test_execution": "completed in separate module calls; single-call attempts timed out and are not counted",
+  "tests": [
+    {
+      "log": "preflight-tests.log",
+      "test_methods": 32,
+      "seconds": 6.113,
+      "status": "passed"
+    },
+    {
+      "log": "research-contracts.log",
+      "test_methods": 12,
+      "seconds": 0.003,
+      "status": "passed"
+    },
+    {
+      "log": "skill-verification-contracts.log",
+      "test_methods": 16,
+      "seconds": 0.013,
+      "status": "passed"
+    },
+    {
+      "log": "report-index-tests.log",
+      "test_methods": 13,
+      "seconds": 22.161,
+      "status": "passed"
+    },
+    {
+      "log": "catalog-recovery-tests.log",
+      "test_methods": 10,
+      "seconds": 5.833,
+      "status": "passed"
+    },
+    {
+      "log": "localized-index-tests.log",
+      "test_methods": 13,
+      "seconds": 3.733,
+      "status": "passed"
+    }
+  ],
+  "total_test_methods": 96,
+  "failures": 0,
+  "skipped": 0,
+  "python_syntax_files": 10,
+  "python_310_syntax_parse": "passed",
+  "original_report_index_byte_identical": true,
+  "original_behavior_cases_byte_identical": true,
+  "original_test_sources_preserved_except_version_assertion": true,
+  "behavior_cases_total": 80,
+  "behavior_cases_new": 16,
+  "behavior_execution": "not_run",
+  "source_zip_sha256": "057615b80712665de38e4abae3c94c0c4bc5e0df69662fc32d39709104393461",
+  "project_specific_reference_scan": "no matching project identifiers found",
+  "new_runtime_model_names": "none hardcoded",
+  "package_cleanliness": "no bytecode/macOS sidecar files",
+  "scientific_validity": "not_established",
+  "host_installation": "not_run",
+  "changes": [
+    {
+      "path": "CHANGELOG.md",
+      "change": "modified"
+    },
+    {
+      "path": "MIGRATION.md",
+      "change": "modified"
+    },
+    {
+      "path": "README.md",
+      "change": "modified"
+    },
+    {
+      "path": "SKILL.md",
+      "change": "modified"
+    },
+    {
+      "path": "USAGE.md",
+      "change": "added"
+    },
+    {
+      "path": "VALIDATION.md",
+      "change": "modified"
+    },
+    {
+      "path": "VALIDATION_V3_0.md",
+      "change": "added"
+    },
+    {
+      "path": "VERSION",
+      "change": "modified"
+    },
+    {
+      "path": "assets/experiment-template.md",
+      "change": "modified"
+    },
+    {
+      "path": "assets/goal-plan-template.md",
+      "change": "modified"
+    },
+    {
+      "path": "assets/research-state-template.md",
+      "change": "modified"
+    },
+    {
+      "path": "assets/verification-template.md",
+      "change": "added"
+    },
+    {
+      "path": "examples/preflight/README.md",
+      "change": "added"
+    },
+    {
+      "path": "examples/preflight/demo_runtime.py",
+      "change": "added"
+    },
+    {
+      "path": "examples/preflight/spec.json",
+      "change": "added"
+    },
+    {
+      "path": "references/empirical-verification.md",
+      "change": "added"
+    },
+    {
+      "path": "references/execution-contract.md",
+      "change": "modified"
+    },
+    {
+      "path": "references/experiment-protocol.md",
+      "change": "modified"
+    },
+    {
+      "path": "references/research-program.md",
+      "change": "modified"
+    },
+    {
+      "path": "scripts/experiment_preflight.py",
+      "change": "added"
+    },
+    {
+      "path": "tests/BEHAVIORAL_EVAL.md",
+      "change": "added"
+    },
+    {
+      "path": "tests/README.md",
+      "change": "modified"
+    },
+    {
+      "path": "tests/behavioral-verification.json",
+      "change": "added"
+    },
+    {
+      "path": "tests/evidence/v3.1-unittest.txt",
+      "change": "added"
+    },
+    {
+      "path": "tests/test_experiment_preflight.py",
+      "change": "added"
+    },
+    {
+      "path": "tests/test_skill_contracts.py",
+      "change": "modified"
+    },
+    {
+      "path": "tests/test_verification_contracts.py",
+      "change": "added"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "purpose": "Mechanical configuration example, not a model behavior evaluation.",
+  "positive_exit": 0,
+  "negative_exit": 1,
+  "positive": {
+    "contrasts": [
+      {
+        "actual_differences": [
+          "cache_active"
+        ],
+        "claim_kind": "isolated-change",
+        "id": "cache-on-versus-off"
+      }
+    ],
+    "evidence_files_hashed": 1,
+    "experiment_id": "cache-probe-example",
+    "issues": [],
+    "notice": "Consistency of supplied facts and hashes only; not execution authorization or causal proof.",
+    "run_id": "probe-398306a56e534b22a59559ffcf6e4e98",
+    "schema_version": 1,
+    "scientific_validity": "not_established",
+    "source_coverage_and_exporter_truth": "not_established",
+    "status": "consistent"
+  },
+  "deliberate_fault": {
+    "contrasts": [
+      {
+        "actual_differences": [],
+        "claim_kind": "isolated-change",
+        "id": "cache-on-versus-off"
+      }
+    ],
+    "evidence_files_hashed": 1,
+    "experiment_id": "cache-probe-example",
+    "issues": [
+      {
+        "code": "DECLARATION_MISMATCH",
+        "location": "arms.baseline.cache_active",
+        "message": "Declared and observed values differ."
+      },
+      {
+        "code": "CONTRAST_MISMATCH",
+        "location": "contrasts.cache-on-versus-off",
+        "message": "Actual changes differ from the predeclared contrast, including no-op or extra changes."
+      }
+    ],
+    "notice": "Consistency of supplied facts and hashes only; not execution authorization or causal proof.",
+    "run_id": "probe-ea7f6e144f444070bc09a8cd2b524a7e",
+    "schema_version": 1,
+    "scientific_validity": "not_established",
+    "source_coverage_and_exporter_truth": "not_established",
+    "status": "mismatch"
+  }
+}

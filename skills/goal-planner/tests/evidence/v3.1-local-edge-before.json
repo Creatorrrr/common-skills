@@ -1,0 +1,23 @@
+{
+  "huge_integer": {
+    "exit": 1,
+    "stdout": "",
+    "stderr_tail": [
+      "               ~~~~~~~~~~~~~~^^^^^^^^",
+      "ValueError: Exceeds the limit (4300 digits) for integer string conversion: value has 5000 digits; use sys.set_int_max_str_digits() to increase the limit"
+    ]
+  },
+  "null_path": {
+    "exit": 1,
+    "stdout": "",
+    "stderr_tail": [
+      "  File \"<frozen posixpath>\", line 457, in realpath",
+      "ValueError: lstat: embedded null character in path"
+    ]
+  },
+  "symlink_loop": {
+    "exit": 2,
+    "stdout": "{\n  \"error\": \"OSError\",\n  \"schema_version\": 1,\n  \"scientific_validity\": \"not_established\",\n  \"status\": \"input_error\"\n}\n",
+    "stderr_tail": []
+  }
+}
