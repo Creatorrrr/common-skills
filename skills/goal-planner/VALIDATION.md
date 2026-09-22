@@ -1,82 +1,62 @@
-# Goal Planner 3.1.0 검증 기록
+# goal-planner 3.2.1 검증 기록
 
 ## 로컬 통합 검증 — 2026-09-22
 
-첨부 ZIP을 현재 설치된 3.0.0 및 개발 대화의 마지막 개선안과 대조했습니다. 아래는 macOS 27.0 arm64의 실제 로컬 결과이며, 뒤쪽의 제공된 Linux 배포 기록과 구분합니다.
+첨부 ZIP과 현재 설치된 3.1.0, 연결된 개발 대화의 3.2.0/3.2.1 개선 의도를 대조했습니다. 아래는 macOS 27.0 arm64의 실제 로컬 결과이며, 뒤쪽의 첨부 배포 기록과 구분합니다.
 
-| 검사 | 결과 | 근거와 범위 |
+| 확인 | 실제 결과 | 근거 |
 |---|---|---|
-| 첨부 ZIP | SHA-256 `bfee16b07d36b77deb2cd0e7aee0541c63d0b9c6c232d50f345cb439468c4523`; CRC·경로·파일 집합 및 manifest 60개 일치 | 원본 다운로드 보존, manifest 자체 제외 |
-| 원본 3.1.0 재실행 | Python 3.14.3에서 96개 통과 | [원시 로그](tests/evidence/v3.1-local-upstream-unittest.txt) |
-| 로컬 보완본 | Python 3.14.3에서 **99개 통과, 실패·건너뜀 0** | [원시 로그](tests/evidence/v3.1-local-unittest.txt) |
-| 이전 Python의 새 도구 | Python 3.12.13에서 35개 통과 | [점검 도구 로그](tests/evidence/v3.1-local-python312-preflight.txt); 전체 패키지의 다중 버전 검증은 아님 |
-| 정적 검사 | skill-creator `quick_validate.py` 통과; Ruff 0.16.4 통과 | [Ruff 로그](tests/evidence/v3.1-local-ruff.txt), [정적 점검 및 예제 결과](tests/evidence/v3.1-local-static.json) |
-| 설치 후 확인 | 계약 테스트 28개 통과, 연결 경로의 VERSION 3.1.0 및 파일 집합·해시 일치 | 정적 점검 기록의 `installation`·`installed_contracts` 항목 |
-| 실제 factory 예제 | 정상 코드 0, 의도적 결함 코드 1 | 두 군 모두 캐시가 켜진 결함에서 선언·대조 불일치 검출 |
-| 보존·참조 | 기존 인덱스 코드·64개 행동 정의·3.0 검증 문서 바이트 동일, 내부 문서 링크 유효 | 과거 결과를 이번 실행으로 재분류하지 않음 |
-| 별도 세션 표본 | E01·E04·E10 세 사례의 검토/계획 평가 통과 | [입력·출력·명령·판정 기록](tests/evidence/v3.1-local-forward-samples.json) |
+| 첨부 ZIP | SHA-256 `0d9591ec1b6d24680bcc114fcdb29f3238984342d6a8a347b122fb9205ac6e09`; CRC·안전한 경로·manifest 110개 및 파일 집합 일치 | [정적 기록](tests/evidence/v3.2.1-local/static-checks.json), 원본 다운로드 보존 |
+| 원본 재실행 | Python 3.14.3에서 171개 통과 | [원본 로그](tests/evidence/v3.2.1-local/upstream-unittest.txt) |
+| 보완본 전체 검사 | Python 3.14.3에서 **176개 통과, 실패·건너뜀 0** | [전체 로그](tests/evidence/v3.2.1-local/unittest.txt) |
+| 후보 도구의 다른 Python 확인 | Python 3.12.13에서 47개 통과 | [로그](tests/evidence/v3.2.1-local/python312-portfolio.txt); 전체 패키지의 다중 버전 검증은 아님 |
+| 구조·정적 검사 | skill-creator quick_validate 통과, Ruff 0.16.4 통과 | [Ruff 로그](tests/evidence/v3.2.1-local/ruff.txt) |
+| 실제 보조 CLI | pilot/confirm 후보 점검·선택 계약 조립은 코드 0; 작은 길이 한도는 부분 출력 없이 코드 2 | 정적 기록의 `cli_examples` |
+| 기존 보완 보존 | 기존 인덱스·사전 점검 코드와 그 회귀 테스트, 기존 행동 정의는 바이트 동일; 3.1 검증 문서도 원문 보존 | 정적 기록의 보존 항목 |
+| 공식 Astra 문서 | 실제 가이드 Markdown 및 모델 명세를 검색 후 가져와 대조 | [모델 가이드 재확인](MODEL_GUIDE_REVIEW.md); API 설정 변경·요청은 없음 |
+| 별도 세션 표본 | 한정된 계획 파일 수정·읽기 전용 후보 탐색 인계 두 사례 통과 | [입력·출력·명령·변경·판정](tests/evidence/v3.2.1-local/forward-samples.json) |
+| 설치 후 재확인 | 실제 설치 경로에서 계약 검사 36개 통과; 파일 해시·실행 권한·두 스킬 연결 확인 | [설치 후 로그](tests/evidence/v3.2.1-local/installed-contracts.txt), 정적 기록의 `installation` |
 
-원본에서 5,000자리 정수 및 NUL 문자가 든 증거 경로를 넣으면 JSON 없이 종료 코드 1과 traceback이 발생했습니다. [수정 전 재현](tests/evidence/v3.1-local-edge-before.json)을 보존했습니다. 네이티브 JSON/경로의 `ValueError`와 이전 Python의 경로 순환 `RuntimeError`를 입력 오류로 처리하여 코드 2와 오류 JSON을 반환하도록 수정했습니다. 세 회귀 테스트는 큰 정수·NUL 경로·순환 심볼릭 링크를 실제 CLI로 확인합니다. 정상/불일치 판정 및 실행 계약은 바꾸지 않았습니다.
+원본 후보 도구는 같은 지문·비교군의 확증 판정이 `pass`와 `fail`로 상충해도 충돌을 표시하지 않고 유리한 기록을 선언상 확증 목록에 포함했습니다. [수정 전 재현](tests/evidence/v3.2.1-local/original-bugs.json)을 보존했습니다. 수행된 확증 판정과 산출물/평가기 연결까지 대조해, 충돌 묶음은 재조정 전 참고·확증 목록에서 제외하도록 고쳤습니다. 확증 미수행 사본 및 판정·연결이 같고 증거 참조만 다른 기록은 정상 병합되는 대조 사례도 확인했습니다.
 
-행동 표본은 부모 대화 이력을 복제하지 않은 `gpt-6-astra` 세 세션에 각각 스킬과 한 사례의 입력만 제공했습니다. E01은 두 군이 모두 `MemoryCache`라는 모순을 찾고 캐시 효과 해석을 보류했으며, E04는 기존 실패와 20 CPU분 한도를 보존하는 진단·결정 분기를 작성했습니다. E10은 오타 한 건에 필요한 간단한 계획만 작성했습니다. 실제 도구 기록은 지정 파일의 읽기뿐이며 입력 해시도 변하지 않았습니다. 초기에 검증 준비 과정의 경로 오류로 세 세션이 입력을 찾지 못해 중단한 기록을 보존했고, 경로만 바로잡은 뒤 같은 세션에서 이어갔습니다. 이를 스킬의 행동 실패나 추가 성공 표본으로 세지 않았습니다.
+추가로 큰 정수나 유효하지 않은 Unicode 입력의 네이티브 예외가 traceback과 코드 1로 종료되지 않도록, 기존 CLI 계약인 오류 JSON과 코드 2로 처리했습니다. 회귀 5개를 추가했고 입력을 수정하지 않는지 확인했습니다. ZIP에서 사라진 shebang 파일 5개의 실행 권한을 복구하고 새 파일의 import·정규식 표기·테스트 정적 검사 지적을 정리했습니다. 기존 두 보조 도구의 구현과 실행 계약은 이 로컬 보완에서 변경하지 않았습니다.
 
-이는 세 개의 선택된 검토/계획 표본이며, 80개 전체 행동 평가·3.0 대비 비교 실험·구현 실행·장기 자율 연구의 검증이 아닙니다. 같은 모델 계열의 별도 세션을 통계적으로 독립적이라고 주장하지 않습니다. 정의 파일의 `not_run`은 그대로 두고 실제 결과를 별도 기록했습니다.
+부모 대화 이력을 복제하지 않은 `gpt-6-astra` 두 세션에 스킬과 최소 합성 자료만 제공했습니다. 첫 표본은 “고쳐줄 수 있나?”를 실제 행동 요청으로 처리해, 허용된 계획의 링크 한 곳만 고쳤습니다. 두 번째는 단계별 후보와 합성 선언·실제 채택을 구분하고, 예산 장부 불일치·미해결 메모리 개선을 보존했습니다. 선택한 다섯 계약을 한 번씩 포함한 인계문을 응답으로 작성했으며 실제 실험·외부 호출·파일 수정은 하지 않았습니다. 두 사례의 도구 기록과 전후 파일 해시를 검토했고 정의 파일은 바꾸지 않았습니다.
 
-로컬 설치는 `/Users/chasoik/Projects/common-skills/skills/goal-planner`에 반영했습니다. Codex의 `~/.agents/skills/common-skills`와 Claude Code의 `~/.claude/skills/goal-planner`가 이 저장소를 가리키는 연결 경로를 확인했습니다. 기존 3.0.0은 검색 경로 밖인 `/Users/chasoik/.codex/backups/goal-planner/2026-09-22T142248+0900/goal-planner`에 보존했습니다. 파일 연결 확인과 별도 표본의 명시적 스킬 로딩은 일반 호스트의 자동 탐색·재시작 검증과 구분합니다. 기존 프로젝트 계획은 자동 갱신되지 않습니다.
+도구의 코드 0은 입력 기록의 분석/조립 성공이며 실제 연구 결과·채택·실행 권한의 증명이 아닙니다. 두 custom 표본을 전체 108개 행동 정의의 실행이나 3.1 대비 A/B로 세지 않습니다. 장기 자율 연구 성과, 비용·토큰·지연 개선, API/SDK 통합, 일반 호스트의 자동 탐색·재시작은 이번 검증으로 주장하지 않습니다. 같은 모델 계열의 별도 세션을 통계적으로 독립적인 검증이라고 표현하지 않습니다.
+
+기존 3.1.0은 스킬 검색 경로 밖인 `/Users/chasoik/.codex/backups/goal-planner/2026-09-22T184029+0900/goal-planner`에 전체 백업했습니다. 기존 폴더의 Finder `.DS_Store`도 백업에 보존하며 새 패키지에는 포함하지 않습니다. 현재 모델 설정·다른 프로젝트의 계획·실험·예산·기록은 이 스킬 업데이트의 변경 대상이 아닙니다. 이전 계획에 복사된 계약은 설치만으로 갱신되지 않습니다.
+
+검토·보완한 3.2.1을 `/Users/chasoik/Projects/common-skills/skills/goal-planner`에 반영했습니다. `~/.agents/skills/common-skills/goal-planner`와 `~/.claude/skills/goal-planner`가 모두 이 설치 경로와 버전 3.2.1을 가리키는지 확인했습니다. 저장소의 README와 GEMINI 안내 버전도 맞췄습니다. 기존처럼 목표 작성과 진행을 함께 요청할 수 있으며, 적용 가능한 실행 권한·도구·자원 범위에서 계획 작성 후 진행합니다.
 
 ---
 
-## 제공된 배포본의 검증 기록 — 아래 원문 보존
+## 첨부 배포본의 검증 기록 — 아래 원문 보존
 
-검증일: 2026-09-22. 환경: Linux, Python 3.13.5. 사용자 제공 3.0.0 패키지를 복사한 별도 작업본에서 수정·검사했습니다. 원본 프로젝트, 원본 압축 파일, 사용자의 실제 설치 경로는 수정하지 않았습니다. 선택적 도구는 Python 3.10 이상 문법으로 작성했으며, 이번 실행 검증은 아래 환경 한 종류입니다.
+검증일: 2026-09-22. 이전 배포 검증은 [VALIDATION_V3_2.md](VALIDATION_V3_2.md)에 원문 보존했다.
 
-## 실제 수행 결과
+## 실제 실행
 
-| 검사 | 결과 | 범위 |
-|---|---|---|
-| 제공된 3.0.0 기준선 | 56개 통과 | 기존 자동 테스트 |
-| 3.1.0 기존 테스트 | 56개 통과 | 인덱스·복구·한글·기존 계약 |
-| 새 preflight 테스트 | 32개 통과 | 실제/선언 불일치, 초기 조건, reset, 평가기, 해시, 입력·경로·읽기 전용 CLI |
-| 새 정적 계약 테스트 | 8개 통과 | 실행 인계·템플릿·경량 경로·행동 fixture 정의 |
-| 3.1.0 전체 메서드 | **96개 통과, 실패 0, 건너뜀 0** | 모듈별 실행 결과 합계 |
-| 작동 예제 | 정상 구성 코드 0, 의도적 결함 코드 1 | 실제 factory와 put/get/reset probe; 자동 코드 테스트에도 포함 |
-| 원본 행동 정의 | 64개 바이트 동일, 모두 `not_run` | 과거 정의 보존; 새 모델 실행 아님 |
-| 추가 행동 정의 | 16개, 모두 `not_run` | 실행 가능한 입력 fixture와 평가 기준만 준비 |
-
-전체 테스트를 한 번에 실행한 호출 2개는 작업 환경의 호출 시간 제한으로 완료되지 않았습니다. 이를 통과로 세지 않고 모듈별로 나눠 **96개 전부를 완료**했습니다. 새로운 기준선이나 완화된 테스트로 교체하지 않았습니다. 기존 테스트의 동작은 보존했으며 버전 기대값만 3.1.0으로 갱신했습니다. 새 정합성 도구가 발견하는 의도적 오류와 테스트 자체의 실패는 구분합니다.
-
-모듈별 원시 로그는 [v3.1-unittest.txt](tests/evidence/v3.1-unittest.txt), 코드·원본 보존·범용성 정적 확인은 [v3.1-release-checks.json](tests/evidence/v3.1-release-checks.json)에 기록합니다. 기존 `report_index.py`와 기존 행동 정의는 내용이 변경되지 않았습니다.
-
-## 도구가 증명하는 범위
-
-`experiment_preflight.py`의 코드 0은 **제공된 선언·관측 사실·대조·파일 해시의 기계적 정합성**입니다. `scientific_validity` 및 `source_coverage_and_exporter_truth`는 언제나 `not_established`입니다. 도구는 대상 프로젝트를 import하거나 실행하지 않으며, 실제 exporter의 정직성·모든 실행 소스의 포함·누락된 혼란변수·평가 누출을 검증하지 않습니다. 권한 격리나 실행 게이트도 자동 설치하지 않습니다.
-
-정상/오류 예제는 작은 범용 캐시 구현의 구성·동작 검사입니다. 이를 새로운 연구 성과나 성능 향상 실험으로 표현하지 않습니다. 실제 예제 출력은 [v3.1-preflight-demo.json](tests/evidence/v3.1-preflight-demo.json)에 있습니다.
-
-## 미실행 범위
-
-총 80개 행동 정의를 새 에이전트 세션으로 평가하지 않았습니다. 실제 모델의 계획 품질·오류 발견률·장기 무감독 연구·성능 향상·자동 위임·재시작·Codex/Claude Code 설치 연동은 **미검증**입니다. 별도 모델 세션의 독립성이나 모델 간 우열도 실험하지 않았습니다. 자동 코드 테스트와 문구 계약 검사는 이런 효과를 대신 증명하지 않습니다.
-
-실제 행동 평가는 [BEHAVIORAL_EVAL.md](tests/BEHAVIORAL_EVAL.md)에 입력·출력·도구 기록·판정 근거를 남기는 절차로 구분했습니다. 이번 검증에서 모델 API, 외부 유료 실행, 대상 프로젝트 실험은 사용하지 않았습니다. 설치 경로·호출은 공식 문서로 확인했지만 기기별 실설치 시험은 수행하지 않았습니다.
-
-## 재현
-
-패키지 루트에서:
-
-```bash
-PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s tests -v
+```text
+python -B -m unittest discover -s tests -v
+Ran 171 tests in 44.075s
+OK
 ```
 
-호출 시간이 제한된 환경에서는 테스트 파일별로 실행할 수 있습니다. 예를 들어:
+[전체 로그](tests/evidence/v3.2.1/unittest.txt). 기존 166개와 새 인계/패키지 회귀 5개가 포함된다. 원래 테스트의 의미는 바꾸지 않았으며 기존 파일의 변경은 VERSION 기대값 3.2.0 → 3.2.1 한 곳이다. 새 테스트는 모델이 실제로 지침을 따르는지 평가하는 검사가 아니다.
 
-```bash
-PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s tests -p 'test_experiment_preflight.py' -v
-```
+변경 전 기준선 실행을 먼저 시도했으나 호출 도구의 20초 상한으로 중단되었다. [중단 로그](tests/evidence/v3.2.1/baseline-attempt-interrupted.txt)를 보존했다. 이를 통과로 집계하지 않는다. 이후 수정된 패키지의 전체 스위트를 실제로 완료했다. 과거 배포의 로그와 이번 실행 기록을 혼합하지 않는다.
 
-Python 캐시는 패키지의 청결 검사와 배포 해시에 영향을 주므로 위 옵션을 유지합니다. 선택적 예제의 전체 명령과 예상 종료 코드는 [examples/preflight/README.md](examples/preflight/README.md)에 있습니다.
+## 실제 인계 출력과 호환성
 
-`MANIFEST.sha256`은 자신을 제외한 모든 배포 파일을 열거합니다. `sha256sum -c MANIFEST.sha256` 또는 동등한 SHA-256 도구로 확인할 수 있습니다. ZIP을 재추출한 파일 집합과 해시도 배포 과정에서 대조합니다. 사용자 수정 이후 원본 배포 해시와 달라지는 것은 정상입니다.
+[Core 출력](tests/evidence/v3.2.1/handoff-core.md) · [Core 통계](tests/evidence/v3.2.1/handoff-core-stats.json) · [연구 출력](tests/evidence/v3.2.1/handoff-research.md) · [연구 통계](tests/evidence/v3.2.1/handoff-research-stats.json)
 
-## 과거 기록
+동일 예제에서 Core 인계는 6,845 bytes / 2,888 characters, 6블록 연구 인계는 28,607 bytes / 12,090 characters다. 이전 동일 예제 Core는 5,318 bytes였으므로 문구 보완으로 길이가 증가했다. 이것을 토큰 절약으로 표시하지 않는다. compiler의 token_count는 not_measured다.
 
-3.0.0의 검증 문서는 [VALIDATION_V3_0.md](VALIDATION_V3_0.md), 더 오래된 기록은 [VALIDATION_HISTORY.md](VALIDATION_HISTORY.md)에 보존했습니다. 과거 모델 표본·macOS 설치·Ruff 실행·모델 가이드 검토를 이번 버전의 새 실행 결과로 재분류하지 않았습니다.
+[호환성 기록](tests/evidence/v3.2.1/compatibility.json): 기존 4개 scripts 구현은 원본과 바이트 단위로 동일하다. 7개 블록 중 Core와 Research만 변경했고 나머지 5개는 그대로다. 이전 모델 검토 문서는 원문 그대로 보존했다. 선택되지 않은 계약·API 문서가 자동으로 인계되지 않으며, 필수 조건을 길이 상한에 맞춰 잘라내지 않는다.
+
+## 미실행/미측정
+
+[behavioral-astra.json](tests/behavioral-astra.json)의 12개 사례는 실제 호스트 A/B를 위한 정의이며 모두 not_run이다. 이전 행동 사례도 실행 결과로 바꾸지 않았다. 실제 Astra 요청, 다운스트림 연구, SDK/API 통합, Windows/다른 Python 버전 검증은 이번에 수행하지 않았다. LLM 성공률·총 토큰·비용·지연은 not_measured다.
+
+이번 배포는 스킬/인계 지침 수정이다. 모델 선택, effort, 역할 배분, 실행 중 프로젝트의 상태나 사용자 설치를 바꾸지 않았다. ZIP의 구조·SHA-256·압축 무결성과 추출본 CLI를 별도로 점검한다.

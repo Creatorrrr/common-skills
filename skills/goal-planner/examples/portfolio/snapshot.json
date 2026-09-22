@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "notes": "Synthetic declarations only: not measured research outcomes, real artifacts, or verified evidence.",
+  "comparison": {
+    "evaluator": "eval-v1",
+    "data": "dev-split-v1",
+    "compute": "fixed-work-v1",
+    "environment": "cpu-fixture-v1"
+  },
+  "stages": [
+    "smoke",
+    "pilot",
+    "confirm"
+  ],
+  "promotion_stage": "confirm",
+  "objectives": [
+    {
+      "name": "quality",
+      "direction": "max"
+    },
+    {
+      "name": "latency_ms",
+      "direction": "min"
+    }
+  ],
+  "constraints": [
+    {
+      "name": "memory_mb",
+      "operator": "<=",
+      "limit": 200
+    }
+  ],
+  "resources": {
+    "cpu_seconds": {
+      "limit": 100,
+      "used": 30,
+      "reserved": 20
+    },
+    "api_tokens": {
+      "limit": null,
+      "used": null,
+      "reserved": null
+    }
+  },
+  "candidates": [
+    {
+      "id": "baseline",
+      "parent_ids": [],
+      "family": "simple",
+      "fingerprint": "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24",
+      "comparison": {
+        "evaluator": "eval-v1",
+        "data": "dev-split-v1",
+        "compute": "fixed-work-v1",
+        "environment": "cpu-fixture-v1"
+      },
+      "validity": "valid",
+      "stages": {
+        "smoke": "pass",
+        "pilot": "pass",
+        "confirm": "pass"
+      },
+      "confirmation": {
+        "status": "pass",
+        "artifact_sha256": "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24",
+        "evaluator": "eval-v1",
+        "evidence_refs": [
+          "synthetic://fixture/baseline"
+        ]
+      },
+      "measurements": {
+        "smoke": {
+          "quality": 0.7,
+          "latency_ms": 10,
+          "memory_mb": 100
+        },
+        "pilot": {
+          "quality": 0.7,
+          "latency_ms": 10,
+          "memory_mb": 100
+        },
+        "confirm": {
+          "quality": 0.7,
+          "latency_ms": 10,
+          "memory_mb": 100
+        }
+      }
+    },
+    {
+      "id": "quality",
+      "parent_ids": [],
+      "family": "capacity",
+      "fingerprint": "acef2c15bcd349db900dffece73e1256e881c4416fc1f2d3a494640183490d9a",
+      "comparison": {
+        "evaluator": "eval-v1",
+        "data": "dev-split-v1",
+        "compute": "fixed-work-v1",
+        "environment": "cpu-fixture-v1"
+      },
+      "validity": "valid",
+      "stages": {
+        "smoke": "pass",
+        "pilot": "pass",
+        "confirm": "not_run"
+      },
+      "confirmation": {
+        "status": "not_run"
+      },
+      "measurements": {
+        "smoke": {
+          "quality": 0.9,
+          "latency_ms": 12,
+          "memory_mb": 100
+        },
+        "pilot": {
+          "quality": 0.9,
+          "latency_ms": 12,
+          "memory_mb": 100
+        }
+      }
+    },
+    {
+      "id": "fast",
+      "parent_ids": [],
+      "family": "streaming",
+      "fingerprint": "115dc3606fbf8691fb69f2aefec86f2ecd302362a0502b3a9648bf2c4dc8290f",
+      "comparison": {
+        "evaluator": "eval-v1",
+        "data": "dev-split-v1",
+        "compute": "fixed-work-v1",
+        "environment": "cpu-fixture-v1"
+      },
+      "validity": "valid",
+      "stages": {
+        "smoke": "pass",
+        "pilot": "pass",
+        "confirm": "pass"
+      },
+      "confirmation": {
+        "status": "pass",
+        "artifact_sha256": "115dc3606fbf8691fb69f2aefec86f2ecd302362a0502b3a9648bf2c4dc8290f",
+        "evaluator": "eval-v1",
+        "evidence_refs": [
+          "synthetic://fixture/fast"
+        ]
+      },
+      "measurements": {
+        "smoke": {
+          "quality": 0.8,
+          "latency_ms": 8,
+          "memory_mb": 100
+        },
+        "pilot": {
+          "quality": 0.8,
+          "latency_ms": 8,
+          "memory_mb": 100
+        },
+        "confirm": {
+          "quality": 0.8,
+          "latency_ms": 8,
+          "memory_mb": 100
+        }
+      }
+    },
+    {
+      "id": "invalid",
+      "parent_ids": [],
+      "family": "capacity",
+      "fingerprint": "f1234d75178d892a133a410355a5a990cf75d2f33eba25d575943d4df632f3a4",
+      "comparison": {
+        "evaluator": "eval-v1",
+        "data": "dev-split-v1",
+        "compute": "fixed-work-v1",
+        "environment": "cpu-fixture-v1"
+      },
+      "validity": "invalid",
+      "stages": {
+        "smoke": "pass",
+        "pilot": "pass",
+        "confirm": "not_run"
+      },
+      "confirmation": {
+        "status": "not_run"
+      },
+      "measurements": {
+        "smoke": {
+          "quality": 0.99,
+          "latency_ms": 1,
+          "memory_mb": 100
+        },
+        "pilot": {
+          "quality": 0.99,
+          "latency_ms": 1,
+          "memory_mb": 100
+        }
+      }
+    }
+  ]
+}

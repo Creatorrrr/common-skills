@@ -1,0 +1,41 @@
+{
+  "core": {
+    "selected_blocks": [
+      "Core"
+    ],
+    "block_count": 1,
+    "utf8_bytes": 5318,
+    "characters": 2269,
+    "sha256": "cd053d48ad773252c71aecd4d80b0d267aa02aa3dc6ab74d3119a492285300d5",
+    "token_count": "not_measured",
+    "execution_authorized": false
+  },
+  "experiment": {
+    "selected_blocks": [
+      "Core",
+      "Experiment"
+    ],
+    "block_count": 2,
+    "utf8_bytes": 12207,
+    "characters": 5204,
+    "sha256": "5bcbee029cd7ede016e09de3d93def7a3d3917371e4932235784337c0860c0cf",
+    "token_count": "not_measured",
+    "execution_authorized": false
+  },
+  "research": {
+    "selected_blocks": [
+      "Core",
+      "Program",
+      "Experiment",
+      "Direction",
+      "Research",
+      "Retrieval"
+    ],
+    "block_count": 6,
+    "utf8_bytes": 27008,
+    "characters": 11441,
+    "sha256": "3a96da9129e978ab81b43be3f5b00849a554a007bcae039b37bcede13c1dc1c4",
+    "token_count": "not_measured",
+    "execution_authorized": false
+  }
+}

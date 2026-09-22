@@ -1,0 +1,21 @@
+{
+  "original_zip_sha256": "fdfebd3cbfc2efbddf82ffbf2632c2a344e3325c75ba87a47e4f7e2d670c4f63",
+  "original_version": "3.1.0",
+  "release_version": "3.2.0",
+  "core_contract_unchanged": true,
+  "legacy_scripts_unchanged": {
+    "scripts/report_index.py": {
+      "equal": true,
+      "sha256": "a7372ad3223731514bfb04e8a48a8ed071ef6ac76b964cbb46a134f5bd9d21f4"
+    },
+    "scripts/experiment_preflight.py": {
+      "equal": true,
+      "sha256": "716f05dc3fba8b5f371dee2f9c905ff8f3d75ab1fb41ebc088ea2cbf8a7e8aa4"
+    }
+  },
+  "legacy_test_changes": [
+    "test_skill_contracts.py"
+  ],
+  "live_model_evaluation": "not_run",
+  "scientific_effectiveness": "not_established"
+}

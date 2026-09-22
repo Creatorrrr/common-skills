@@ -1,0 +1,52 @@
+test_all_cohort_dimensions_guarded (test_research_portfolio.PortfolioTests.test_all_cohort_dimensions_guarded) ... ok
+test_bad_cli_input_fails_without_stdout (test_research_portfolio.PortfolioTests.test_bad_cli_input_fails_without_stdout) ... ok
+test_bool_schema_version_rejected (test_research_portfolio.PortfolioTests.test_bool_schema_version_rejected) ... ok
+test_boolean_nan_inf_numeric_values_rejected (test_research_portfolio.PortfolioTests.test_boolean_nan_inf_numeric_values_rejected) ... ok
+test_cli_is_read_only (test_research_portfolio.PortfolioTests.test_cli_is_read_only) ... ok
+test_confirmation_cannot_reuse_pilot_metrics (test_research_portfolio.PortfolioTests.test_confirmation_cannot_reuse_pilot_metrics) ... ok
+test_confirmation_requires_all_fields_and_pass (test_research_portfolio.PortfolioTests.test_confirmation_requires_all_fields_and_pass) ... ok
+test_confirmed_ids_are_declarations_not_winner_selection (test_research_portfolio.PortfolioTests.test_confirmed_ids_are_declarations_not_winner_selection) ... ok
+test_conflicting_confirmation_bindings_require_reconciliation (test_research_portfolio.PortfolioTests.test_conflicting_confirmation_bindings_require_reconciliation) ... ok
+test_conflicting_confirmation_verdicts_require_reconciliation (test_research_portfolio.PortfolioTests.test_conflicting_confirmation_verdicts_require_reconciliation) ... ok
+test_conflicting_replicates_need_reconciliation (test_research_portfolio.PortfolioTests.test_conflicting_replicates_need_reconciliation) ... ok
+test_consistent_confirmation_with_distinct_evidence_refs_is_not_conflict (test_research_portfolio.PortfolioTests.test_consistent_confirmation_with_distinct_evidence_refs_is_not_conflict) ... ok
+test_constraint_violation_blocks (test_research_portfolio.PortfolioTests.test_constraint_violation_blocks) ... ok
+test_duplicate_code_not_new_independent_candidate (test_research_portfolio.PortfolioTests.test_duplicate_code_not_new_independent_candidate) ... ok
+test_duplicate_identifiers_rejected (test_research_portfolio.PortfolioTests.test_duplicate_identifiers_rejected) ... ok
+test_empty_population_is_explicit_empty_not_success (test_research_portfolio.PortfolioTests.test_empty_population_is_explicit_empty_not_success) ... ok
+test_exhausted_and_exceeded_no_new_permission (test_research_portfolio.PortfolioTests.test_exhausted_and_exceeded_no_new_permission) ... ok
+test_external_parent_reference_allowed (test_research_portfolio.PortfolioTests.test_external_parent_reference_allowed) ... ok
+test_failed_smoke_cannot_skip_to_confirmation (test_research_portfolio.PortfolioTests.test_failed_smoke_cannot_skip_to_confirmation) ... ok
+test_family_coverage_before_second_frontier_same_family (test_research_portfolio.PortfolioTests.test_family_coverage_before_second_frontier_same_family) ... ok
+test_invalid_best_score_excluded (test_research_portfolio.PortfolioTests.test_invalid_best_score_excluded) ... ok
+test_invalid_hash_rejected (test_research_portfolio.PortfolioTests.test_invalid_hash_rejected) ... ok
+test_json_nonfinite_rejected (test_research_portfolio.PortfolioTests.test_json_nonfinite_rejected) ... ok
+test_lineage_cycle_rejected (test_research_portfolio.PortfolioTests.test_lineage_cycle_rejected) ... ok
+test_lower_bound_constraint (test_research_portfolio.PortfolioTests.test_lower_bound_constraint) ... ok
+test_missing_objective_not_zero (test_research_portfolio.PortfolioTests.test_missing_objective_not_zero) ... ok
+test_missing_stage_not_implicitly_passed (test_research_portfolio.PortfolioTests.test_missing_stage_not_implicitly_passed) ... ok
+test_mixed_evaluator_cohort (test_research_portfolio.PortfolioTests.test_mixed_evaluator_cohort) ... ok
+test_native_json_and_encoding_errors_return_cli_error (test_research_portfolio.PortfolioTests.test_native_json_and_encoding_errors_return_cli_error) ... ok
+test_no_execution_or_adoption_claim (test_research_portfolio.PortfolioTests.test_no_execution_or_adoption_claim) ... ok
+test_null_constraint_blocks (test_research_portfolio.PortfolioTests.test_null_constraint_blocks) ... ok
+test_oversized_input_rejected (test_research_portfolio.PortfolioTests.test_oversized_input_rejected) ... ok
+test_pareto_mixed_directions (test_research_portfolio.PortfolioTests.test_pareto_mixed_directions) ... ok
+test_pending_not_valid (test_research_portfolio.PortfolioTests.test_pending_not_valid) ... ok
+test_readonly_analysis (test_research_portfolio.PortfolioTests.test_readonly_analysis) ... ok
+test_record_order_does_not_change_references (test_research_portfolio.PortfolioTests.test_record_order_does_not_change_references) ... ok
+test_reference_limit_not_experiment_budget (test_research_portfolio.PortfolioTests.test_reference_limit_not_experiment_budget) ... ok
+test_reserved_resources_counted (test_research_portfolio.PortfolioTests.test_reserved_resources_counted) ... ok
+test_stage_list_order_defines_confirmation (test_research_portfolio.PortfolioTests.test_stage_list_order_defines_confirmation) ... ok
+test_stage_measurements_are_not_interchangeable (test_research_portfolio.PortfolioTests.test_stage_measurements_are_not_interchangeable) ... ok
+test_strict_json_duplicate_key_rejected (test_research_portfolio.PortfolioTests.test_strict_json_duplicate_key_rejected) ... ok
+test_structural_stage_value_rejected_cleanly (test_research_portfolio.PortfolioTests.test_structural_stage_value_rejected_cleanly) ... ok
+test_terminal_stage_not_optional (test_research_portfolio.PortfolioTests.test_terminal_stage_not_optional) ... ok
+test_unknown_fields_rejected (test_research_portfolio.PortfolioTests.test_unknown_fields_rejected) ... ok
+test_unknown_stage_rejected (test_research_portfolio.PortfolioTests.test_unknown_stage_rejected) ... ok
+test_unknown_usage_not_zero (test_research_portfolio.PortfolioTests.test_unknown_usage_not_zero) ... ok
+test_unrun_confirmation_copy_preserves_completed_reference (test_research_portfolio.PortfolioTests.test_unrun_confirmation_copy_preserves_completed_reference) ... ok
+
+----------------------------------------------------------------------
+Ran 47 tests in 0.330s
+
+OK

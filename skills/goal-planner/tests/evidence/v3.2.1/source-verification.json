@@ -1,0 +1,43 @@
+{
+  "reviewed_date": "2026-09-22",
+  "target_model": "gpt-6-astra",
+  "requested_url": "https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra",
+  "direct_requested_url_status": "cache_miss",
+  "canonical_direct_open": {
+    "url": "https://developers.openai.com/api/docs/guides/latest-model",
+    "observed_heading": "Using GPT-5.6",
+    "used_as_astra_guidance": false
+  },
+  "verified_current_official_content": {
+    "retrieval": "web search indexed page body",
+    "url": "https://developers.openai.com/api/docs/guides/latest-model",
+    "observed_heading": "Using GPT-6 Astra",
+    "sections": [
+      "Initiative and follow-through",
+      "Instruction following",
+      "Personality and writing style",
+      "Subagent delegation",
+      "Testing and verification",
+      "Migration quickstart"
+    ],
+    "web_source_ids": [
+      "turn134734search1",
+      "turn445179search0"
+    ]
+  },
+  "cross_check": {
+    "url": "https://developers.openai.com/api/docs/models/gpt-6-astra",
+    "model_id": "gpt-6-astra",
+    "reasoning_efforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "web_source_id": "turn134734search0"
+  },
+  "full_http_snapshot_captured": false,
+  "live_model_ab": "not_run",
+  "performance_measurements": "not_measured"
+}

@@ -1,0 +1,422 @@
+{
+  "source": {
+    "review_root": "/var/folders/4x/l_6vrtjj4rsbvgmq7t6tfgsh0000gn/T/goal-planner-321-review-kxc8gst4",
+    "zip_sha256": "0d9591ec1b6d24680bcc114fcdb29f3238984342d6a8a347b122fb9205ac6e09",
+    "unpacked_bytes": 1800199,
+    "files": [
+      "goal-planner/ASTRA_UPDATE_KO.md",
+      "goal-planner/CHANGELOG.md",
+      "goal-planner/IMPLEMENTATION_PLAN.md",
+      "goal-planner/MANIFEST.sha256",
+      "goal-planner/MIGRATION.md",
+      "goal-planner/MODEL_GUIDE_REVIEW.md",
+      "goal-planner/MODEL_GUIDE_REVIEW_V3_0.md",
+      "goal-planner/MODEL_GUIDE_REVIEW_V3_2.md",
+      "goal-planner/README.md",
+      "goal-planner/RESEARCH_AND_PLAN.md",
+      "goal-planner/RESEARCH_REPORT_KO.md",
+      "goal-planner/SKILL.md",
+      "goal-planner/USAGE.md",
+      "goal-planner/USAGE_V3_2.md",
+      "goal-planner/VALIDATION.md",
+      "goal-planner/VALIDATION_HISTORY.md",
+      "goal-planner/VALIDATION_V3_0.md",
+      "goal-planner/VALIDATION_V3_1.md",
+      "goal-planner/VALIDATION_V3_2.md",
+      "goal-planner/VERSION",
+      "goal-planner/assets/experiment-template.md",
+      "goal-planner/assets/failed-report-template.md",
+      "goal-planner/assets/goal-plan-template.md",
+      "goal-planner/assets/passed-report-template.md",
+      "goal-planner/assets/research-readme.md",
+      "goal-planner/assets/research-state-template.md",
+      "goal-planner/assets/research-template.md",
+      "goal-planner/assets/search-plan-template.md",
+      "goal-planner/assets/verification-template.md",
+      "goal-planner/examples/portfolio/README.md",
+      "goal-planner/examples/portfolio/goal.md",
+      "goal-planner/examples/portfolio/snapshot.json",
+      "goal-planner/examples/preflight/README.md",
+      "goal-planner/examples/preflight/demo_runtime.py",
+      "goal-planner/examples/preflight/spec.json",
+      "goal-planner/references/empirical-verification.md",
+      "goal-planner/references/evolution-design.md",
+      "goal-planner/references/execution-contract.md",
+      "goal-planner/references/execution-knowledge.md",
+      "goal-planner/references/experiment-protocol.md",
+      "goal-planner/references/gpt-6-astra.md",
+      "goal-planner/references/report-index.md",
+      "goal-planner/references/research-program.md",
+      "goal-planner/references/runtime-prompts.md",
+      "goal-planner/scripts/build_handoff.py",
+      "goal-planner/scripts/experiment_preflight.py",
+      "goal-planner/scripts/report_index.py",
+      "goal-planner/scripts/research_portfolio.py",
+      "goal-planner/tests/BEHAVIORAL_EVAL.md",
+      "goal-planner/tests/EVOLUTION_EVAL.md",
+      "goal-planner/tests/README.md",
+      "goal-planner/tests/behavioral-astra.json",
+      "goal-planner/tests/behavioral-evolution.json",
+      "goal-planner/tests/behavioral-scenarios.json",
+      "goal-planner/tests/behavioral-verification.json",
+      "goal-planner/tests/evidence/baseline-clean-unittest.txt",
+      "goal-planner/tests/evidence/final-static.txt",
+      "goal-planner/tests/evidence/original-bug.txt",
+      "goal-planner/tests/evidence/unittest.txt",
+      "goal-planner/tests/evidence/v2.1-forward-samples.json",
+      "goal-planner/tests/evidence/v2.1-static.txt",
+      "goal-planner/tests/evidence/v2.2-forward-samples.json",
+      "goal-planner/tests/evidence/v2.2-static.txt",
+      "goal-planner/tests/evidence/v2.3-forward-samples.json",
+      "goal-planner/tests/evidence/v2.3-static.txt",
+      "goal-planner/tests/evidence/v2.4-forward-samples.json",
+      "goal-planner/tests/evidence/v2.4-static.txt",
+      "goal-planner/tests/evidence/v3.0-local-forward-samples.json",
+      "goal-planner/tests/evidence/v3.0-local-static.txt",
+      "goal-planner/tests/evidence/v3.0-unittest-initial-failure.txt",
+      "goal-planner/tests/evidence/v3.0-unittest.txt",
+      "goal-planner/tests/evidence/v3.1-local-edge-before.json",
+      "goal-planner/tests/evidence/v3.1-local-forward-samples.json",
+      "goal-planner/tests/evidence/v3.1-local-python312-preflight.txt",
+      "goal-planner/tests/evidence/v3.1-local-ruff.txt",
+      "goal-planner/tests/evidence/v3.1-local-static.json",
+      "goal-planner/tests/evidence/v3.1-local-unittest.txt",
+      "goal-planner/tests/evidence/v3.1-local-upstream-unittest.txt",
+      "goal-planner/tests/evidence/v3.1-preflight-demo.json",
+      "goal-planner/tests/evidence/v3.1-release-checks.json",
+      "goal-planner/tests/evidence/v3.1-unittest.txt",
+      "goal-planner/tests/evidence/v3.2.0/baseline-3.1-tests.txt",
+      "goal-planner/tests/evidence/v3.2.0/compatibility.json",
+      "goal-planner/tests/evidence/v3.2.0/handoff-core.md",
+      "goal-planner/tests/evidence/v3.2.0/handoff-experiment.md",
+      "goal-planner/tests/evidence/v3.2.0/handoff-research.md",
+      "goal-planner/tests/evidence/v3.2.0/handoff-sizes.json",
+      "goal-planner/tests/evidence/v3.2.0/package-contract-tests.txt",
+      "goal-planner/tests/evidence/v3.2.0/portfolio-confirm.json",
+      "goal-planner/tests/evidence/v3.2.0/portfolio-pilot.json",
+      "goal-planner/tests/evidence/v3.2.0/release-3.2-tests.txt",
+      "goal-planner/tests/evidence/v3.2.1/baseline-attempt-interrupted.txt",
+      "goal-planner/tests/evidence/v3.2.1/compatibility.json",
+      "goal-planner/tests/evidence/v3.2.1/final-package-contracts.txt",
+      "goal-planner/tests/evidence/v3.2.1/handoff-core-stats.json",
+      "goal-planner/tests/evidence/v3.2.1/handoff-core.md",
+      "goal-planner/tests/evidence/v3.2.1/handoff-research-stats.json",
+      "goal-planner/tests/evidence/v3.2.1/handoff-research.md",
+      "goal-planner/tests/evidence/v3.2.1/source-verification.json",
+      "goal-planner/tests/evidence/v3.2.1/unittest.txt",
+      "goal-planner/tests/test_astra_handoff.py",
+      "goal-planner/tests/test_build_handoff.py",
+      "goal-planner/tests/test_catalog_recovery.py",
+      "goal-planner/tests/test_evolution_contracts.py",
+      "goal-planner/tests/test_experiment_preflight.py",
+      "goal-planner/tests/test_localized_index.py",
+      "goal-planner/tests/test_report_index.py",
+      "goal-planner/tests/test_research_contracts.py",
+      "goal-planner/tests/test_research_portfolio.py",
+      "goal-planner/tests/test_skill_contracts.py",
+      "goal-planner/tests/test_verification_contracts.py"
+    ]
+  },
+  "upstream_manifest_content_files": 110,
+  "upstream_tests": 171,
+  "local_tests": 176,
+  "python312_portfolio_tests": 47,
+  "ruff_version": "0.16.4",
+  "quick_validate": "passed",
+  "backup": {
+    "path": "/Users/chasoik/.codex/backups/goal-planner/2026-09-22T184029+0900/goal-planner",
+    "version": "3.1.0",
+    "files": 69
+  },
+  "preserved_from_31": {
+    "scripts/report_index.py": true,
+    "scripts/experiment_preflight.py": true,
+    "tests/test_experiment_preflight.py": true,
+    "tests/behavioral-scenarios.json": true,
+    "tests/behavioral-verification.json": true
+  },
+  "cli_examples": [
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/research_portfolio.py",
+        "--input",
+        "examples/portfolio/snapshot.json",
+        "--stage",
+        "pilot"
+      ],
+      "exit_code": 0,
+      "result": {
+        "schema_version": 1,
+        "assessment_basis": "supplied_records_only",
+        "snapshot_sha256": "d59686f19bb0a11f67b177cfd774aa1a295cd9c95ccc30e575d26524d969d3fd",
+        "stage": "pilot",
+        "comparison": {
+          "evaluator": "eval-v1",
+          "data": "dev-split-v1",
+          "compute": "fixed-work-v1",
+          "environment": "cpu-fixture-v1"
+        },
+        "eligible_ids": [
+          "baseline",
+          "fast",
+          "quality"
+        ],
+        "pareto_ids": [
+          "fast",
+          "quality"
+        ],
+        "reference_ids": [
+          "fast",
+          "quality",
+          "baseline"
+        ],
+        "excluded": {
+          "invalid": [
+            "run_validity_invalid"
+          ]
+        },
+        "duplicate_groups": [],
+        "declared_confirmed_ids": [
+          "baseline",
+          "fast"
+        ],
+        "confirmation_blockers": {
+          "invalid": [
+            "run_validity_invalid",
+            "stage:confirm:not_run",
+            "missing_objective:quality",
+            "missing_objective:latency_ms",
+            "missing_constraint:memory_mb",
+            "confirmation_not_run",
+            "confirmation_artifact_mismatch",
+            "confirmation_evaluator_mismatch",
+            "confirmation_evidence_missing"
+          ],
+          "quality": [
+            "stage:confirm:not_run",
+            "missing_objective:quality",
+            "missing_objective:latency_ms",
+            "missing_constraint:memory_mb",
+            "confirmation_not_run",
+            "confirmation_artifact_mismatch",
+            "confirmation_evaluator_mismatch",
+            "confirmation_evidence_missing"
+          ]
+        },
+        "resources": {
+          "api_tokens": {
+            "limit": null,
+            "used": null,
+            "reserved": null,
+            "remaining": null,
+            "state": "unknown"
+          },
+          "cpu_seconds": {
+            "limit": 100,
+            "used": 30,
+            "reserved": 20,
+            "remaining": 50,
+            "state": "within_declared_limit"
+          }
+        },
+        "execution_authorized": false,
+        "adoption": "not_decided",
+        "limitations": [
+          "Evidence references and fingerprints are not independently verified.",
+          "Comparison IDs do not prove semantic equivalence or evaluator correctness.",
+          "Family labels do not establish novelty; this is not UCB1 or MAP-Elites.",
+          "No uncertainty, causal effect, total research cost, or permission is inferred.",
+          "Existing best artifacts and raw evidence must be preserved by the authorized workflow."
+        ]
+      }
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/research_portfolio.py",
+        "--input",
+        "examples/portfolio/snapshot.json",
+        "--stage",
+        "confirm"
+      ],
+      "exit_code": 0,
+      "result": {
+        "schema_version": 1,
+        "assessment_basis": "supplied_records_only",
+        "snapshot_sha256": "d59686f19bb0a11f67b177cfd774aa1a295cd9c95ccc30e575d26524d969d3fd",
+        "stage": "confirm",
+        "comparison": {
+          "evaluator": "eval-v1",
+          "data": "dev-split-v1",
+          "compute": "fixed-work-v1",
+          "environment": "cpu-fixture-v1"
+        },
+        "eligible_ids": [
+          "baseline",
+          "fast"
+        ],
+        "pareto_ids": [
+          "fast"
+        ],
+        "reference_ids": [
+          "fast",
+          "baseline"
+        ],
+        "excluded": {
+          "invalid": [
+            "run_validity_invalid",
+            "stage:confirm:not_run",
+            "missing_objective:quality",
+            "missing_objective:latency_ms",
+            "missing_constraint:memory_mb"
+          ],
+          "quality": [
+            "stage:confirm:not_run",
+            "missing_objective:quality",
+            "missing_objective:latency_ms",
+            "missing_constraint:memory_mb"
+          ]
+        },
+        "duplicate_groups": [],
+        "declared_confirmed_ids": [
+          "baseline",
+          "fast"
+        ],
+        "confirmation_blockers": {
+          "invalid": [
+            "run_validity_invalid",
+            "stage:confirm:not_run",
+            "missing_objective:quality",
+            "missing_objective:latency_ms",
+            "missing_constraint:memory_mb",
+            "confirmation_not_run",
+            "confirmation_artifact_mismatch",
+            "confirmation_evaluator_mismatch",
+            "confirmation_evidence_missing"
+          ],
+          "quality": [
+            "stage:confirm:not_run",
+            "missing_objective:quality",
+            "missing_objective:latency_ms",
+            "missing_constraint:memory_mb",
+            "confirmation_not_run",
+            "confirmation_artifact_mismatch",
+            "confirmation_evaluator_mismatch",
+            "confirmation_evidence_missing"
+          ]
+        },
+        "resources": {
+          "api_tokens": {
+            "limit": null,
+            "used": null,
+            "reserved": null,
+            "remaining": null,
+            "state": "unknown"
+          },
+          "cpu_seconds": {
+            "limit": 100,
+            "used": 30,
+            "reserved": 20,
+            "remaining": 50,
+            "state": "within_declared_limit"
+          }
+        },
+        "execution_authorized": false,
+        "adoption": "not_decided",
+        "limitations": [
+          "Evidence references and fingerprints are not independently verified.",
+          "Comparison IDs do not prove semantic equivalence or evaluator correctness.",
+          "Family labels do not establish novelty; this is not UCB1 or MAP-Elites.",
+          "No uncertainty, causal effect, total research cost, or permission is inferred.",
+          "Existing best artifacts and raw evidence must be preserved by the authorized workflow."
+        ]
+      }
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/build_handoff.py",
+        "--goal-file",
+        "examples/portfolio/goal.md",
+        "--blocks",
+        "Core,Experiment",
+        "--stats"
+      ],
+      "exit_code": 0,
+      "stats": {
+        "selected_blocks": [
+          "Core",
+          "Experiment"
+        ],
+        "block_count": 2,
+        "utf8_bytes": 13734,
+        "characters": 5823,
+        "sha256": "0b80811e904a83406e37d262336a5b21c47b7d8b9ec81020da02359f3808c76e",
+        "token_count": "not_measured",
+        "execution_authorized": false
+      }
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "scripts/build_handoff.py",
+        "--goal-file",
+        "examples/portfolio/goal.md",
+        "--max-bytes",
+        "1"
+      ],
+      "exit_code": 2,
+      "error": {
+        "error": "handoff needs 6845 bytes, cap is 1; no content emitted or truncated. Use an accessible durable plan plus a short launcher; do not drop active rules.",
+        "execution_authorized": false
+      },
+      "stdout_empty": true
+    }
+  ],
+  "preserved_archived_validation31": true,
+  "official_docs": {
+    "date": "2026-09-22",
+    "provider": "OpenAI Developer Docs MCP; search followed by fetch_openai_doc",
+    "pages": [
+      {
+        "url": "https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra",
+        "title": "Using GPT-6 Astra",
+        "fetched": "Full guide Markdown (returned when anchor gpt-6-astra-features was absent); also behavior and migration sections",
+        "matches": "Initiative, skills, writing, delegation, proportionate testing; async tools, steering, API migration conditions"
+      },
+      {
+        "url": "https://developers.openai.com/api/docs/models/gpt-6-astra",
+        "title": "GPT-6 Astra",
+        "fetched": "Full model page",
+        "matches": "API model ID and five reasoning effort levels"
+      }
+    ],
+    "api_requests": "not_run",
+    "configuration_changed": false
+  },
+  "links_missing": [],
+  "installation": {
+    "path": "/Users/chasoik/Projects/common-skills/skills/goal-planner",
+    "version": "3.2.1",
+    "manifest_verified": true,
+    "copy_hashes_and_modes_match": true,
+    "aliases": {
+      "/Users/chasoik/.agents/skills/common-skills/goal-planner": "/Users/chasoik/Projects/common-skills/skills/goal-planner",
+      "/Users/chasoik/.claude/skills/goal-planner": "/Users/chasoik/Projects/common-skills/skills/goal-planner"
+    },
+    "backup": "/Users/chasoik/.codex/backups/goal-planner/2026-09-22T184029+0900/goal-planner",
+    "finder_metadata_backup": "/Users/chasoik/.codex/backups/goal-planner/2026-09-22T184029+0900/.DS_Store.before-3.2.1",
+    "files_at_initial_copy": 119,
+    "contract_tests": {
+      "count": 36,
+      "result": "passed",
+      "skipped": 0,
+      "log": "tests/evidence/v3.2.1-local/installed-contracts.txt"
+    }
+  }
+}

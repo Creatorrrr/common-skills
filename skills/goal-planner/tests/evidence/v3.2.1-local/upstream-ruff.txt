@@ -1,0 +1,266 @@
+EXE001 Shebang is present but file is not executable
+ --> examples/preflight/demo_runtime.py:1:1
+  |
+1 | #!/usr/bin/env python3
+  | ^^^^^^^^^^^^^^^^^^^^^^
+2 | """Small self-contained probe. --fault deliberately selects the wrong baseline.
+  |
+
+EXE001 Shebang is present but file is not executable
+ --> scripts/build_handoff.py:1:1
+  |
+1 | #!/usr/bin/env python3
+  | ^^^^^^^^^^^^^^^^^^^^^^
+2 | """Compile selected portable contracts once; stdout only, no project execution.
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> scripts/build_handoff.py:7:1
+   |
+ 5 |   state actual operation, limits and success criteria. Python 3.10+, stdlib only.
+ 6 |   """
+ 7 | / from __future__ import annotations
+ 8 | | import argparse
+ 9 | | import hashlib
+10 | | import json
+11 | | import re
+12 | | import sys
+13 | | from pathlib import Path
+   | |________________________^
+14 |
+15 |   ORDER = ("Core", "Program", "Experiment", "Direction", "Research", "Retrieval", "Persistence")
+   |
+help: Organize imports
+  |
+7 | from __future__ import annotations
+8 +
+9 | import argparse
+  |
+
+FURB167 [*] Use of regular expression alias `re.M`
+  --> scripts/build_handoff.py:19:68
+   |
+17 | MAX_INPUT = 512 * 1024
+18 | MARKER = re.compile(r"\{\{[^{}]+\}\}")
+19 | BLOCK = re.compile(r"^## ([A-Za-z]+)[^\n]*\n+```text\n(.*?)\n```", re.M | re.S)
+   |                                                                    ^^^^
+help: Replace with `re.MULTILINE`
+   |
+18 | MARKER = re.compile(r"\{\{[^{}]+\}\}")
+   - BLOCK = re.compile(r"^## ([A-Za-z]+)[^\n]*\n+```text\n(.*?)\n```", re.M | re.S)
+19 + BLOCK = re.compile(r"^## ([A-Za-z]+)[^\n]*\n+```text\n(.*?)\n```", re.MULTILINE | re.S)
+20 |
+   |
+
+FURB167 [*] Use of regular expression alias `re.S`
+  --> scripts/build_handoff.py:19:75
+   |
+17 | MAX_INPUT = 512 * 1024
+18 | MARKER = re.compile(r"\{\{[^{}]+\}\}")
+19 | BLOCK = re.compile(r"^## ([A-Za-z]+)[^\n]*\n+```text\n(.*?)\n```", re.M | re.S)
+   |                                                                           ^^^^
+help: Replace with `re.DOTALL`
+   |
+18 | MARKER = re.compile(r"\{\{[^{}]+\}\}")
+   - BLOCK = re.compile(r"^## ([A-Za-z]+)[^\n]*\n+```text\n(.*?)\n```", re.M | re.S)
+19 + BLOCK = re.compile(r"^## ([A-Za-z]+)[^\n]*\n+```text\n(.*?)\n```", re.M | re.DOTALL)
+20 |
+   |
+
+EXE001 Shebang is present but file is not executable
+ --> scripts/experiment_preflight.py:1:1
+  |
+1 | #!/usr/bin/env python3
+  | ^^^^^^^^^^^^^^^^^^^^^^
+2 | """Read-only consistency checks for declared and runtime-observed comparisons.
+  |
+
+EXE001 Shebang is present but file is not executable
+ --> scripts/report_index.py:1:1
+  |
+1 | #!/usr/bin/env python3
+  | ^^^^^^^^^^^^^^^^^^^^^^
+2 | """Build, query, and validate a derived index for goal execution reports."""
+  |
+
+EXE001 Shebang is present but file is not executable
+ --> scripts/research_portfolio.py:1:1
+  |
+1 | #!/usr/bin/env python3
+  | ^^^^^^^^^^^^^^^^^^^^^^
+2 | """Inspect declared experiment records. Read-only; no evaluator or model is run.
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_astra_handoff.py:2:1
+  |
+1 |   """Packaging/forwarding regressions only; these are not LLM behavior tests."""
+2 | / from pathlib import Path
+3 | | import importlib.util
+4 | | import json
+5 | | import unittest
+  | |_______________^
+6 |
+7 |   ROOT = Path(__file__).resolve().parents[1]
+  |
+help: Organize imports
+  |
+1 | """Packaging/forwarding regressions only; these are not LLM behavior tests."""
+  - from pathlib import Path
+2 | import importlib.util
+3 | import json
+4 | import unittest
+5 + from pathlib import Path
+6 |
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_build_handoff.py:2:1
+   |
+ 1 |   """Compiler integrity/size tests, not live model instruction-following tests."""
+ 2 | / from __future__ import annotations
+ 3 | | import importlib.util
+ 4 | | import json
+ 5 | | import subprocess
+ 6 | | import sys
+ 7 | | import unittest
+ 8 | | from pathlib import Path
+   | |________________________^
+ 9 |   ROOT=Path(__file__).resolve().parents[1]
+10 |   SPEC=importlib.util.spec_from_file_location('handoff_under_test',ROOT/'scripts/build_handoff.py')
+   |
+help: Organize imports
+   |
+2  | from __future__ import annotations
+3  +
+4  | import importlib.util
+--------------------------------------------------------------------------------
+9  | from pathlib import Path
+10 +
+11 | ROOT=Path(__file__).resolve().parents[1]
+   |
+
+PLW1510 `subprocess.run` without explicit `check` argument
+  --> tests/test_build_handoff.py:75:14
+   |
+74 |     def test_cli_outputs_selected_once_and_exact_stats(self):
+75 |         proc=subprocess.run([sys.executable,'-B',str(ROOT/'scripts/build_handoff.py'),
+   |              ^^^^^^^^^^^^^^
+76 |                              '--goal-file',str(ROOT/'examples/portfolio/goal.md'),'--stats'],
+77 |                              capture_output=True,text=True,timeout=15)
+   |
+help: Add explicit `check=False`
+
+PLW1510 `subprocess.run` without explicit `check` argument
+  --> tests/test_build_handoff.py:84:14
+   |
+83 |     def test_cli_too_small_no_partial_output(self):
+84 |         proc=subprocess.run([sys.executable,'-B',str(ROOT/'scripts/build_handoff.py'),
+   |              ^^^^^^^^^^^^^^
+85 |                              '--goal-file',str(ROOT/'examples/portfolio/goal.md'),'--max-bytes','1'],
+86 |                              capture_output=True,text=True,timeout=15)
+   |
+help: Add explicit `check=False`
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_evolution_contracts.py:2:1
+  |
+1 |   """Coverage assertions for optional plan rules; no live agent evaluation."""
+2 | / import json
+3 | | import re
+4 | | import unittest
+5 | | from pathlib import Path
+6 | | from test_skill_contracts import contract_blocks
+  | |________________________________________________^
+7 |   ROOT=Path(__file__).resolve().parents[1]
+  |
+help: Organize imports
+  |
+5 | from pathlib import Path
+6 +
+7 | from test_skill_contracts import contract_blocks
+8 +
+9 | ROOT=Path(__file__).resolve().parents[1]
+  |
+
+F401 [*] `re` imported but unused
+ --> tests/test_evolution_contracts.py:3:8
+  |
+1 | """Coverage assertions for optional plan rules; no live agent evaluation."""
+2 | import json
+3 | import re
+  |        ^^
+4 | import unittest
+5 | from pathlib import Path
+  |
+help: Remove unused import: `re`
+  |
+2 | import json
+  - import re
+3 | import unittest
+  |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_research_portfolio.py:2:1
+   |
+ 1 |   """Deterministic helper tests. Not LLM behavior or scientific outcome tests."""
+ 2 | / from __future__ import annotations
+ 3 | | import copy
+ 4 | | import hashlib
+ 5 | | import importlib.util
+ 6 | | import json
+ 7 | | import subprocess
+ 8 | | import sys
+ 9 | | import tempfile
+10 | | import unittest
+11 | | from pathlib import Path
+   | |________________________^
+12 |
+13 |   ROOT = Path(__file__).resolve().parents[1]
+   |
+help: Organize imports
+  |
+2 | from __future__ import annotations
+3 +
+4 | import copy
+  |
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> tests/test_research_portfolio.py:162:13
+    |
+160 |           for value in (True,float('nan'),float('inf'),float('-inf'),10**1000):
+161 |               self.c['measurements']['pilot']['quality']=value
+162 | /             with self.subTest(value=str(value)[:20]):
+163 | |                 with self.assertRaises(p.InputError):p.validate(self.s)
+    | |_____________________________________________________^
+164 |
+165 |       def test_bool_schema_version_rejected(self):
+    |
+help: Combine `with` statements
+
+PLW1510 `subprocess.run` without explicit `check` argument
+   --> tests/test_research_portfolio.py:229:18
+    |
+227 |             path=Path(tmp)/'s.json';path.write_text(json.dumps(self.s))
+228 |             before=hashlib.sha256(path.read_bytes()).hexdigest()
+229 |             proc=subprocess.run([sys.executable,'-B',str(ROOT/'scripts/research_portfolio.py'),
+    |                  ^^^^^^^^^^^^^^
+230 |                                  '--input',str(path),'--stage','pilot'],capture_output=True,text=True,timeout=15)
+231 |             self.assertEqual(proc.returncode,0,proc.stderr)
+    |
+help: Add explicit `check=False`
+
+PLW1510 `subprocess.run` without explicit `check` argument
+   --> tests/test_research_portfolio.py:239:18
+    |
+237 |         with tempfile.TemporaryDirectory() as tmp:
+238 |             path=Path(tmp)/'s.json';path.write_text('{}')
+239 |             proc=subprocess.run([sys.executable,'-B',str(ROOT/'scripts/research_portfolio.py'),
+    |                  ^^^^^^^^^^^^^^
+240 |                                  '--input',str(path),'--stage','pilot'],capture_output=True,text=True,timeout=15)
+241 |             self.assertEqual(proc.returncode,2);self.assertEqual(proc.stdout,'')
+    |
+help: Add explicit `check=False`
+
+Found 18 errors.
+[*] 8 fixable with the `--fix` option.

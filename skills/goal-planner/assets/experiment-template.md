@@ -51,3 +51,7 @@
 
 ## Amendments
 <!-- Append correction/version/reason; preserve old predictions and results. No post-hoc success rewrite. -->
+
+## Optional evolutionary search fields
+
+Only for repeated/costly search: protected evaluator and calibration; per-stage measurements/regime; reference families and exact duplicates; best verified vs active source; plateau decision; conditional lesson and counterevidence. Reuse existing fields/logs rather than creating a second state system. See [search-plan-template.md](search-plan-template.md).

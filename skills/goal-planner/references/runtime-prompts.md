@@ -6,7 +6,7 @@ Read only when preparing a copyable handoff. Choose the runtime named by the use
 
 Use the selection table and canonical blocks in [execution-contract.md](execution-contract.md). Embed **Core** once, add **Program** only for delegated research-program, **Experiment** for consequential tests, and **Direction**, **Research** and **Retrieval** only when applicable, and add **Persistence** only for authorized `persist` mode and paths. For `GOAL_PLAN.md`, put the selected blocks in the plan once; the launch prompt points to the actual file. Do not independently shorten selected blocks into different approval, retry, or success rules.
 
-The seven contract markers below are authoring markers, not output. Replace selected markers with their complete fenced text blocks, translate if necessary, and remove unselected markers. Resolve all task fields. Never deliver unresolved markers as a finished prompt. Record the selected blocks briefly so the handoff's coverage is reviewable without repeating the selection table.
+The seven contract markers below are authoring markers, not output. Replace selected markers with their complete fenced text blocks, translate if necessary, and remove unselected markers. Resolve all task fields. Never deliver unresolved markers as a finished prompt. Record the selected blocks briefly so the handoff's coverage is reviewable without repeating the selection table. Distinguish optional template fields from material missing facts: omit an inapplicable field or use a labeled assumption. A template is not a new permission gate.
 
 ## Shared direct-goal template
 
@@ -72,6 +72,10 @@ Use the same contract. Add a compact requirement to show outcome changes and dir
 
 Do not ask which provider is in use merely to produce a readable plan. Avoid host-specific commands and unsupported tool claims. If the user needs an exact launcher or API integration, establish that capability separately; model IDs, reasoning settings, and API key handling belong to the caller, not this plan.
 
+## GPT-6 Astra (conditional)
+
+For an explicitly selected Astra host or API migration, read [gpt-6-astra.md](gpt-6-astra.md). The shared Core already carries intent handling, proportionate verification, readable messages, and requirement updates. Do not append a duplicate “Astra policy” to every goal. The optional reference documents API compatibility; this prompt compiler cannot enable async execution, steer a WebSocket, or configure effort.
+
 ## Long-goal launch prompt
 
 Use only after preparing a complete plan with its embedded contract and checking the path the executor will read. Adapt the path, keeping it relative to the intended repository where possible.
@@ -81,7 +85,11 @@ GOAL_PLAN.md를 읽고, 내가 요청한 실행 범위 안에서 진행하라.
 상위 시스템·개발자·런타임 제약 안에서 나의 최신 명시적 지시가 기존 계획과 스킬 기본값보다 우선한다. 명시된 변경은 반영하고 이미 승인된 동일 작업은 재확인하지 말라.
 계획에 포함된 지시·권한, finite-goal/research-program의 목표 승계, 가설·실험·최선 산출물·복구, 방향 재검토, 필요한 병렬 리서치, 진척·검증, 지식 조회·신뢰 경계와 활성화된 기록 규칙을 적용하라. 계획 외 참조가 꼭 필요하면 접근 가능한지 확인하고, 누락되면 아는 것처럼 처리하지 말라.
 필수 검증을 완료하고 관련 변경·실패·미해결 우려가 있을 때 영향받은 검증을 다시 수행하라. 승인 대기는 의존하는 단계만 막고, 독립적인 승인된 작업은 계속하라.
-최종 응답에는 실제 산출물·변경 파일·실행한 검증·기준별 pass/fail/blocked/not run·지식 기록 경로·남은 위험을 제시하라.
+최종 응답은 요청 결과를 먼저 설명하고 실제 산출물·변경 파일·실행한 검증·기준별 pass/fail/blocked/not run·해당하는 지식 기록 경로·남은 위험을 제시하라. 짧게 쓰기 위해 근거나 정상적인 띄어쓰기를 생략하지 말라.
 ```
 
 Adding a verified command prefix is the only necessary host adaptation for many goals. Do not duplicate a second, incompatible knowledge contract in the launch prompt.
+
+## Deterministic assembly (optional)
+
+The [compiler](../scripts/build_handoff.py) accepts a goal-specific UTF-8 file and explicitly selected block names, emits the chosen canonical text once, and reports byte/character counts when requested. It does not configure models, authorize execution, or make a small cap safe by truncating. Core is its only default; select the remaining blocks using the existing applicability table.

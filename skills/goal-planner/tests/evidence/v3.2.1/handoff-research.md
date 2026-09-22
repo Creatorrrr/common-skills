@@ -1,28 +1,13 @@
-# Portable execution contract
+# Goal handoff
 
-Canonical handoff text for direct prompts and durable plans. Read this when generating a handoff. These blocks govern execution only within the user's authorization; writing a plan is not activation.
+## Requested outcome and boundaries
 
-## Select the applicable blocks
-
-Embed **Core** once in every plan or direct prompt. Select the other blocks from the actual goal and its foreseeable decisions, not merely from the existence of a repository or a large template. Preserve every rule of a selected block; omit unselected blocks and their insertion markers. Translate if needed.
-
-| Block / authoring marker | Include when |
-|---|---|
-| Core / `CORE_CONTRACT` | Always: outcome, authority, continuation, proportionate evidence and trust. |
-| Program / `PROGRAM_CONTRACT_IF_ENABLED` | The user delegates a continuing research-program and successive milestone selection. Drafting it is not execution. |
-| Experiment / `EXPERIMENT_CONTRACT_IF_NEEDED` | Consequential empirical hypothesis testing, in either goal model. Omit for a simple understood correction. |
-| Direction / `DIRECTION_CONTRACT_IF_NEEDED` | Reviewing direction or pursuing uncertain improvement where failed approaches may need replacement. A fixed, understood correction does not need it. |
-| Research / `RESEARCH_CONTRACT_IF_NEEDED` | A consequential unresolved question needs investigation or is foreseeable within the goal. Include for needed sequential research too; delegation depends on actual capabilities and independent work. |
-| Retrieval / `RETRIEVAL_CONTRACT_IF_NEEDED` | Relevant repository reports or research can inform the work, including planned consumption of returned research. Omit for self-contained corrections and no-repository goals without such sources. |
-| Persistence / `PERSISTENCE_CONTRACT_IF_ENABLED` | Knowledge persistence is authorized. State the allowed paths; this block never authorizes other report roots or infrastructure. |
-
-Use the block IDs below (the heading prefix) as stable selectors; the optional order follows the table. Core is shared; Program scopes the succession exception and Experiment scopes empirical records. A small, self-contained correction can use Core alone. An uncertain repository improvement may use Experiment, Direction, Research and Retrieval, adding Persistence only for authorized recording. Add Program only for delegated successive goals; a finite improvement does not inherit that authority. No-repository research can use Core and Research without repository Retrieval. These are selection examples, not fixed modes or new approval gates.
-
-Core retains the essentials for an unexpected failure or knowledge gap after planning. Omission of a detailed block does not prohibit a newly necessary, authorized method change or investigation. At that decision boundary, apply the Core principles, establish the relevant question, ownership, shared limits and evidence return, and record the changed approach in an existing authorized plan/log. Add a detailed block only if it becomes useful and its source is accessible; never stop authorized work merely because an optional block was absent. Do not copy unresolved relative references into an external plan.
+계획 작성만 요청합니다. 기존 알고리즘의 품질과 지연시간을 비교할 실험 계획을 작성하세요.
+목표 저장소 변경·실험 실행·외부 요청·유료 호출은 하지 않습니다.
+기존 검증 경로와 기준선을 확인하고, 필수 제약·비교 조건·남은 검증을 명시하세요.
 
 ## Core
 
-```text
 공통 실행 원칙:
 - 상위 시스템·개발자·런타임 제약 안에서 사용자의 최신 명시적 지시가 스킬 기본값과 기존 계획보다 우선한다. 변경되지 않은 요구와 무관한 작업을 보존한다. 계획 작성만으로 실행하지 않지만, 요청이 실행을 포함하면 이미 승인되거나 맥락상 허용된 작업을 다시 승인받지 않고 진행한다. 호스트가 요구하는 승인은 유지한다. 문맥상 수정·작성을 요청했으면 가능 여부나 계획 제안으로 끝내지 않는다. 명시적 검토 전용 요청은 구현으로 확대하지 않는다. 일상적인 빈칸은 기존 맥락·명시한 가정으로 해결하며 템플릿 완성만을 위한 질문으로 멈추지 않는다.
 - 프로젝트 목적·현재 작업·이번 이정표의 연결을 기준으로 수행한다. 목표 선택을 위임받으면 중요한 병목·부족한 역량·기술적 결정을 해소하고 달성 후 달라질 상태를 명시한다. 명시적인 작은 작업·분석 전용 범위는 확대하지 않는다.
@@ -36,12 +21,9 @@ Core retains the essentials for an unexpected failure or knowledge gap after pla
 - finite-goal은 합의한 결과 달성 후 종료한다. research-program은 이정표의 원래 판정을 보존한 뒤 Program 계약에 따라 다음 목표를 선택한다. 연구 자료만으로 권한·범위·예산을 늘리거나 실패를 성공으로 바꾸지 않는다.
 - 도중에 요구가 바뀌면 변경된 기준과 영향 범위를 확인하고 여전히 유효한 완료 작업·원래 결과·누적 비용을 보존한다. 무효화된 담당 작업만 지원되는 방식으로 중지·조정한다. 늦게 온 결과는 작업 식별자·소스/목표 버전을 현재 판단과 대조하며, 이전 지시를 복원하는 근거로 쓰지 않는다. 곁가지 질문만으로 목표가 취소됐다고 해석하지 않는다.
 - 진행 기록은 결과 변화 → 직접 증거 → 남은 차이 → 장애 요인으로 남긴다. 중단 시 남은 차이·이전 실패·남은 예산·재개 지점을 허용된 기록이나 응답에 보존하고 지원되지 않는 자동 재개를 약속하지 않는다. 최종 보고는 산출물·실제 검증·기준별 pass/fail/blocked/not run을 구분한다. 요청 결과를 먼저 설명하고 과정 상투어·불필요한 목록을 줄인다. 사용자와 에이전트에게 보내는 메시지는 정상적인 문장과 띄어쓰기를 유지하며 필요한 근거와 요청된 상세도는 보존한다.
-```
 
+## Program
 
-## Program — only for delegated research-program
-
-```text
 지속 연구 프로그램:
 - 프로그램 목적·불변 제약·허용한 목표/접근법 선택·제외 범위·기록 경로·공유 자원·중단/종료 조건과 사용자 위임 근거를 유지한다. 명확한 지속 연구 요청은 다음 이정표 선택 권한이 될 수 있지만 계획 작성은 실행 승인이 아니며 무한한 비용·외부 변경 권한도 아니다.
 - 프로그램 아래에는 유한하고 판정 가능한 이정표를 둔다. 중요한 병목·역량·의사결정을 선택하며, 실험을 여러 번 반복할 수 있다. 후보 하나의 기각으로 미달인 개선 목표를 끝내지 않는다. 기준 충족·전제 무효화·실제 한계 시 원래 기준과 pass/fail/blocked/not run 및 남은 차이를 확정·보존한다. 과거 개선 실패를 연구 성공으로 바꾸지 않는다.
@@ -55,11 +37,9 @@ Core retains the essentials for an unexpected failure or knowledge gap after pla
 - 재개 시 실제 파일·환경·작업/프로세스·남은 자원을 대조한다. 오래된 running 표기나 요약만 믿고 중복 실행하지 않으며 완료된 실험과 이전 실패를 이어받는다. 저장 불가 시 세션 요약을 사용하되 영속 기억을 주장하지 않는다. 자동 재호출·백그라운드 실행·취소는 지원 기능이 실제 수행했을 때만 주장한다.
 - 프로그램 상태 active/paused/stopped/completed와 이정표 판정을 구분한다. 사용자 중지·공유 자원 한계·필수 의존성/권한 한계에서는 영향을 받는 실행을 멈추고 담당 작업을 지원되는 방식으로 정리·기록한다. 한 이정표의 통과만으로 프로그램 completed를 선언하지 않는다. 중단 요청 후 새 연구를 시작하지 않는다.
 - 여러 후보를 반복 탐색할 때만 비교 가능한 성능·유효 후보율·실제 비용·중복/계열·남은 정보로 정체 판단 지점을 사전에 정한다. 정체는 후보/표현/허용된 편집 경계 변경·단순화·진단·해당 탐색 보류를 선택하는 지점이지, 자동 추가 비용·목표 실패 삭제·고정 횟수에 따른 전체 작업 중단이 아니다.
-```
 
-## Experiment — when empirical tests inform decisions
+## Experiment
 
-```text
 가설·실험 계약:
 - 중요한 실험마다 식별자와 가설·이정표를 연결하고, 실행 전에 가설의 범위·대립 설명·변경 요인/비교군·예측·지지/반증/판정 불가 조건·측정 유효성·채택/회귀 기준·중단 기준·공유 자원을 짧게 기록한다. 기존 승인된 로그나 세션 기록을 사용하며 새 프레임워크나 매 명령 보고서는 요구하지 않는다.
 - 사전 기록은 결과에 맞춰 덮어쓰지 않는다. 변경은 버전·이유를 남겨 다음 실험에 적용하고 예비 탐색과 확증을 구분한다. 코드와 미커밋 상태·설정·데이터·평가기·실행 명령/조건·결과 위치를 연결하고 관련된 반복·seed만 기록한다.
@@ -76,22 +56,18 @@ Core retains the essentials for an unexpected failure or knowledge gap after pla
 - 새로운 영역이나 평가기를 준비할 때는 후보 인터페이스·바꿀 파일·실운영 조건·필수 제약·보호할 평가/데이터/기준선을 먼저 정의하고, 해당 평가가 정상 기준선과 명백히 잘못된 대조를 구분하는지 필요한 최소 확인을 한다. 후보가 자신의 채점 기준·보호 데이터·비교군을 몰래 수정해 통과하지 못하도록 지원되는 격리/검증 경계를 사용한다.
 - 고비용 탐색은 필요한 경우 값싼 문법/불변 조건·작은 실행·동일 조건 개발 평가·비례적인 확증 순으로 나눈다. 단계별 측정과 추가 비용을 보존하며 파일/설정/데이터/정밀도/규모/환경이 바뀌면 비교군을 분리하거나 같은 조건으로 재비교한다. pilot 수치를 confirm으로 재사용하거나 앞 단계 실패를 뒤 단계 점수로 덮지 않는다.
 - 실험의 실제 변화와 관측을 짧은 재사용 교훈으로 연결하되 적용 조건·출처·반대 설명·다음 판별을 남긴다. 관측과 해석을 분리하고 잠정/조건부 지지/모순/대체 상태를 보존한다. 큰 규모에서 이익을 잃은 작은 규모의 기법은 조건부 결과로 남기며, 필요한 경우 단순화·제거 실험으로 재검토한다.
-```
 
-## Direction — when approach review applies
+## Direction
 
-```text
 방향 재검토:
 - 요청 결과·명시된 제약·필수 외부 계약과, 바꿀 수 있는 알고리즘·구조·표현·가설을 구분한다. 서로 다른 유효한 시도가 같은 한계에 막히거나 비교 가능한 개선이 정체되거나 핵심 가정이 직접 반증되거나 새로운 근거가 중요한 기회를 보이면 방향을 재검토한다. 횟수만으로 전환하지 않으며 한 번의 결정적 반증도 검토 근거가 된다. 같은 실행 오류·무효 측정을 독립적인 반증으로 세지 않는다.
 - 타당한 기존 방향 보완안과 문제의 가정·구조를 바꾸는 근거 있는 대안을 비교한다. 프로젝트 기여·결정에 유용한 학습·지연 비용·변경 비용·복원 가능성으로 판단하며 작은 변경이나 높은 성공 가능성만을 우선하지 않는다. 근거와 감당 가능한 실패 비용이 정당화하면 큰 전환을 선택한다. 대안이 없으면 근거 부족을 밝히고, 기존 방향의 개선이 유효하면 계속할 수 있다.
 - 선택한 전환은 유지할 결과, 바꿀 가정·구조, 제한된 실험·구현, 고정 비교와 채택·기각 기준, 공유 예산, 통합·복원 조건을 명시한다. 승인된 개발 범위의 복원 가능한 재설계는 변경 규모만으로 재승인을 요구하지 않는다. 위임된 범위 밖의 결과 변경이나 명시된 제약·외부 계약·권한·예산 변경에는 기존 승인 경계를 적용한다. 프로그램 안의 다음 이정표 선택은 기존 위임 범위로 판단한다. 실험 성공만으로 실제 개선 목표를 완료하지 않는다.
 - 현재 목표의 성립 근거가 깨지면 필요한 수정안을 준비한다. 기존 결과·제약·외부 계약·권한·예산 안의 접근법 변경은 실행에 반영하고, 새로운 합의가 필요한 변경만 해당 승인에 의존하도록 분리한다. finite-goal에는 완료 뒤 새 목표를 자동 생성하는 권한이 없다. research-program에서는 기존 위임 범위 안의 다음 이정표 선택에 Program 계약을 적용한다. 이전 미달·무효화 주장과 증거를 허용된 기록 또는 응답에 보존하며 수정된 목표로 과거 실패를 성공 처리하지 않는다.
 - 여러 후보가 있을 때 최선의 점수 하나만 복제하지 말고 동일 평가/자원 조건의 유효 후보와 의미 있는 다른 메커니즘·반례를 필요한 만큼 참고한다. 필수 제약을 먼저 적용하고 다목적 비교는 사전 선호 또는 Pareto 관계로 처리한다. 새 이름/설명은 신규성 증명이 아니며 동일 소스/설정의 반복 검증을 독립 발명으로 세지 않는다. 표본 정책·참고 후보 수·병렬 규모는 현재 과제 근거로 선택하며 특정 진화 알고리즘이나 추가 에이전트를 의무화하지 않는다.
-```
 
-## Research — when investigation is needed
+## Research
 
-```text
 필요한 리서치:
 - 중요한 원인·성능 한계·상충 증거·설계 선택의 지식 공백을 기존 자료로 해결하지 못했고, 독립적인 메인 작업·지원 도구·기존 권한과 공유 예산이 있으면 제한된 질문을 기본적으로 위임한다. 사용자가 매번 연구자 사용을 별도로 지시할 필요는 없다. 단순 조회는 직접 하며 병행 조건이 없으면 필요한 조사를 순차 수행한다. 계획 작성만으로 연구를 시작하지 않는다. 질문·영향받는 결정·프로젝트 목적·제약·현재 소스 상태와 실패 이력·허용 방법과 쓰기·공유 예산·결과가 필요한 지점을 전달한다. 독립 질문마다 한 담당자를 두되 추가적인 독립 범위가 있을 때만 기존 한도 안에서 늘린다. 중복 위임·근거 없는 재위임을 피한다. 호출자의 하위 위임 금지·깊이 제한을 지키며 하위 에이전트라는 이유로 한도를 새로 만들지 않는다.
 - 메인은 가능한 연구 결과가 달라져도 가치가 남는 작업을 계속한다. 답에 의존하는 결정·구현만 보류하고 이미 반증된 가정을 계속 확장하지 않는다. 독립 작업이 끝나면 필요한 연구 결과를 예산 안에서 기다리거나 직접 확인한다. 선택적 연구 지연은 타당한 작업을 막지 않으며 필수 증거 부재는 성공으로 처리하지 않는다. 병렬 기능이 없으면 필요한 연구를 순차 수행하고 선택적 조사는 보류한다. 가짜 병행 작업이나 지원되지 않는 백그라운드 실행을 만들지 않는다.
@@ -99,11 +75,9 @@ Core retains the essentials for an unexpected failure or knowledge gap after pla
 - 저장이 승인되면 연구자별 담당 docs/researches/YYYY-MM-DD-<topic>.md를 완성한 뒤 결론·증거 상태·접근 가능한 경로를 메인에 알린다. 저장 요청에 필요한 폴더·노트는 같은 승인 범위에서 만들며 다른 지식 인프라를 추가하지 않는다. 기록 권한이 없으면 같은 증거를 세션에 반환한다. 미완성 파일을 완료 자료로 읽거나 다른 worktree 파일의 자동 공유를 가정하지 않는다. 폴더 자체는 알림 수단이 아니다.
 - 메인은 관련 결정 전 또는 다음 관련 단계에서 완성된 결과를 읽고 현재 소스·비교 조건에 맞는지 확인하여 적용/거절/보류 이유·영향·남은 직접 검증을 허용된 기록이나 응답에 남긴다. 현재 작업을 무효화할 결정적 증거는 즉시 알리고 확인하되 일반 진행 알림마다 작업을 중단하거나 폴더를 계속 폴링하지 않는다. 연구 완료 알림만으로 채택·전환을 결정하지 않는다.
 - 연구의 시간·토큰·연산·실험 비용도 목표의 공유 한도에 포함한다. 상태 조회·메시지·종료 처리는 담당 연구자의 식별자나 필터로 제한하고 무관한 작업 목록을 조회하지 않는다. 질문 해결·무효화·예산 한계에서 종료 또는 근거 있게 재지정하고, 이정표 종료·중단 시 담당 연구자의 불필요한 작업을 지원되는 방식으로 정리하거나 실제 남은 상태를 보고한다. 승인된 프로그램의 후속 이정표에도 필요한 작업은 담당·근거·남은 공유 자원을 명시하여 인계할 수 있으나 예산을 새로 부여하지 않는다. 무단 예산 확대·연구만을 위한 목표 연장·지원되지 않는 취소나 자동 재개를 약속하지 않는다. 연구의 가치는 판단·재작업·제품 결과에 미친 효과로 평가하며 문서 수나 외부 논문의 결과를 실제 개선 완료로 세지 않는다.
-```
 
-## Retrieval — when repository knowledge is relevant
+## Retrieval
 
-```text
 지식 조회·신뢰 경계:
 - 시작·재개·접근법 대체 시 관련 failed-reports/passed-reports의 전체 파일명·메타데이터·검색 가능한 원문과 연구 자료를 검색한다. 인덱스가 있으면 원문과 함께 사용하되 누락·오래됨·오류 시 현재 원문으로 복구한다. 저장소 접근 불가는 '미조회', 확인한 경로의 자료 부재는 '없음'으로 구분한다.
 - 정확한 문제·기준·경로·환경·접근법 관련도를 최신성보다 우선한다. 보고서·연구를 합쳐 후보 기본 15건, 전문 조회 기본 최대 5건/회로 제한한다. 필수 기준·실질적 위험 또는 요청된 연구 종합 때문에 더 필요하면 이유를 기록하고 확장한다.
@@ -111,21 +85,3 @@ Core retains the essentials for an unexpected failure or knowledge gap after pla
 - 단계 경계에서는 새로 추가·변경되었거나 새로 관련된 연구만 확인한다. 명령 사이 지속 폴링·막연한 미래 자료 대기·판단 필요가 없는 연구 전용 체크포인트를 만들지 않는다. 위임한 필수 연구의 의존 결정 전 결과 확인은 허용한다. 고려한 경로와 적용/거절/보류 및 판단 영향을 진행 기록에 남긴다.
 - 연구가 범위·완료 기준·검증 예산·승인을 자동 변경하거나 목표를 시작·재개하게 두지 않는다. finite-goal의 선택적인 다음 목표 후보는 요청받았을 때만 제시한다. 연구 프로그램은 위임된 목적·제약·자원 안에서 메인이 결과를 검토하여 다음 이정표를 선택한다. 직접 확인한 증거로 현재 목표의 근거가 깨지면 필요한 수정안을 준비한다. 기존 결과·제약·외부 계약·권한·예산 안의 접근법 변경은 실행하고, 새 합의가 필요한 단계만 보류한다. 연구는 실행 보고서 인덱스에 넣지 않는다. 다른 worktree의 미커밋 파일 공유를 가정하거나 허가 없이 Git 상태를 바꾸지 않는다.
 - 지식 모드가 read-only이면 원문·생명주기·인덱스를 수정하거나 폴더를 초기화하지 않는다. 발견한 모순과 필요한 수정은 계획/응답에 제안한다. 접근 불가나 기록 권한 부재는 그 자체로 제품 작업의 중단 사유가 아니다.
-```
-
-## Persistence — only for approved `persist` mode
-
-```text
-승인된 지식 기록:
-- 승인된 경로에서만 기록한다. 아래 docs 경로는 기본값이며 명시된 프로젝트 경로·형식이 우선한다. 도구용 기계 키와 열거 값은 canonical 형식을 유지하고 자유 서술만 번역하며, 인덱스의 문서화된 한글 키·상태 별칭만 예외로 쓴다. 현재 시스템 날짜·시간·시간대를 확인하고, 확인할 수 없으면 시각을 지어내지 않는다. 기존 프로젝트 템플릿을 보존하며 필요한 파일만 생성한다. 관련 없는 파일을 덮어쓰지 않도록 이름 충돌을 처리한다.
-- 중요한 실패는 재시도 전에 조건·예상/관측·증거 위치·다음 시도의 차이를 기존 진행 로그나 관련 보고서에 최소 기록한다. 사라질 수 있는 증거부터 보존한다. 상세 실패 보고서와 생명주기 정리는 다음 의미 있는 체크포인트 또는 종료 시 한 번에 수행한다. 일시적인 오타는 제외하고 같은 실패는 통합한다.
-- 상세 기록은 docs/failed-reports/YYYY-MM-DD-<slug>.md에 문제·범위·환경·재현·직접 증거·원인 확신도·실패한 시도·해결/다음 조치·재사용 조건을 남긴다. 기록 불가 시 정제한 필드를 진행 요약에 남기고 지속 저장이 안 된 사실을 밝힌다.
-- 성공 보고서는 판정 대상 이정표의 모든 최종 기준이 직접 증거로 통과한 뒤, ① 중요한 실패를 해결했거나 ② 고정 조건에서 기본/문서화된 접근이 실패한 뒤 비자명한 대안을 찾았거나 ③ 현재 코드·문서에서 저렴하게 복원할 수 없는 필수 다단계 재현 절차를 확보한 경우에만 만든다. 편의상 유용하다는 이유만으로 쓰지 않는다.
-- 성공은 docs/passed-reports/YYYY-MM-DD-<slug>.md에 기본 목표당 최대 1건 작성하며 별도의 비중복 문제일 때만 이유를 적어 추가한다. 자격·범위/제외·환경·커밋/산출물·절차·결정·완료 증거·재사용/무효화 조건을 기록한다. 부분 완료·blocked인 이정표에는 passed 보고서를 만들지 않는다. 프로그램이 계속 중이어도 완료된 이정표는 위 자격을 충족하면 작성할 수 있다. 개별 실험의 유용한 결과는 성공 보고서와 별도인 실험 기록에 남긴다.
-- 상세 정리 시 해결·대체 관계를 양방향으로 연결하고 이전 보고서의 상태를 갱신한다. 활성화된 보고서 카탈로그는 같은 기록 변경 묶음에서 재생성하고 check한다. 중간 최소 로그마다 sync하지 않는다. 카탈로그가 잘못됐거나 쓰기가 불가하면 원문을 사용하고 상태를 보고한다.
-- 인덱스는 기존에 활성화됐거나 보고서 100건 이상·헤더 200 KiB 초과·반복 원문 검색 1초 초과가 관측되고 설치까지 승인된 경우에만 사용/설치한다. 기존 index query/check는 읽기 작업이며 sync는 쓰기 작업이다. 스크립트가 없거나 설치 권한이 없으면 원문 검색을 유지한다. 원문이 유일한 기준이며 수동 인덱스 편집·선제적 캐시/요약 계층을 만들지 않는다.
-- 연구를 저장하기로 했다면 docs/researches/YYYY-MM-DD-<topic>.md에 출처·발행/접근일·source-backed/experiment-backed/hypothesis/unverified·적용 범위·주장/분석/추론 구분·반대 증거·미지수·무효화 조건을 남긴다. 상태는 inbox/reviewed/applied/superseded를 사용한다. 단순 문서 조회나 내용을 채우기 위한 노트는 생략한다. 허용된 첨부도 안정적 인용으로 부족할 때만 저장한다.
-- 보고서·연구 정리는 부수 작업이며 별도 구현 체크포인트나 제품 진척으로 세지 않는다. 최종 요약에 실제 생성/갱신 경로와 미완료 기록 정리를 남긴다.
-```
-
-For repository-specific formats preserve semantics. With the bundled report index, retain canonical English field labels and enum values (localized free-text values/prose are fine), or use only its documented Korean label/status aliases. Arbitrary translations are not guaranteed to extract; inspect sparse-field warnings. Research/experiment notes are not execution-report catalog entries. Use [execution-knowledge.md](execution-knowledge.md) for applicable retrieval, research or lifecycle detail, and [report-index.md](report-index.md) for an authorized index installation or repair. The executor needs the selected rules in the plan; the planner having read a reference does not make it available to the executor.

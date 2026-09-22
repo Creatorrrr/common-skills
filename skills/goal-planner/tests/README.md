@@ -1,4 +1,12 @@
-# 검증 방법 — 3.1.0
+# 3.2.1 추가 검증
+
+`test_astra_handoff.py`는 선택된 계약이 실제 출력에 전달되고 API/과거 지침은 자동 삽입되지 않는지 확인하는 로컬 회귀 5개다. 모델 행동 테스트가 아니다. `behavioral-astra.json`의 12개 사례는 실제 호스트 A/B를 위한 정의이며 모두 `not_run`이다. 이번 변경의 전체 결과는 [VALIDATION.md](../VALIDATION.md)에 있다.
+
+로컬 통합본은 후보 기록 충돌 및 CLI 입력 오류 회귀 5개를 추가해 총 **176개**를 검사한다. 아래 표는 현재 자동 검사 구성이다. 별도 모델 표본은 자동 검사 수에 포함하지 않고 검증 기록에 구분한다.
+
+---
+
+# 검증 방법 — 3.2.1
 
 패키지 루트에서 실행합니다. 외부 패키지나 API 키가 필요하지 않습니다. 도구는 Python 3.10 이상 문법이며 실제 확인 버전은 [검증 기록](../VALIDATION.md)에 명시합니다.
 
@@ -19,7 +27,11 @@ PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s tests -v
 | `test_research_contracts.py` | 12 | 새 연구·실험·복구 계약의 문서/템플릿 회귀 |
 | `test_experiment_preflight.py` | 35 | 선언·실제 대조·상태/초기 조건·증거 해시·잘못된 입력·실제 예제 factory·CLI 경계 입력 회귀 3개 |
 | `test_verification_contracts.py` | 8 | 이식형 계약·가벼운 적용·새 평가 정의·템플릿 회귀 |
-| 합계 | 99 | unittest 메서드 수; subTest를 별도로 합산하지 않음 |
+| `test_research_portfolio.py` | 47 | 단계·비교군·제약·중복·확증 충돌·자원·읽기 전용 CLI |
+| `test_build_handoff.py` | 17 | 계약 선택·중복·미완성 표시·길이 한도·정확한 크기 |
+| `test_evolution_contracts.py` | 8 | 선택형 후보 탐색 계약·템플릿·평가 정의 |
+| `test_astra_handoff.py` | 5 | Astra 관련 계약 전달과 과거/미실행 기록 구분 |
+| 합계 | 176 | unittest 메서드 수; subTest를 별도로 합산하지 않음 |
 
 계약 조합은 작은 Core 단독부터 지속 연구+기록까지 7개 프로파일을 두 개 템플릿에 적용합니다. 총 14개 조합에서 선택한 블록이 한 번만 들어가고 미선택 블록·삽입 표식이 남지 않는지 확인합니다. 테스트가 적용 조건에 맞는 프로파일을 에이전트가 스스로 선택했음을 검증하는 것은 아닙니다.
 

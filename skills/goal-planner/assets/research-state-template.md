@@ -37,3 +37,7 @@
 - Already completed work not to repeat:
 - Pending persistence or cleanup:
 <!-- On restart compare actual state, not just this snapshot. No unsupported automatic restart is implied. -->
+
+## Optional evolutionary search fields
+
+Only for repeated/costly search: protected evaluator and calibration; per-stage measurements/regime; reference families and exact duplicates; best verified vs active source; plateau decision; conditional lesson and counterevidence. Reuse existing fields/logs rather than creating a second state system. See [search-plan-template.md](search-plan-template.md).

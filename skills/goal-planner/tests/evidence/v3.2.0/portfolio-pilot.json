@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "assessment_basis": "supplied_records_only",
+  "snapshot_sha256": "d59686f19bb0a11f67b177cfd774aa1a295cd9c95ccc30e575d26524d969d3fd",
+  "stage": "pilot",
+  "comparison": {
+    "evaluator": "eval-v1",
+    "data": "dev-split-v1",
+    "compute": "fixed-work-v1",
+    "environment": "cpu-fixture-v1"
+  },
+  "eligible_ids": [
+    "baseline",
+    "fast",
+    "quality"
+  ],
+  "pareto_ids": [
+    "fast",
+    "quality"
+  ],
+  "reference_ids": [
+    "fast",
+    "quality",
+    "baseline"
+  ],
+  "excluded": {
+    "invalid": [
+      "run_validity_invalid"
+    ]
+  },
+  "duplicate_groups": [],
+  "declared_confirmed_ids": [
+    "baseline",
+    "fast"
+  ],
+  "confirmation_blockers": {
+    "invalid": [
+      "run_validity_invalid",
+      "stage:confirm:not_run",
+      "missing_objective:quality",
+      "missing_objective:latency_ms",
+      "missing_constraint:memory_mb",
+      "confirmation_not_run",
+      "confirmation_artifact_mismatch",
+      "confirmation_evaluator_mismatch",
+      "confirmation_evidence_missing"
+    ],
+    "quality": [
+      "stage:confirm:not_run",
+      "missing_objective:quality",
+      "missing_objective:latency_ms",
+      "missing_constraint:memory_mb",
+      "confirmation_not_run",
+      "confirmation_artifact_mismatch",
+      "confirmation_evaluator_mismatch",
+      "confirmation_evidence_missing"
+    ]
+  },
+  "resources": {
+    "api_tokens": {
+      "limit": null,
+      "used": null,
+      "reserved": null,
+      "remaining": null,
+      "state": "unknown"
+    },
+    "cpu_seconds": {
+      "limit": 100,
+      "used": 30,
+      "reserved": 20,
+      "remaining": 50,
+      "state": "within_declared_limit"
+    }
+  },
+  "execution_authorized": false,
+  "adoption": "not_decided",
+  "limitations": [
+    "Evidence references and fingerprints are not independently verified.",
+    "Comparison IDs do not prove semantic equivalence or evaluator correctness.",
+    "Family labels do not establish novelty; this is not UCB1 or MAP-Elites.",
+    "No uncertainty, causal effect, total research cost, or permission is inferred.",
+    "Existing best artifacts and raw evidence must be preserved by the authorized workflow."
+  ]
+}

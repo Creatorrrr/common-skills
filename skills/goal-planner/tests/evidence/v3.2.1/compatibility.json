@@ -1,0 +1,54 @@
+{
+  "base_version": "3.2.0",
+  "version": "3.2.1",
+  "tools_unchanged": [
+    "scripts/build_handoff.py",
+    "scripts/experiment_preflight.py",
+    "scripts/report_index.py",
+    "scripts/research_portfolio.py"
+  ],
+  "block_count": 7,
+  "blocks": {
+    "Core": {
+      "before_bytes": 4919,
+      "after_bytes": 6446,
+      "unchanged": false
+    },
+    "Program": {
+      "before_bytes": 5267,
+      "after_bytes": 5267,
+      "unchanged": true
+    },
+    "Experiment": {
+      "before_bytes": 6872,
+      "after_bytes": 6872,
+      "unchanged": true
+    },
+    "Direction": {
+      "before_bytes": 2891,
+      "after_bytes": 2891,
+      "unchanged": true
+    },
+    "Research": {
+      "before_bytes": 3996,
+      "after_bytes": 4068,
+      "unchanged": false
+    },
+    "Retrieval": {
+      "before_bytes": 2586,
+      "after_bytes": 2586,
+      "unchanged": true
+    },
+    "Persistence": {
+      "before_bytes": 3874,
+      "after_bytes": 3874,
+      "unchanged": true
+    }
+  },
+  "prior_guide_preserved_verbatim": true,
+  "existing_tests_changed": [
+    "tests/test_skill_contracts.py: expected package VERSION only"
+  ],
+  "llm_behavior": "not_run",
+  "tokens_cost_latency": "not_measured"
+}

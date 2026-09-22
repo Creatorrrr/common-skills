@@ -34,7 +34,7 @@ class SkillContractTests(unittest.TestCase):
         metadata = text.split("---", 2)[1]
         self.assertRegex(metadata, r"(?m)^name: goal-planner$")
         self.assertRegex(metadata, r"(?m)^description: .+")
-        self.assertEqual((ROOT / "VERSION").read_text().strip(), "3.1.0")
+        self.assertEqual((ROOT / "VERSION").read_text().strip(), "3.2.1")
 
     def test_markdown_relative_file_links_resolve(self) -> None:
         # Ignore URLs and anchors; links in authored Markdown must reference bundled files.
