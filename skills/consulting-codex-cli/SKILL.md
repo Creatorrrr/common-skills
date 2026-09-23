@@ -14,7 +14,7 @@ Codex sessions must not use this skill to invoke `codex exec`. If the current ag
 1. The user's explicit instructions override these defaults.
 2. If the current agent is Codex, say: `Codex cannot use consulting-codex-cli because it would recursively call Codex. I will not run codex exec from inside Codex.` Then stop.
 3. Run Codex non-interactively with `codex exec` so the subprocess returns.
-4. If the user does not specify a model, use the current latest frontier default model: `gpt-5.6-sol`.
+4. If the user does not specify a model, use the default model: `gpt-6-sol`.
 5. If the user does not specify reasoning effort, use `max`.
 6. Use the standard service tier by default (`service_tier="default"`). Use Fast mode only when the user explicitly requests it, and pass `--fast` to the wrapper (`service_tier="fast"`).
 7. Do not pass token, budget, reasoning-token, or output caps.
@@ -39,7 +39,7 @@ Do not assume `scripts/consult_codex_cli.sh` is project-local unless the user ha
 
 | Option | Default | How it is passed |
 | --- | --- | --- |
-| Model | `gpt-5.6-sol` | `-m gpt-5.6-sol` |
+| Model | `gpt-6-sol` | `-m gpt-6-sol` |
 | Reasoning effort | `max` | `-c model_reasoning_effort="max"` |
 | Speed mode | `standard` | `-c service_tier="default"` |
 | Approval policy | `on-request` | `-c approval_policy="on-request"` |
@@ -87,7 +87,7 @@ For an explicit Fast mode request:
 
 ## Waiting policy
 
-`gpt-5.6-sol` with `max` can take many minutes. Treat that as normal.
+`gpt-6-sol` with `max` can take many minutes. Treat that as normal.
 
 Fast mode may reduce service latency, but it does not change this waiting policy.
 

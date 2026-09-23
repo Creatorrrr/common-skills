@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_CODEX_MODEL="gpt-5.6-sol"
+DEFAULT_CODEX_MODEL="gpt-6-sol"
 DEFAULT_CODEX_REASONING_EFFORT="max"
 DEFAULT_CODEX_SERVICE_TIER="default"
 DEFAULT_CODEX_APPROVAL_POLICY="on-request"
@@ -14,7 +14,7 @@ Usage:
   consult_codex_cli.sh [options] < prompt.md
 
 Defaults:
-  --model   gpt-5.6-sol
+  --model   gpt-6-sol
   --effort  max
   speed     standard
   --cd      current directory

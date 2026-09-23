@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DEFAULT_CLAUDE_MODEL="opus"
-DEFAULT_CLAUDE_EFFORT="medium"
+DEFAULT_CLAUDE_EFFORT="max"
 DEFAULT_CLAUDE_PERMISSION_MODE="auto"
 DEFAULT_CLAUDE_OUTPUT_FORMAT="text"
 
@@ -16,7 +16,7 @@ Usage:
 
 Defaults:
   --model             opus
-  --effort            medium
+  --effort            max
   --permission-mode   auto
   --output-format     text
   --cd                current directory

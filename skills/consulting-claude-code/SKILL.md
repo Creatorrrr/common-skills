@@ -32,7 +32,7 @@ If a future sync ever lands this file inside a Claude-Code-visible location, the
 1. The user's explicit instructions always win. Defaults below apply ONLY when the user did not specify a value.
 2. Always run `claude` non-interactively with `-p` so the call returns and the caller can read the response.
 3. Never pass `--max-budget-usd` or any other budget cap. Claude Code must run without a spend limit.
-4. Long waits can happen at higher effort levels. At the default `medium` effort responses are usually fast, but `high`/`xhigh`/`max` on `opus` can take many minutes. Do not abort early, do not impose a short shell timeout, and do not retry just because output is slow.
+4. Long waits are expected at the default `max` effort. On `opus`, `max` can take longer than `xhigh`; do not abort early, impose a short shell timeout, or retry just because output is slow.
 5. Pass the user's prompt through as faithfully as possible. Do not silently rewrite it.
 6. Never start a nested `claude` from inside a session that is already running Claude Code. This skill is one-way: non-Claude agent → Claude Code, never Claude Code → Claude Code.
 7. Unless the user explicitly says otherwise, `claude` operates on the **same repository at the same working directory** as the calling agent. Spawn `claude` from the caller's current `cwd`; do not `cd` somewhere else, do not point it at another repo, and do not append extra `--add-dir` paths that the user did not ask for. A different target path must come from an explicit user instruction (e.g. "X 리포지토리에 대해 물어봐", "이건 ~/other-repo 기준으로", "이 경로도 같이 봐줘").
@@ -46,7 +46,7 @@ If a future sync ever lands this file inside a Claude-Code-visible location, the
 | Option | Default | CLI flag |
 |--------|---------|----------|
 | Model | `opus` | `--model opus` |
-| Effort | `medium` (calling agent escalates per request difficulty — see below) | `--effort medium` |
+| Effort | `max` | `--effort max` |
 | Permission mode | `auto` (Claude Code decides per-tool) | `--permission-mode auto` |
 | Print mode | non-interactive | `-p` |
 | Output format | text | `--output-format text` |
@@ -58,26 +58,19 @@ If the user provides a different model (e.g. "sonnet에게 물어봐"), effort (
 
 ## Effort selection guidance
 
-The default is `medium`. The calling agent is expected to **judge the difficulty of the user's request** and raise or lower `--effort` accordingly. Pick the smallest level that fits the task — there is no benefit in burning `max` on a trivial question.
+The default is `max`, including for simple requests. Use a different effort only when the user explicitly asks for one. The table below describes the relative depth of each level; it does not override the default.
 
 Valid levels: `low`, `medium`, `high`, `xhigh`, `max`.
 
-| Level | Pick when the request is… | Examples |
+| Level | Typical scope when explicitly selected | Examples |
 |-------|---------------------------|----------|
 | `low` | A direct factual lookup, syntax check, or one-line answer that does not need reasoning across files | "What does this regex match?", "Is this Korean translation natural?", "What's the difference between A and B in TypeScript?" |
-| `medium` (default) | A normal opinion, short code review, single-file explanation, small refactor suggestion, or any "second opinion" without architectural depth | "Review this 30-line function", "Is this naming clear?", "Critique this commit message", "Is this test missing an edge case?" |
+| `medium` | A normal opinion, short code review, single-file explanation, small refactor suggestion, or any "second opinion" without architectural depth | "Review this 30-line function", "Is this naming clear?", "Critique this commit message", "Is this test missing an edge case?" |
 | `high` | Multi-file reasoning, design trade-off discussion, or a careful review where one wrong call has real cost | "Compare these two API designs", "Review the auth flow across these 4 files", "Is this migration plan safe?" |
 | `xhigh` | Whole-subsystem or architectural reasoning, long-horizon impact analysis, or genuinely cross-cutting decisions | "Should we split this service?", "Plan a 3-step refactor that preserves behavior", "Audit this module for security and performance together" |
 | `max` | The hardest end of the spectrum — ambiguous specs, deep correctness reasoning, or problems that have already resisted normal analysis | "Why is this distributed cache inconsistent under partition?", "Prove this algorithm terminates", "Reconcile these contradicting requirements" |
 
 When the user **explicitly states an effort** (e.g. "xhigh로 물어봐", "effort max"), use that value verbatim — do not second-guess it.
-
-When the user **does not state an effort**:
-
-1. Start by classifying the request against the table above.
-2. If it clearly fits one row, use that level.
-3. If it sits between two rows, prefer the **lower** level. Escalation is cheap (the user can ask again with a higher effort); over-spending compute is not.
-4. Never silently raise effort because "the model might do better" — that defeats the medium default and burns time the user did not ask for.
 
 ## Resolve the bundled script
 
@@ -246,8 +239,7 @@ If the calling agent is going to chain the response into further reasoning (e.g.
 | Default ask (same repo, same cwd) | `/path/to/consult_claude_code.sh "..."` |
 | User explicitly named another repo/path | Use `--cd <path>` for a different target root, or `--add-dir <path>` if the user asked to include it alongside the current repo |
 | User specified a different model | Pass `--model <model>` |
-| Request is harder than "medium" | Pass `--effort high`, `--effort xhigh`, or `--effort max` per the Effort selection guidance |
-| Request is trivial | Pass `--effort low` |
+| No effort specified | Use the default `--effort max` |
 | User specified a different effort | Pass the user-specified effort verbatim, no second-guessing |
 | User wants planning only | Keep the wrapper default `--permission-mode auto`; ask Claude to return the plan in stdout and not write a plan file |
 | Caller needs structured output | Pass `--output-format json` |
@@ -261,7 +253,7 @@ If the calling agent is going to chain the response into further reasoning (e.g.
 | Bypassing the wrapper and omitting `-p` | `claude` enters interactive mode and the subprocess hangs forever. |
 | Imposing a short shell timeout (e.g. 60s) | High-effort runs (`high`/`xhigh`/`max`) never finish; the call is killed and the caller reports a false failure. |
 | Silently changing the model or effort because the run feels slow | Misrepresents the consultation. Slow is expected at high effort; keep the chosen settings. |
-| Defaulting to `xhigh`/`max` for every request | Wastes time and compute on trivial questions. The default is `medium` — escalate only when the request earns it. |
+| Lowering effort based on request difficulty when the user gave no effort | Overrides the `max` default without instruction. Use a lower level only when the user asks for it. |
 | Lowering effort below the user's explicit choice "to save time" | The user picked that level on purpose. Honor it. |
 | Rewriting the user's prompt before sending | Loses nuance the user wanted Claude to see. Pass it verbatim, or quote it inside a wrapper sentence at most. |
 | Asking Claude for a plan without the console-response wrapper | Claude Code may write a plan artifact and leave stdout with only a file notice. |
@@ -277,6 +269,6 @@ If the calling agent is going to chain the response into further reasoning (e.g.
 
 - This skill is one-shot per request by default. If the user asks for an ongoing back-and-forth, run the wrapper once per turn with `--chain <key>` so Claude Code resumes the saved session in non-interactive print mode; do not try to keep `claude` interactive.
 - If `claude` is not on the current process PATH, the wrapper checks `CONSULT_CLAUDE_BIN`, then `command -v claude`, then `command -v claude` through the user's login shell when `SHELL` is executable. Surface the final error if none are executable.
-- The defaults (`opus` + `medium`) are deliberate. Do not swap the model away without an explicit user instruction. For effort, follow the Effort selection guidance: judge per request, prefer the lower of two adjacent levels when uncertain, and never override an explicit user choice.
+- The defaults (`opus` + `max`) are deliberate. Do not swap the model away without an explicit user instruction. Use `max` unless the user explicitly chooses another effort.
 - The default scope is **the caller's current repository at its current path**. Treat any other repo or path as opt-in: the user must name it explicitly before you `cd` or add it via `--add-dir`.
 - If you are Claude Code, you reached this file by mistake. Stop following it — see the "Audience boundary" section above.
