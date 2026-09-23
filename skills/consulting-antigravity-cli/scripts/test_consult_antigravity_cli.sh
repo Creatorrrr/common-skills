@@ -9,40 +9,21 @@ trap 'rm -rf "$tmp_dir"' EXIT
 mock_bin="$tmp_dir/agy"
 fake_shell="$tmp_dir/fake-login-shell"
 mock_log="$tmp_dir/agy-args.log"
-mock_help="$tmp_dir/agy-help.txt"
 stdout_file="$tmp_dir/stdout.txt"
 stderr_file="$tmp_dir/stderr.txt"
-
-cat >"$mock_help" <<'HELP'
-Usage: agy [options]
-  -p string
-      Prompt to run in non-interactive mode.
-  --model string
-      Model to use for this session.
-  --sandbox
-      Run terminal commands in sandbox mode.
-  --dangerously-skip-permissions
-      Skip permission prompts.
-  --log-file string
-      Override CLI log file path.
-  --conversation string
-      Resume a previous conversation by ID.
-HELP
+python_path="$tmp_dir/python-path"
+mkdir -p "$python_path"
+ln -s "$(command -v python3)" "$python_path/python3"
 
 cat >"$mock_bin" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "${1:-}" == "--help" ]]; then
-  cat "${MOCK_HELP:?}"
-  exit 0
-fi
-
-cli_log_file=""
+conversation_id="${MOCK_CONVERSATION_ID:-11111111-2222-3333-4444-555555555555}"
 previous_arg=""
 for arg in "$@"; do
-  if [[ "$previous_arg" == "--log-file" ]]; then
-    cli_log_file="$arg"
+  if [[ "$previous_arg" == "--conversation" ]]; then
+    conversation_id="$arg"
   fi
   previous_arg="$arg"
 done
@@ -58,17 +39,13 @@ done
 
 case "${MOCK_BEHAVIOR:-ok}" in
   ok)
-    if [[ -n "$cli_log_file" ]]; then
-      mkdir -p "$(dirname "$cli_log_file")"
-      printf 'I0702 mock] Created conversation %s\n' "${MOCK_CONVERSATION_ID:-11111111-2222-3333-4444-555555555555}" >>"$cli_log_file"
-    fi
-    printf 'mock-ok\n'
+    printf '{"conversation_id":"%s","status":"SUCCESS","response":"mock-ok"}\n' "$conversation_id"
     ;;
   auth-ok)
-    printf 'antigravity-auth-ok\n'
+    printf '{"conversation_id":"%s","status":"SUCCESS","response":"antigravity-auth-ok"}\n' "$conversation_id"
     ;;
   auth-polluted)
-    printf 'antigravity-auth-ok\nextra-context\n'
+    printf '{"conversation_id":"%s","status":"SUCCESS","response":"antigravity-auth-ok\\nextra-context"}\n' "$conversation_id"
     ;;
   fail)
     printf 'mock failure\n'
@@ -86,7 +63,7 @@ cat >"$fake_shell" <<'MOCKSHELL'
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "${1:-}" == "-lc" && "${3:-}" == "_" && ( "${4:-}" == "agy" || "${4:-}" == "antigravity" ) ]]; then
+if [[ "${1:-}" == "-lc" && "${2:-}" == "command -v agy" ]]; then
   printf '%s\n' "${MOCK_DISCOVERY_BIN:?}"
   exit 0
 fi
@@ -142,12 +119,11 @@ run_wrapper() {
     CONSULT_ANTIGRAVITY_MODEL= \
     AGY_MODEL= \
     CONSULT_ANTIGRAVITY_PERMISSION_MODE= \
-    CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="${CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR:-}" \
-    MOCK_HELP="$mock_help" \
+    CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="${CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR:-$tmp_dir/default-state}" \
     MOCK_LOG="$mock_log" \
     MOCK_BEHAVIOR="$behavior" \
     MOCK_CONVERSATION_ID="${MOCK_CONVERSATION_ID:-11111111-2222-3333-4444-555555555555}" \
-    "$wrapper" "$@" >"$stdout_file" 2>"$stderr_file" </dev/null
+    "$wrapper" --caller-kind other --caller-session-id "${TEST_CALLER_ID:-test-caller-0001}" "$@" >"$stdout_file" 2>"$stderr_file" </dev/null
   local status=$?
   set -e
 
@@ -170,12 +146,11 @@ run_wrapper_stdin() {
     CONSULT_ANTIGRAVITY_MODEL= \
     AGY_MODEL= \
     CONSULT_ANTIGRAVITY_PERMISSION_MODE= \
-    CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="${CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR:-}" \
-    MOCK_HELP="$mock_help" \
+    CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="${CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR:-$tmp_dir/default-state}" \
     MOCK_LOG="$mock_log" \
     MOCK_BEHAVIOR="$behavior" \
     MOCK_CONVERSATION_ID="${MOCK_CONVERSATION_ID:-11111111-2222-3333-4444-555555555555}" \
-    "$wrapper" "$@" >"$stdout_file" 2>"$stderr_file"
+    "$wrapper" --caller-kind other --caller-session-id test-caller-0001 "$@" >"$stdout_file" 2>"$stderr_file"
   local status=$?
   set -e
 
@@ -197,15 +172,14 @@ run_wrapper_discovered() {
     CONSULT_ANTIGRAVITY_MODEL= \
     AGY_MODEL= \
     CONSULT_ANTIGRAVITY_PERMISSION_MODE= \
-    CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="${CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR:-}" \
+    CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="${CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR:-$tmp_dir/default-state}" \
     MOCK_DISCOVERY_BIN="$mock_bin" \
-    MOCK_HELP="$mock_help" \
     MOCK_LOG="$mock_log" \
     MOCK_BEHAVIOR="$behavior" \
     MOCK_CONVERSATION_ID="${MOCK_CONVERSATION_ID:-11111111-2222-3333-4444-555555555555}" \
-    PATH="/usr/bin:/bin" \
+    PATH="$python_path:/usr/bin:/bin" \
     SHELL="$fake_shell" \
-    "$wrapper" "$@" >"$stdout_file" 2>"$stderr_file" </dev/null
+    "$wrapper" --caller-kind other --caller-session-id test-caller-0001 "$@" >"$stdout_file" 2>"$stderr_file" </dev/null
   local status=$?
   set -e
 
@@ -240,11 +214,9 @@ assert_contains "$mock_log" "<--sandbox>"
 assert_not_contains "$mock_log" "<--dangerously-skip-permissions>"
 
 run_wrapper 0 ok --approval-mode yolo "hello"
-assert_contains "$stderr_file" "--approval-mode is a Gemini CLI compatibility alias"
 assert_contains "$mock_log" "<--dangerously-skip-permissions>"
 
 run_wrapper 0 ok --approval-mode plan "hello"
-assert_contains "$stderr_file" "--approval-mode is a Gemini CLI compatibility alias"
 assert_not_contains "$mock_log" "<--dangerously-skip-permissions>"
 
 run_wrapper_stdin 0 ok $'line1\nline2\n'
@@ -255,66 +227,57 @@ assert_contains "$mock_log" "line2"
 chain_state_dir="$tmp_dir/antigravity-chain-state"
 chain_conversation_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="$chain_state_dir" MOCK_CONVERSATION_ID="$chain_conversation_id" run_wrapper 0 ok --chain main "first chained question"
-assert_contains "$mock_log" "<--log-file>"
-chain_conversation_file="$(find "$chain_state_dir" -type f -name '*.conversation-id' 2>/dev/null | head -n 1 || true)"
+assert_contains "$mock_log" "<--output-format>"
+chain_conversation_file="$(find "$chain_state_dir" -type f -name '*.json' 2>/dev/null | head -n 1 || true)"
 if [[ -z "$chain_conversation_file" ]]; then
   fail "expected Antigravity chain conversation file to be created"
 fi
-[[ "$(cat "$chain_conversation_file")" == "$chain_conversation_id" ]] || fail "expected Antigravity conversation ID to be stored"
+[[ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["target_id"])' "$chain_conversation_file")" == "$chain_conversation_id" ]] || fail "expected Antigravity conversation ID to be stored"
 
 CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="$chain_state_dir" run_wrapper 0 ok --chain main "follow-up chained question"
 assert_contains "$mock_log" "<--conversation>"
 assert_contains "$mock_log" "<$chain_conversation_id>"
 
+CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="$chain_state_dir" TEST_CALLER_ID=test-caller-0002 run_wrapper 0 ok --chain main "different caller question"
+assert_not_contains "$mock_log" "<--conversation>"
+
 CONSULT_ANTIGRAVITY_CHAIN_STATE_DIR="$chain_state_dir" run_wrapper 0 ok --reset-chain main
 [[ ! -e "$chain_conversation_file" ]] || fail "expected Antigravity chain conversation file to be removed"
 
 run_wrapper 64 ok
-assert_contains "$stderr_file" "No Antigravity request prompt received from command arguments or stdin."
-assert_contains "$stderr_file" "stdin was non-interactive but empty"
+assert_contains "$stderr_file" "No consultation prompt received"
 
 set +e
-ANTIGRAVITY_INTERNAL_ORIGINATOR_OVERRIDE="Antigravity CLI" CODEX_SHELL=1 CONSULT_ANTIGRAVITY_BIN="$mock_bin" MOCK_HELP="$mock_help" MOCK_LOG="$mock_log" MOCK_BEHAVIOR=ok "$wrapper" "hello" >"$stdout_file" 2>"$stderr_file" </dev/null
+ANTIGRAVITY_INTERNAL_ORIGINATOR_OVERRIDE="Antigravity CLI" CODEX_SHELL=1 CONSULT_ANTIGRAVITY_BIN="$mock_bin" MOCK_LOG="$mock_log" MOCK_BEHAVIOR=ok "$wrapper" "hello" >"$stdout_file" 2>"$stderr_file" </dev/null
 inherited_originator_status=$?
 set -e
 [[ "$inherited_originator_status" -eq 0 ]] || fail "expected inherited Antigravity originator to be scrubbed and allowed, got $inherited_originator_status"
 assert_contains "$mock_log" "<env:ANTIGRAVITY_INTERNAL_ORIGINATOR_OVERRIDE=>"
 
-set +e
-env -u CODEX_SHELL -u CODEX_THREAD_ID -u CODEX_INTERNAL_ORIGINATOR_OVERRIDE ANTIGRAVITY_CLI_SESSION_ID="agy-session" CONSULT_ANTIGRAVITY_BIN="$mock_bin" MOCK_HELP="$mock_help" MOCK_LOG="$mock_log" "$wrapper" "hello" >"$stdout_file" 2>"$stderr_file" </dev/null
-recursive_status=$?
-set -e
-[[ "$recursive_status" -eq 65 ]] || fail "expected recursive Antigravity session to exit 65, got $recursive_status"
-assert_contains "$stderr_file" "Antigravity cannot use consulting-antigravity-cli"
+run_wrapper 69 ok --caller-kind antigravity --caller-session-id agy-session-0001 "hello"
+assert_contains "$stderr_file" "cannot recursively consult itself"
 
-set +e
-CONSULT_ANTIGRAVITY_CLI_FROM_ANTIGRAVITY=1 CODEX_SHELL=1 CONSULT_ANTIGRAVITY_BIN="$mock_bin" MOCK_HELP="$mock_help" MOCK_LOG="$mock_log" "$wrapper" "hello" >"$stdout_file" 2>"$stderr_file" </dev/null
-explicit_recursive_status=$?
-set -e
-[[ "$explicit_recursive_status" -eq 65 ]] || fail "expected explicit recursive marker to exit 65, got $explicit_recursive_status"
-assert_contains "$stderr_file" "Antigravity cannot use consulting-antigravity-cli"
+run_wrapper 2 ok --skip-trust "hello"
+assert_contains "$stderr_file" "unrecognized arguments"
 
-run_wrapper 64 ok --skip-trust "hello"
-assert_contains "$stderr_file" "has no documented headless trust bypass"
-
-run_wrapper 64 ok --include-dir /tmp "hello"
-assert_contains "$stderr_file" "workspace/file scope should be controlled with --cd"
+run_wrapper 2 ok --include-dir /tmp "hello"
+assert_contains "$stderr_file" "unrecognized arguments"
 
 run_wrapper 0 auth-ok --auth-smoke
 assert_stdout_exact "antigravity-auth-ok"
 
 run_wrapper 65 auth-polluted --auth-smoke
-assert_contains "$stderr_file" "did not return the expected exact output"
+assert_contains "$stderr_file" "auth smoke returned an unexpected answer"
 
 run_wrapper_discovered 0 ok "hello"
-assert_contains "$stderr_file" "agy: $mock_bin"
+assert_contains "$stderr_file" "Starting antigravity consultation"
 assert_contains "$mock_log" "<--dangerously-skip-permissions>"
 
 set +e
-CONSULT_ANTIGRAVITY_BIN="$tmp_dir/missing-agy" "$wrapper" "hello" >"$stdout_file" 2>"$stderr_file" </dev/null
+CONSULT_ANTIGRAVITY_BIN="$tmp_dir/missing-agy" "$wrapper" --one-shot "hello" >"$stdout_file" 2>"$stderr_file" </dev/null
 missing_status=$?
 set -e
 [[ "$missing_status" -eq 127 ]] || fail "expected missing CONSULT_ANTIGRAVITY_BIN to exit 127, got $missing_status"
-assert_contains "$stderr_file" "CONSULT_ANTIGRAVITY_BIN is set but is not executable"
+assert_contains "$stderr_file" "CONSULT_ANTIGRAVITY_BIN is not an executable file"
 
 echo "consult_antigravity_cli.sh tests passed"

@@ -37,11 +37,13 @@ Use this from Claude Code, Gemini CLI, Antigravity, or another non-Codex agent w
 
 This skill lives under `skills/` with the rest of the library. If it is invoked from inside Codex, it should warn that Codex cannot recursively call itself and stop without running `codex exec`.
 
+Its wrapper continues a prior consultation only within the same identifiable caller conversation and working directory. Use `--new-session` to replace that consultation or `--one-shot` for an independent call.
+
 ### `consulting-claude-code`
 
 Use this from Codex, Gemini CLI, Antigravity, or another non-Claude-Code agent when the user wants to ask the local Claude Code CLI for a second opinion, code review, design feedback, or an explicit back-and-forth between agents.
 
-It includes a small wrapper at `skills/consulting-claude-code/scripts/consult_claude_code.sh` that enforces stdout responses, avoids Claude Code plan permission mode, and supports explicit named follow-up chains with `--chain`.
+It includes a wrapper at `skills/consulting-claude-code/scripts/consult_claude_code.sh` that enforces stdout responses and avoids Claude Code plan permission mode. It continues calls from the same identifiable caller conversation by default; named `--chain` conversations are also scoped to that caller.
 
 If it is invoked from inside Claude Code, it should warn that Claude Code cannot recursively call itself and stop without running `claude`.
 
@@ -49,7 +51,9 @@ If it is invoked from inside Claude Code, it should warn that Claude Code cannot
 
 Use this from Codex, Claude Code, legacy Gemini CLI, or another non-Antigravity agent when the user wants to ask the local Antigravity CLI for a second opinion, code review, design feedback, or an explicit back-and-forth between agents.
 
-It includes a small wrapper at `skills/consulting-antigravity-cli/scripts/consult_antigravity_cli.sh` with explicit named follow-up chains via `--chain`. If the skill is invoked from inside Antigravity CLI, it should warn that Antigravity cannot recursively call itself and stop without running `agy -p`.
+It includes a wrapper at `skills/consulting-antigravity-cli/scripts/consult_antigravity_cli.sh` that continues calls from the same identifiable caller conversation by default. If the caller ID is unavailable, it safely runs an independent consultation. If the skill is invoked from inside Antigravity CLI, it should warn that Antigravity cannot recursively call itself and stop without running `agy -p`.
+
+The three consultation launchers share `lib/consultation_runner.py` for caller scoping, exact-ID resume checks, and durable state handling. They require Python 3.10 or newer on macOS or Linux. Keep that file with the checkout when installing the skills.
 
 ### `goal-planner`
 

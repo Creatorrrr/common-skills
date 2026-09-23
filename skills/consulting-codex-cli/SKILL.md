@@ -1,63 +1,50 @@
 ---
 name: consulting-codex-cli
-description: Use this skill when the user wants an agent to consult the local Codex CLI for a second opinion, cross-agent dialogue, code review, design feedback, or "ask Codex" request. Triggers include phrases like "codex한테 물어봐", "codex 의견", "Codex와 의견 주고받기", "ask codex", "consult codex", "cross-check with codex", or any request to invoke `codex exec`. If this skill is invoked from inside Codex, warn that Codex cannot recursively call itself and stop without running `codex exec`.
+description: Use when a non-Codex agent wants to consult the local Codex CLI for a second opinion, code review, design feedback, or an ongoing cross-model dialogue. Codex must never invoke codex exec on itself.
 ---
 
-# Consulting Codex CLI
+# Consult Codex CLI from another agent
 
-This skill lets Claude Code, Gemini CLI, Antigravity, or another agent invoke the local `codex` CLI as a subprocess, collect Codex's opinion, and compare it with the calling agent's own reasoning.
-
-Codex sessions must not use this skill to invoke `codex exec`. If the current agent is Codex and this skill is triggered, respond with a warning and stop.
-
-## Core principles
-
-1. The user's explicit instructions override these defaults.
-2. If the current agent is Codex, say: `Codex cannot use consulting-codex-cli because it would recursively call Codex. I will not run codex exec from inside Codex.` Then stop.
-3. Run Codex non-interactively with `codex exec` so the subprocess returns.
-4. If the user does not specify a model, use the default model: `gpt-6-sol`.
-5. If the user does not specify reasoning effort, use `max`.
-6. Use the standard service tier by default (`service_tier="default"`). Use Fast mode only when the user explicitly requests it, and pass `--fast` to the wrapper (`service_tier="fast"`).
-7. Do not pass token, budget, reasoning-token, or output caps.
-8. Use Codex's automatic permission judgment path by default: `approval_policy=on-request` with `workspace-write` sandboxing.
-9. Long waits are expected. Do not impose short shell timeouts or retry just because output is slow.
-10. Pass the user's prompt faithfully. Preserve constraints, paths, language, and requested output shape.
-11. Present Codex's response before synthesizing agreement or disagreement.
-
-## Resolve the bundled script
-
-Prefer the bundled wrapper because it encodes the defaults above and avoids retyping fragile CLI flags.
-
-The wrapper also refuses to run inside a Codex shell by checking Codex environment markers. Resolve the script path in this order:
-
-1. Start from the directory that contains this `SKILL.md`.
-2. Use `scripts/consult_codex_cli.sh` relative to that directory.
-3. If the active workspace does not contain this skill, look in the installed skill location such as `~/.claude/skills/consulting-codex-cli/`, the linked `common-skills/skills/consulting-codex-cli/`, or the agent's global skill install path.
-
-Do not assume `scripts/consult_codex_cli.sh` is project-local unless the user has vendored this skill into that project.
+This skill is for Claude Code, Antigravity, and other **non-Codex** callers. If the immediate caller is Codex, warn and stop; the wrapper also refuses recursive `codex exec` with a nonzero exit. The launcher at [scripts/consult_codex_cli.sh](scripts/consult_codex_cli.sh) uses `../../lib/consultation_runner.py`; keep the common-skills checkout together when installing or copying it.
 
 ## Defaults
 
-| Option | Default | How it is passed |
+| Setting | Default | CLI form |
 | --- | --- | --- |
 | Model | `gpt-6-sol` | `-m gpt-6-sol` |
 | Reasoning effort | `max` | `-c model_reasoning_effort="max"` |
-| Speed mode | `standard` | `-c service_tier="default"` |
-| Approval policy | `on-request` | `-c approval_policy="on-request"` |
-| Sandbox | `workspace-write` | `--full-auto -s workspace-write` |
-| Print mode | non-interactive | `codex exec` |
-| Budget/token caps | none | do not pass any cap flags |
+| Speed | standard | `-c service_tier="default"` |
+| Approval | automatic review, on request | `--approve-for-me` and `-c approval_policy="on-request"` |
+| Sandbox | workspace-write via automatic review | `--approve-for-me` |
+| Working directory | caller's current directory | `-C <directory>` |
+| Spend and token caps | none | no cap flags |
 
-If the user explicitly names another model, effort, speed mode, working directory, output mode, or permission posture, use that value and keep the remaining defaults. Treat Fast mode as opt-in; do not infer it merely because the user wants a concise answer or because a run is taking a long time.
+Keep the user's explicit model, effort, speed, and path choices. Fast mode is opt-in through `--fast`; `--standard` selects the default service tier. If this account rejects `gpt-6-sol`, report the error and let the user choose a supported model. Do not silently downgrade it or change effort because a run is slow.
 
-## Canonical invocation
+## Conversation continuity
 
-For a short prompt:
+By default, calls from the **same identifiable caller conversation** and physical working directory resume one Codex CLI conversation. A new caller conversation gets a separate state key even in the same repository. The wrapper accepts the immediate caller's current session ID or explicit per-call `--caller-kind` and `--caller-session-id`. If the ID cannot be established, it warns and runs independently. It never uses `--last` or a workdir-only key.
+
+Do not reuse an ID from a prior task or from an outer agent's inherited environment. A host without a reliable current session ID should keep the one-shot fallback until an integration can pass that ID on every invocation.
+
+| Request | Wrapper option | Effect |
+| --- | --- | --- |
+| Normal follow-up | none | Resume this caller's saved Codex thread ID |
+| Independent question | `--one-shot` | Start separately without changing saved state |
+| Replace current consultation | `--new-session` | Retire the old mapping before CLI invocation |
+| Another thread within this caller | `--chain NAME` | Parent-scoped named conversation |
+| Intentionally share across callers | `--shared-chain NAME` | Cross-caller conversation, only on explicit user request |
+| Inspect or clear mapping | `--status`, `--reset-session`, `--reset-chain NAME`, `--reset-shared-chain NAME` | State only; Codex thread remains |
+
+`--status` remains available while a consultation is running. A confirmed failure before Codex starts preserves the prior mapping; an uncertain failure after launch blocks it until `--new-session` or an explicit reset. Once Codex has started, a failed `--new-session` never restores the old thread pointer.
+
+## Invocation
 
 ```bash
 /path/to/consult_codex_cli.sh "user prompt here"
 ```
 
-For a detailed or shell-sensitive prompt, pass it through stdin:
+Use stdin for detailed or shell-sensitive prompts:
 
 ```bash
 /path/to/consult_codex_cli.sh <<'PROMPT'
@@ -65,69 +52,19 @@ For a detailed or shell-sensitive prompt, pass it through stdin:
 PROMPT
 ```
 
-For a repo-specific question, set the working directory:
+When a prompt is supplied as arguments, stdin is ignored. Choose one input form per call.
+
+Explicit controls:
 
 ```bash
-/path/to/consult_codex_cli.sh --cd /absolute/path/to/repo <<'PROMPT'
-<question about this repository>
-PROMPT
+/path/to/consult_codex_cli.sh --new-session "Start a separate review"
+/path/to/consult_codex_cli.sh --one-shot "Independent check"
+/path/to/consult_codex_cli.sh --chain architecture "Follow up here"
+/path/to/consult_codex_cli.sh --model <supported-model> --effort high --fast "Review this"
 ```
 
-For an explicit model override:
+The wrapper runs `codex exec --json`, stores its exact `thread.started.thread_id` only after a completed turn, and resumes through `codex exec resume <id>`. It checks that a resumed turn reports the same ID and prints only the final answer. Root-level working-directory and automatic-review options are placed before `exec resume`, because the resume subcommand does not accept those flags itself.
 
-```bash
-/path/to/consult_codex_cli.sh --model gpt-5.4 --effort high "user prompt here"
-```
+## Waiting and response
 
-For an explicit Fast mode request:
-
-```bash
-/path/to/consult_codex_cli.sh --fast "user prompt here"
-```
-
-## Waiting policy
-
-`gpt-6-sol` with `max` can take many minutes. Treat that as normal.
-
-Fast mode may reduce service latency, but it does not change this waiting policy.
-
-- Set a generous shell timeout. Use at least `3600000` ms when the host tool requires a timeout value.
-- If the process is still running and there is no hard error, continue waiting.
-- Do not launch duplicate Codex consultations to speed up a slow run.
-- Only treat the call as failed if `codex` exits non-zero, reports authentication or quota failure, or the user cancels.
-
-## Permission policy
-
-Default to automatic judgment:
-
-```bash
---full-auto -s workspace-write -c 'approval_policy="on-request"'
-```
-
-This lets Codex decide when it needs approval while keeping it sandboxed to the workspace by default.
-
-Override only when the user explicitly asks for a different posture. Do not use `--dangerously-bypass-approvals-and-sandbox` unless the user explicitly requests it and acknowledges the risk.
-
-## How to use Codex's response
-
-Default behavior:
-
-1. Run your own initial analysis enough to know what you are asking Codex.
-2. Invoke Codex with the user's prompt and any necessary repo paths.
-3. Show Codex's response or a faithful summary, depending on the user's request.
-4. Compare Codex's answer with your own assessment.
-5. If there is disagreement, state the disagreement and the evidence needed to resolve it.
-
-Do not claim consensus unless both agents reached the same conclusion for compatible reasons.
-
-## Common mistakes
-
-| Mistake | Why it is wrong |
-| --- | --- |
-| Running `codex exec` from Codex | Recursive. Warn and stop instead. |
-| Omitting `codex exec` | Can start an interactive session that never returns. |
-| Adding token or budget caps | Violates the no-budget-limit requirement and can truncate the consultation. |
-| Using a short timeout | `max` runs may be killed before they finish. |
-| Using Fast mode without an explicit user request | Changes the service tier without user intent; keep the standard tier by default. |
-| Lowering the model or effort because the run is slow | Changes the requested consultation quality without user approval. |
-| Hiding Codex disagreement | The user asked for cross-agent judgment, not artificial consensus. |
+Use a generous host timeout; `max` effort can take many minutes. Do not start a duplicate call because one is slow. Present Codex's response before synthesizing your own assessment, and explain any disagreement. Do not bypass approvals or sandboxing without the user's explicit request.
