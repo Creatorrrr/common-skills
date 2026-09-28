@@ -23,6 +23,11 @@ chmod +x "$mock_ps"
 cat >"$mock_bin" <<'MOCK_CODEX'
 #!/usr/bin/env bash
 set -euo pipefail
+# Like the real CLI, parse-only checks answer without starting a turn.
+case " $* " in
+  *" --version "*) printf 'codex-cli 0.156.0\n'; exit 0 ;;
+  *" --help "*) printf 'Usage: codex exec resume [OPTIONS]\n'; exit 0 ;;
+esac
 printf '%s\n' "$@" >"${MOCK_LOG:?}"
 output_path=""
 reported_id="${MOCK_THREAD_ID:?}"

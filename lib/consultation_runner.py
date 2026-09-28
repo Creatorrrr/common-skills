@@ -26,6 +26,9 @@ ARTIFACT_RE = re.compile(
     r"|계획.*파일|파일.*작성|작성.*파일|saved at|written to",
     re.IGNORECASE,
 )
+# Root option and resume path the wrapper needs; older Codex CLIs reject them while parsing.
+CODEX_PROBE_ARGS = ("--approve-for-me", "exec", "resume", "--help")
+CODEX_PROBE_TIMEOUT = 60
 
 
 class ConsultationError(Exception):
@@ -259,8 +262,12 @@ def resolve_binary(provider: str) -> str:
     if override:
         path = Path(override).expanduser()
         if path.is_file() and os.access(path, os.X_OK):
+            if provider == "codex":
+                return select_codex([os.path.abspath(path)], variable)
             return str(path)
         raise ConsultationError(f"{variable} is not an executable file: {override}", 127)
+    if provider == "codex":
+        return select_codex(path_executables(name), "PATH")
     found = shutil.which(name)
     if found:
         return found
@@ -272,6 +279,55 @@ def resolve_binary(provider: str) -> str:
             if result.returncode == 0 and found and os.path.isfile(found[-1]) and os.access(found[-1], os.X_OK):
                 return found[-1]
     raise ConsultationError(f"{name} CLI is not on PATH.", 127)
+
+
+def path_executables(name: str) -> list[str]:
+    """Every executable named `name` on PATH, in PATH order."""
+    found: list[str] = []
+    for directory in os.environ.get("PATH", "").split(os.pathsep):
+        if not directory:  # an empty entry would mean the current directory
+            continue
+        candidate = os.path.abspath(os.path.join(directory, name))
+        if candidate not in found and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            found.append(candidate)
+    return found
+
+
+def probe_codex(binary: str, arguments: tuple[str, ...]) -> tuple[bool, str]:
+    """Run a parse-only Codex command under the environment the consultation will use."""
+    try:
+        result = subprocess.run([binary, *arguments], stdin=subprocess.DEVNULL, capture_output=True,
+                                text=True, errors="replace", env=child_environment("codex", binary),
+                                timeout=CODEX_PROBE_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return False, f"no answer to {' '.join(arguments)} within {CODEX_PROBE_TIMEOUT}s"
+    except OSError as exc:
+        return False, str(exc)
+    lines = [line.strip() for line in (result.stdout + "\n" + result.stderr).splitlines() if line.strip()]
+    if result.returncode == 0:
+        return True, lines[0] if lines else ""
+    errors = [line for line in lines if re.match(r"\w*error\b", line, re.IGNORECASE)]
+    return False, (errors or lines or [f"exit status {result.returncode}"])[0]
+
+
+def select_codex(candidates: list[str], source: str) -> str:
+    """Use the first Codex CLI that accepts the wrapper's options, before any state changes."""
+    if not candidates:
+        raise ConsultationError("codex CLI is not on PATH.", 127)
+    rejected: list[str] = []
+    for candidate in candidates:
+        has_version, version = probe_codex(candidate, ("--version",))
+        version = version if has_version else "version unknown"
+        usable, detail = probe_codex(candidate, CODEX_PROBE_ARGS)
+        if usable:
+            for entry in rejected:
+                warn(f"Skipped incompatible Codex CLI {entry}")
+            warn(f"Using Codex CLI {candidate} ({version})")
+            return candidate
+        rejected.append(f"{candidate} ({version}): {detail}")
+    raise ConsultationError(
+        f"No Codex CLI from {source} accepts --approve-for-me and exec resume: {'; '.join(rejected)}. "
+        "Install a current @openai/codex or point CONSULT_CODEX_BIN at one.", 127)
 
 
 def build_prompt(provider: str, argument: str, stdin: str, auth_smoke: bool) -> str:
@@ -340,7 +396,7 @@ def parse_envelope(provider: str, raw: str, stream: bool) -> tuple[str, str, dic
     return identifier.lower(), answer, envelope
 
 
-def child_environment(provider: str) -> dict[str, str]:
+def child_environment(provider: str, binary: str | None = None) -> dict[str, str]:
     environment = os.environ.copy()
     # The target must not inherit the outer agent's identity as its own.
     stale_markers = (
@@ -352,6 +408,13 @@ def child_environment(provider: str) -> dict[str, str]:
     )
     for key in stale_markers:
         environment.pop(key, None)
+    if binary:
+        # npm launchers start with `#!/usr/bin/env node`; keep their install's own Node first.
+        directory = os.path.dirname(os.path.abspath(binary))
+        node = os.path.join(directory, "node")
+        if os.path.isfile(node) and os.access(node, os.X_OK):
+            rest = [entry for entry in environment.get("PATH", "").split(os.pathsep) if entry and entry != directory]
+            environment["PATH"] = os.pathsep.join([directory, *rest])
     return environment
 
 
@@ -502,7 +565,7 @@ def run_provider(provider: str, args: argparse.Namespace, binary: str, cwd: Path
         try:
             with output_path.open("wb") as output:
                 result = subprocess.run(command, cwd=cwd, input=prompt.encode(), stdout=output,
-                                        stderr=subprocess.PIPE, env=child_environment(provider))
+                                        stderr=subprocess.PIPE, env=child_environment(provider, binary))
         except OSError as exc:
             raise BeforeLaunchError(f"Could not start Codex CLI: {exc}", 71) from exc
         stderr = result.stderr.decode("utf-8", errors="replace")

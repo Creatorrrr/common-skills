@@ -1,6 +1,8 @@
 """State and caller-boundary regression tests for consultation_runner."""
 
-from contextlib import redirect_stdout
+from __future__ import annotations
+
+from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
 import os
@@ -14,6 +16,46 @@ from lib import consultation_runner as runner
 
 CALLER_ID = "caller-session-0001"
 TARGET_ID = "11111111-2222-3333-4444-555555555555"
+
+# npm installs start through `#!/usr/bin/env node`; this stand-in tells the launcher
+# which install's Node ran it, as the real launcher only finds its own platform binary.
+FAKE_NODE = """#!/bin/bash
+script="$1"
+shift
+FAKE_NODE_HOME="$(cd "$(dirname "$0")" && pwd -P)" exec /bin/bash "$script" "$@"
+"""
+
+# Mirrors Codex CLI 0.142.4, which predates the root --approve-for-me option.
+OLD_CODEX = """#!/usr/bin/env node
+case " $* " in
+  *" --approve-for-me "*) echo "error: unexpected argument '--approve-for-me' found" >&2; exit 2 ;;
+  *" --version "*) echo "codex-cli 0.142.4"; exit 0 ;;
+esac
+exit 0
+"""
+
+# Mirrors Codex CLI 0.156.0 installed under another Node.
+NEW_CODEX = """#!/usr/bin/env node
+here="$(cd "$(dirname "$0")" && pwd -P)"
+if [ "${FAKE_NODE_HOME:-}" != "$here" ]; then
+  echo "Error: Missing optional dependency @openai/codex-darwin-x64." >&2
+  exit 1
+fi
+case " $* " in
+  *" --version "*) echo "codex-cli 0.156.0"; exit 0 ;;
+  *" --help "*) echo "Usage: codex exec resume [OPTIONS]"; exit 0 ;;
+esac
+output=""
+previous=""
+for argument in "$@"; do
+  if [ "$previous" = "-o" ]; then output="$argument"; fi
+  previous="$argument"
+done
+[ -n "$output" ] || exit 64
+printf 'answer from %s\\n' "$here" >"$output"
+printf '{"type":"thread.started","thread_id":"11111111-2222-3333-4444-555555555555"}\\n'
+printf '{"type":"turn.completed"}\\n'
+"""
 
 
 class ConsultationRunnerTests(unittest.TestCase):
@@ -126,6 +168,73 @@ class ConsultationRunnerTests(unittest.TestCase):
             child = runner.child_environment("claude")
         for marker in markers:
             self.assertNotIn(marker, child)
+
+    def install_cli(self, name: str, launcher: str) -> Path:
+        """Lay out an npm global install: bin/node beside a bin/codex symlink into lib/node_modules."""
+        prefix = self.workdir / name
+        script = prefix / "lib/node_modules/@openai/codex/bin/codex.js"
+        script.parent.mkdir(parents=True)
+        (prefix / "bin").mkdir()
+        for path, text in ((script, launcher), (prefix / "bin/node", FAKE_NODE)):
+            path.write_text(text)
+            path.chmod(0o755)
+        (prefix / "bin/codex").symlink_to("../lib/node_modules/@openai/codex/bin/codex.js")
+        return prefix / "bin/codex"
+
+    def use_codex_installs(self) -> tuple[Path, Path]:
+        """Order PATH like the desktop fallback: the old install and its Node come first."""
+        old = self.install_cli("v14", OLD_CODEX)
+        new = self.install_cli("v22", NEW_CODEX)
+        environment = patch.dict(os.environ, {
+            "PATH": os.pathsep.join((str(old.parent), str(new.parent), "/usr/bin", "/bin")),
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
+        os.environ.pop("CONSULT_CODEX_BIN", None)
+        return old, new
+
+    def test_codex_resolution_skips_cli_without_wrapper_options(self) -> None:
+        _old, new = self.use_codex_installs()
+        with redirect_stderr(io.StringIO()):
+            self.assertEqual(runner.resolve_binary("codex"), str(new))
+
+    def test_codex_resolution_reports_skipped_cli(self) -> None:
+        old, _new = self.use_codex_installs()
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            runner.resolve_binary("codex")
+        self.assertIn(str(old), stderr.getvalue())
+        self.assertIn("0.142.4", stderr.getvalue())
+
+    def test_codex_launch_runs_under_the_cli_install_node(self) -> None:
+        _old, new = self.use_codex_installs()
+        args = runner.parse_args("codex", ["question"])
+        try:
+            with redirect_stderr(io.StringIO()):
+                identifier, answer, _ = runner.run_provider(
+                    "codex", args, str(new), self.workdir, "prompt", None)
+        except runner.ConsultationError as exc:
+            self.fail(f"codex launch failed: {exc}")
+        self.assertEqual(identifier, TARGET_ID)
+        self.assertEqual(answer, f"answer from {new.parent}\n")
+
+    def test_incompatible_codex_keeps_active_mapping(self) -> None:
+        _old, new = self.use_codex_installs()
+        new.unlink()
+        self.save_active()
+        with redirect_stderr(io.StringIO()), self.assertRaises(runner.ConsultationError) as caught:
+            self.call_codex("question")
+        self.assertEqual(caught.exception.code, 127)
+        self.assertIn("0.142.4", str(caught.exception))
+        self.assertEqual(self.saved_state()["status"], "ACTIVE")
+        self.assertEqual(self.saved_state()["target_id"], TARGET_ID)
+
+    def test_codex_override_is_checked_without_path_fallback(self) -> None:
+        old, _new = self.use_codex_installs()
+        with patch.dict(os.environ, {"CONSULT_CODEX_BIN": str(old)}), redirect_stderr(io.StringIO()):
+            with self.assertRaises(runner.ConsultationError) as caught:
+                runner.resolve_binary("codex")
+        self.assertIn("CONSULT_CODEX_BIN", str(caught.exception))
 
 
 if __name__ == "__main__":

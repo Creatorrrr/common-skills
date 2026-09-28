@@ -17,9 +17,12 @@ This skill is for Claude Code, Antigravity, and other **non-Codex** callers. If 
 | Approval | automatic review, on request | `--approve-for-me` and `-c approval_policy="on-request"` |
 | Sandbox | workspace-write via automatic review | `--approve-for-me` |
 | Working directory | caller's current directory | `-C <directory>` |
+| CLI binary | first `codex` on `PATH` that passes the capability check | `CONSULT_CODEX_BIN=<path>` |
 | Spend and token caps | none | no cap flags |
 
 Keep the user's explicit model, effort, speed, and path choices. Fast mode is opt-in through `--fast`; `--standard` selects the default service tier. If this account rejects `gpt-6-sol`, report the error and let the user choose a supported model. Do not silently downgrade it or change effort because a run is slow.
+
+Before any state changes, the wrapper checks each `codex` on `PATH` in order and uses the first that accepts the root `--approve-for-me` option and `exec resume`. It names skipped installs and the CLI it uses on stderr. `CONSULT_CODEX_BIN` pins one CLI and gets the same check without falling back to `PATH`. When an npm install's `bin` directory also holds `node`, that directory goes first on the child `PATH`, so the `#!/usr/bin/env node` launcher runs under its own Node. If no CLI qualifies, report the listed candidates to the user rather than editing their `PATH` or settings.
 
 ## Conversation continuity
 
