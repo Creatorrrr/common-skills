@@ -481,8 +481,8 @@ def build_next_steps(
     if automation_handoff:
         handoff_steps = textwrap.dedent(
             f"""
-            1. Honor a user-requested browser surface. Otherwise use the Chrome control skill when available, then Computer Use only when Chrome control is unavailable.
-            2. Read the selected browser-control skill completely and follow its runtime, documentation, authentication, and confirmation rules.
+            1. Use Computer Use by default for this authorized automated handoff. Honor a user-selected browser or app within Computer Use when available.
+            2. Read the Computer Use tool instructions and follow its runtime, authentication, and confirmation rules. If Computer Use is unavailable, report the limitation without switching tools or handoff mode.
             3. Open a new ChatGPT conversation; do not reuse an unrelated active tab or conversation.
             4. Select `Pro` in the model picker unless the user explicitly requested another model. Do not require a separate reasoning-level selection.
             5. Attach `{attachment_path.name}` from `{attachment_path.parent}`, paste all of `{prompt_path.name}`, and submit.
@@ -606,7 +606,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--automation-handoff",
         action="store_true",
-        help="Create a run_id-named upload copy for an explicitly requested automated ChatGPT Web handoff. The calling agent chooses Chrome first when available, then Computer Use.",
+        help="Create a run_id-named upload copy for an explicitly requested automated ChatGPT Web handoff. The calling agent uses Computer Use by default.",
     )
     parser.add_argument(
         "--computer-use-handoff",
@@ -813,7 +813,7 @@ def prepare_handoff(args: argparse.Namespace, manifest: dict, manifest_path: Pat
         "attachment_source": "automation_accessible_copy" if automation_requested else "canonical_handoff_archive",
         "automation_handoff_requested": automation_requested,
         "automation_handoff_prepared": automation_requested,
-        "automation_surface_resolution_order": ["explicit_user_choice", "chrome", "computer_use", "manual_handoff"],
+        "automation_surface_resolution_order": ["explicit_user_choice", "computer_use"],
         "automation_surface_selected": None,
         "automation_handoff_flag_requested": args.automation_handoff,
         "computer_use_handoff_requested": args.computer_use_handoff,
@@ -838,8 +838,6 @@ def prepare_handoff(args: argparse.Namespace, manifest: dict, manifest_path: Pat
         "browser_automation_performed_by_helper": False,
         "legacy_computer_use_handoff_alias_used": args.computer_use_handoff,
         "browser_automation_requires_explicit_user_request": True,
-        "chrome_control_preferred_when_available": True,
-        "computer_use_is_automation_fallback": True,
         "no_automatic_mode_fallback": True,
     }
     save_json(request_meta_path, request_meta)

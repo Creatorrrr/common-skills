@@ -35,7 +35,7 @@ python "$SKILL_DIR/scripts/run_chatgpt_web_assisted.py" \
 
 For an explicitly authorized automated handoff, include `--automation-handoff` in **both** authorizer and packager commands. The packager then requires matching approval before creating an accessible upload copy. The optional `--accessible-copy-dir` sets that local destination. Otherwise it uses an available Downloads/Desktop/home location; that copy contains source and is not automatically removed. Review its destination and delete it when no longer needed. `--computer-use-handoff` remains a legacy alias, not permission to bypass browser confirmation rules.
 
-Use actual available browser tools. Honor the user's selected surface; otherwise load Chrome control when available, then Computer Use only when Chrome is unavailable. Follow that skill's authentication, privacy and confirmation requirements. Do not silently substitute manual work if authorized automation cannot be performed; report the actual limitation.
+Use Computer Use by default for an authorized automated handoff. Honor a user-selected browser or app within Computer Use when available. Follow the tool's runtime, authentication, privacy and confirmation requirements. If Computer Use is unavailable, report the limitation; do not silently switch tools or substitute manual work.
 
 Immediately before attachment, compare the attachment SHA, run ID, goal and selected scope with `request_meta.json` and the approval binding. Upload into a new relevant conversation, not an unrelated active tab. Select the requested available model in the actual UI; if unavailable, do not pretend it is selected or substitute another model without approval.
 

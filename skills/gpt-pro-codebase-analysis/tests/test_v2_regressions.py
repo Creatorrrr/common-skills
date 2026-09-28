@@ -605,6 +605,38 @@ class WebTests(Fixture):
             web.execute(args)
         self.assertFalse((self.base / 'web/handoff').exists())
 
+    def test_automated_handoff_records_computer_use_as_default_tool(self):
+        _, manifest, path = self.prepare()
+        selection = integrity.resolve_selection(manifest, 'auto')
+        approval_path = self.base / 'web-approval.json'
+        integrity.write_json(approval_path, {
+            'schema_version': 1,
+            'approved': True,
+            'selection_reviewed': True,
+            'transport': 'chatgpt_web_assisted',
+            'binding': integrity.binding(manifest, selection),
+            'execution_options': web.web_options(True),
+        })
+        args = web.build_parser().parse_args([
+            '--manifest', str(path), '--out-dir', str(self.base / 'web'),
+            '--accessible-copy-dir', str(self.base / 'uploads'),
+            '--automation-handoff', '--approval', str(approval_path),
+        ])
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(web.execute(args), 0)
+
+        request_meta = json.loads((self.base / 'web/request_meta.json').read_text())
+        next_steps = (self.base / 'web/handoff/next-steps.md').read_text()
+        self.assertEqual(request_meta['automation_surface_resolution_order'],
+                         ['explicit_user_choice', 'computer_use'])
+        self.assertTrue(request_meta['automation_handoff_prepared'])
+        self.assertNotIn('chrome_control_preferred_when_available', request_meta)
+        self.assertNotIn('computer_use_is_automation_fallback', request_meta)
+        self.assertTrue(Path(request_meta['accessible_upload_copy_path']).is_file())
+        self.assertIn('Use Computer Use by default for this authorized automated handoff', next_steps)
+        self.assertNotIn('Chrome', next_steps)
+
     def test_full_contract_reaches_api_and_web(self):
         value = {'objective': '검증 목표', 'scope': [], 'non_goals': ['스타일 변경 제외'],
                  'constraints': ['코드 수정 금지'], 'output_language': '한국어',

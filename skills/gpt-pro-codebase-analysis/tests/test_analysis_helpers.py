@@ -138,7 +138,7 @@ class PromptContractTests(unittest.TestCase):
             self.assertIn("1. Verdict", prompt)
             self.assertNotIn("Do not reveal chain-of-thought", prompt)
 
-    def test_chatgpt_handoff_automation_is_explicit_and_chrome_first(self) -> None:
+    def test_chatgpt_handoff_automation_is_explicit_and_uses_computer_use(self) -> None:
         parser = run_chatgpt_web_assisted.build_parser()
 
         default_args = parser.parse_args(["--manifest", "manifest.json"])
@@ -149,9 +149,10 @@ class PromptContractTests(unittest.TestCase):
         self.assertTrue(run_chatgpt_web_assisted.automation_handoff_requested(automation_args))
         self.assertTrue(run_chatgpt_web_assisted.automation_handoff_requested(legacy_args))
         normalized_help = " ".join(parser.format_help().split())
-        self.assertIn("chooses Chrome first when available, then Computer Use", normalized_help)
+        self.assertIn("calling agent uses Computer Use by default", normalized_help)
+        self.assertNotIn("Chrome", normalized_help)
 
-    def test_automated_next_steps_prefer_chrome_then_computer_use(self) -> None:
+    def test_automated_next_steps_use_computer_use(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             archive = root / "upload-source.zip"
@@ -197,8 +198,9 @@ class PromptContractTests(unittest.TestCase):
                 accessible_upload_copy_path=accessible_copy,
             )
 
-            self.assertIn("use the Chrome control skill when available", next_steps)
-            self.assertIn("then Computer Use only when Chrome control is unavailable", next_steps)
+            self.assertIn("Use Computer Use by default for this authorized automated handoff", next_steps)
+            self.assertIn("If Computer Use is unavailable, report the limitation", next_steps)
+            self.assertNotIn("Chrome", next_steps)
             self.assertIn("Select `Pro` in the model picker", next_steps)
             self.assertNotIn("Extended", next_steps)
             self.assertNotIn("Open ChatGPT manually", next_steps)
