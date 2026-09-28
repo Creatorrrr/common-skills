@@ -14,7 +14,7 @@ The source is this directory in the common-skills checkout. The launcher at [scr
 | Setting | Default |
 | --- | --- |
 | Model | `opus` |
-| Effort | `max` |
+| Effort | `xhigh` |
 | Permission mode | `auto` |
 | Output | complete answer on stdout, text by default |
 | Working directory | caller's current directory |
@@ -74,4 +74,4 @@ The wrapper creates a UUID on a fresh call, resumes by exact ID on later calls, 
 
 If host sandboxing hides Claude's normal login or session files, use the host's authorized normal-local execution path. For authentication diagnosis, run `--auth-smoke` from its neutral temporary directory before sending repository context. Keep Claude's permission mode at `auto` unless the user specified another supported mode.
 
-`opus` at `max` may take a long time. Do not impose a short shell timeout, kill a slow call, or start a duplicate consultation. If the CLI exits with an auth, quota, or session error, report the error rather than silently changing model or conversation.
+`opus` at `xhigh` may take a long time. Do not impose a short shell timeout, kill a slow call, or start a duplicate consultation. If the CLI exits with an auth, quota, or session error, report the error rather than silently changing model or conversation.

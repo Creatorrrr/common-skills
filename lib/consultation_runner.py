@@ -485,7 +485,7 @@ def run_provider(provider: str, args: argparse.Namespace, binary: str, cwd: Path
         output_path = temporary_path / "stdout"
         if provider == "claude":
             model = args.model or os.environ.get("CONSULT_CLAUDE_MODEL") or os.environ.get("CLAUDE_MODEL") or "opus"
-            effort = args.effort or os.environ.get("CONSULT_CLAUDE_EFFORT") or "max"
+            effort = args.effort or os.environ.get("CONSULT_CLAUDE_EFFORT") or "xhigh"
             permission = args.permission_mode or os.environ.get("CONSULT_CLAUDE_PERMISSION_MODE") or "auto"
             if permission == "plan":
                 warn("Claude plan permission mode is not used for consultations; using auto.")
