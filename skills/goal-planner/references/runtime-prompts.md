@@ -72,9 +72,9 @@ Use the same contract. Add a compact requirement to show outcome changes and dir
 
 Do not ask which provider is in use merely to produce a readable plan. Avoid host-specific commands and unsupported tool claims. If the user needs an exact launcher or API integration, establish that capability separately; model IDs, reasoning settings, and API key handling belong to the caller, not this plan.
 
-## GPT-6 Astra (conditional)
+## Astra host guidance (conditional)
 
-For an explicitly selected Astra host or API migration, read [gpt-6-astra.md](gpt-6-astra.md). The shared Core already carries intent handling, proportionate verification, readable messages, and requirement updates. Do not append a duplicate “Astra policy” to every goal. The optional reference documents API compatibility; this prompt compiler cannot enable async execution, steer a WebSocket, or configure effort.
+For `gpt-6-astra` host compatibility or API migration, read [GPT-6 Astra](gpt-6-astra.md). For requested `gpt-6.2-astra` API configuration or migration, read [GPT-6.2 Astra API](gpt-6.2-astra.md). Apply the shared Core in the handoff and use the selected reference when reviewing the host integration.
 
 ## Long-goal launch prompt
 
